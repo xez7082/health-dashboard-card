@@ -63,8 +63,8 @@ class HealthDashboardCard extends HTMLElement {
     const sensors = person.sensors || [];
 
     const image = person.gender === 'female'
-      ? '/local/health-dashboard/female-glass.png'
-      : '/local/health-dashboard/male-glass.png';
+      ? '/local/health-dashboard/femme.png'
+      : '/local/health-dashboard/homme.png';
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -111,6 +111,7 @@ class HealthDashboardCard extends HTMLElement {
           grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
           gap: 12px;
           padding: 20px;
+          overflow-y: auto;
         }
 
         .card {
@@ -164,59 +165,82 @@ class HealthDashboardCardEditor extends HTMLElement {
     return Object.keys(this._hass.states).filter(e => e.startsWith('sensor.'));
   }
 
+  renderSensors(list, prefix) {
+    const entities = this.getEntities();
+
+    return `
+      <div id="${prefix}-sensors">
+        ${(list || []).map((s, i) => `
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <select data-index="${i}" data-prefix="${prefix}" class="sensor-select">
+              ${entities.map(e => `<option value="${e}" ${e === s.entity ? 'selected' : ''}>${e}</option>`).join('')}
+            </select>
+            <button data-remove="${i}" data-prefix="${prefix}">✕</button>
+          </div>
+        `).join('')}
+      </div>
+      <button data-add="${prefix}">+ Ajouter capteur</button>
+    `;
+  }
+
   render() {
     if (!this._config) return;
-
-    const sensors = this.getEntities();
 
     this.innerHTML = `
       <style>
         .wrap { padding: 16px; }
-        select, input { width: 100%; margin-bottom: 10px; padding: 6px; }
+        select, input { width: 100%; padding: 6px; }
+        button { cursor: pointer; }
       </style>
 
       <div class="wrap">
         <h3>Personne 1</h3>
         <input id="p1name" value="${this._config.person1.name || ''}">
         <select id="p1gender">
-          <option value="male">Homme</option>
-          <option value="female">Femme</option>
+          <option value="male" ${this._config.person1.gender === 'male' ? 'selected' : ''}>Homme</option>
+          <option value="female" ${this._config.person1.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
-
-        <h4>Capteur principal</h4>
-        <select id="p1sensor">
-          ${sensors.map(e => `<option value="${e}">${e}</option>`).join('')}
-        </select>
+        ${this.renderSensors(this._config.person1.sensors, 'p1')}
 
         <h3>Personne 2</h3>
         <input id="p2name" value="${this._config.person2.name || ''}">
         <select id="p2gender">
-          <option value="male">Homme</option>
-          <option value="female">Femme</option>
+          <option value="male" ${this._config.person2.gender === 'male' ? 'selected' : ''}>Homme</option>
+          <option value="female" ${this._config.person2.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
-
-        <h4>Capteur principal</h4>
-        <select id="p2sensor">
-          ${sensors.map(e => `<option value="${e}">${e}</option>`).join('')}
-        </select>
+        ${this.renderSensors(this._config.person2.sensors, 'p2')}
       </div>
     `;
 
     this.querySelectorAll('input,select').forEach(el => el.onchange = () => this.save());
+
+    this.querySelectorAll('[data-add]').forEach(btn => {
+      btn.onclick = () => {
+        const key = btn.dataset.add === 'p1' ? 'person1' : 'person2';
+        this._config[key].sensors.push({ entity: this.getEntities()[0] });
+        this.render();
+      };
+    });
+
+    this.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.onclick = () => {
+        const key = btn.dataset.prefix === 'p1' ? 'person1' : 'person2';
+        this._config[key].sensors.splice(btn.dataset.remove, 1);
+        this.render();
+      };
+    });
   }
 
   save() {
+    const collect = (prefix, base) => ({
+      name: this.querySelector(`#${prefix}name`).value,
+      gender: this.querySelector(`#${prefix}gender`).value,
+      sensors: [...this.querySelectorAll(`.sensor-select[data-prefix="${prefix}"]`)].map(s => ({ entity: s.value }))
+    });
+
     const config = {
-      person1: {
-        name: this.querySelector('#p1name').value,
-        gender: this.querySelector('#p1gender').value,
-        sensors: [{ entity: this.querySelector('#p1sensor').value }]
-      },
-      person2: {
-        name: this.querySelector('#p2name').value,
-        gender: this.querySelector('#p2gender').value,
-        sensors: [{ entity: this.querySelector('#p2sensor').value }]
-      }
+      person1: collect('p1'),
+      person2: collect('p2')
     };
 
     this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));
@@ -230,8 +254,8 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
   name: 'Health Dashboard Card',
-  description: 'Carte santé avec sélection graphique des capteurs',
+  description: 'Carte santé multi-capteurs avec éditeur visuel',
   preview: true,
 });
 
-console.info('%c HEALTH-DASHBOARD-CARD %c v2.0.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
+console.info('%c HEALTH-DASHBOARD-CARD %c v3.0.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
