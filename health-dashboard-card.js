@@ -2,14 +2,14 @@ class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this._config = {};
-    this._hass = {};
+    this._config = null;
+    this._hass = null;
     this.currentPerson = 'person1';
   }
 
   setConfig(config) {
     if (!config.person1 || !config.person2) {
-      throw new Error('Vous devez définir person1 et person2');
+      throw new Error('Vous devez définir person1 et person2 dans la configuration');
     }
     this._config = config;
     this.render();
@@ -25,7 +25,7 @@ class HealthDashboardCard extends HTMLElement {
   }
 
   updateSensorValues() {
-    if (!this._config) return;
+    if (!this._config || !this._hass) return;
     
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
     
@@ -36,7 +36,8 @@ class HealthDashboardCard extends HTMLElement {
         const valueElement = this.shadowRoot.querySelector(`#sensor-value-${index}`);
         
         if (valueElement && state) {
-          valueElement.textContent = `${state.state} ${state.attributes.unit_of_measurement || ''}`;
+          const unit = state.attributes.unit_of_measurement || '';
+          valueElement.textContent = `${state.state} ${unit}`.trim();
         }
       });
     }
@@ -51,10 +52,9 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
 
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
-    const personName = person.name;
+    const personName = person.name || 'Personne';
     const gender = person.gender || 'male';
     const bgImage = person.background_image || (gender === 'male' ? 'male-silhouette.png' : 'female-silhouette.png');
-
     const sensors = person.sensors || [];
 
     this.shadowRoot.innerHTML = `
@@ -207,12 +207,10 @@ class HealthDashboardCard extends HTMLElement {
 
       <ha-card>
         <div class="card-header">
-          <button class="person-button ${this.currentPerson === 'person1' ? 'active' : ''}" 
-                  @click="${() => this.togglePerson('person1')}">
+          <button class="person-button ${this.currentPerson === 'person1' ? 'active' : ''}" id="btn-person1">
             ${this._config.person1.name}
           </button>
-          <button class="person-button ${this.currentPerson === 'person2' ? 'active' : ''}" 
-                  @click="${() => this.togglePerson('person2')}">
+          <button class="person-button ${this.currentPerson === 'person2' ? 'active' : ''}" id="btn-person2">
             ${this._config.person2.name}
           </button>
         </div>
@@ -237,9 +235,9 @@ class HealthDashboardCard extends HTMLElement {
       </ha-card>
     `;
 
-    // Ajouter les event listeners
-    const person1Button = this.shadowRoot.querySelector('.person-button:first-child');
-    const person2Button = this.shadowRoot.querySelector('.person-button:last-child');
+    // Ajouter les event listeners après le rendu
+    const person1Button = this.shadowRoot.getElementById('btn-person1');
+    const person2Button = this.shadowRoot.getElementById('btn-person2');
     
     if (person1Button) {
       person1Button.addEventListener('click', () => this.togglePerson('person1'));
@@ -248,12 +246,15 @@ class HealthDashboardCard extends HTMLElement {
       person2Button.addEventListener('click', () => this.togglePerson('person2'));
     }
 
+    // Mettre à jour les valeurs des capteurs
     this.updateSensorValues();
   }
 }
 
+// Enregistrer l'élément personnalisé
 customElements.define('health-dashboard-card', HealthDashboardCard);
 
+// Ajouter à la liste des cartes personnalisées
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
@@ -261,3 +262,9 @@ window.customCards.push({
   description: 'Une carte personnalisée pour suivre la santé de deux personnes',
   preview: true,
 });
+
+console.info(
+  '%c HEALTH-DASHBOARD-CARD %c v1.0.0 ',
+  'color: white; background: #667eea; font-weight: bold;',
+  'color: #667eea; background: white; font-weight: bold;'
+);
