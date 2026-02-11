@@ -232,18 +232,19 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   save() {
-    const collect = (prefix, base) => ({
+    const collect = (prefix) => ({
       name: this.querySelector(`#${prefix}name`).value,
       gender: this.querySelector(`#${prefix}gender`).value,
       sensors: [...this.querySelectorAll(`.sensor-select[data-prefix="${prefix}"]`)].map(s => ({ entity: s.value }))
     });
 
     const config = {
+      type: 'custom:health-dashboard-card',
       person1: collect('p1'),
       person2: collect('p2')
     };
 
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));(new CustomEvent('config-changed', { detail: { config } }));
   }
 }
 
