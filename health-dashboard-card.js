@@ -13,8 +13,8 @@ class HealthDashboardCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      person1: { name: 'Personne 1', sensors: [] },
-      person2: { name: 'Personne 2', sensors: [] },
+      person1: { name: 'Personne 1', gender: 'male', sensors: [] },
+      person2: { name: 'Personne 2', gender: 'female', sensors: [] },
     };
   }
 
@@ -40,18 +40,15 @@ class HealthDashboardCard extends HTMLElement {
 
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
 
-    if (person.sensors) {
-      person.sensors.forEach((sensor, index) => {
-        const entityId = sensor.entity;
-        const state = this._hass.states[entityId];
-        const valueElement = this.shadowRoot.querySelector(`#sensor-value-${index}`);
+    person.sensors?.forEach((sensor, index) => {
+      const state = this._hass.states[sensor.entity];
+      const el = this.shadowRoot.querySelector(`#sensor-value-${index}`);
 
-        if (valueElement && state) {
-          const unit = state.attributes.unit_of_measurement || '';
-          valueElement.textContent = `${state.state} ${unit}`.trim();
-        }
-      });
-    }
+      if (el && state) {
+        const unit = state.attributes.unit_of_measurement || '';
+        el.textContent = `${state.state} ${unit}`.trim();
+      }
+    });
   }
 
   togglePerson(person) {
@@ -63,10 +60,11 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
 
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
-    const personName = person.name || 'Personne';
-    const gender = person.gender || 'male';
-    const bgImage = person.background_image || (gender === 'male' ? 'male-silhouette.png' : 'female-silhouette.png');
     const sensors = person.sensors || [];
+
+    const image = person.gender === 'female'
+      ? '/local/health-dashboard/female-glass.png'
+      : '/local/health-dashboard/male-glass.png';
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -76,113 +74,69 @@ class HealthDashboardCard extends HTMLElement {
           position: relative;
           overflow: hidden;
           height: 600px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #667eea, #764ba2);
         }
 
-        .card-header {
+        .header {
           position: absolute;
           top: 16px;
           right: 16px;
           display: flex;
-          gap: 12px;
-          z-index: 10;
+          gap: 8px;
         }
 
-        .person-button {
-          padding: 12px 24px;
+        button {
           border: none;
-          border-radius: 25px;
-          background: rgba(255, 255, 255, 0.9);
-          color: #333;
-          font-weight: bold;
-          font-size: 14px;
+          padding: 10px 18px;
+          border-radius: 20px;
           cursor: pointer;
-          transition: all 0.3s ease;
         }
 
-        .person-button.active {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-        }
+        .active { background: white; }
 
-        .content-wrapper {
+        .layout {
           display: flex;
           height: 100%;
-          align-items: center;
-          padding: 20px;
         }
 
-        .silhouette-container {
+        .image {
           flex: 0 0 40%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
+          background: url('${image}') center/contain no-repeat;
+          opacity: 0.35;
         }
 
-        .silhouette {
-          width: 100%;
-          height: 100%;
-          background-size: contain;
-          background-repeat: no-repeat;
-          background-position: center;
-          opacity: 0.3;
-        }
-
-        .sensors-container {
+        .grid {
           flex: 1;
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px;
           padding: 20px;
-          overflow-y: auto;
         }
 
-        .sensor-card {
-          background: rgba(255, 255, 255, 0.95);
-          border-radius: 16px;
-          padding: 20px;
+        .card {
+          background: rgba(255,255,255,0.9);
+          border-radius: 14px;
+          padding: 16px;
           text-align: center;
         }
 
-        .sensor-value {
-          font-size: 24px;
-          font-weight: bold;
-        }
-
-        .person-name {
-          position: absolute;
-          top: 80px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 32px;
-          font-weight: bold;
-          color: rgba(255, 255, 255, 0.9);
-        }
+        .value { font-size: 22px; font-weight: bold; }
       </style>
 
       <ha-card>
-        <div class="card-header">
-          <button class="person-button ${this.currentPerson === 'person1' ? 'active' : ''}" id="btn-person1">
-            ${this._config.person1.name}
-          </button>
-          <button class="person-button ${this.currentPerson === 'person2' ? 'active' : ''}" id="btn-person2">
-            ${this._config.person2.name}
-          </button>
+        <div class="header">
+          <button id="p1" class="${this.currentPerson === 'person1' ? 'active' : ''}">${this._config.person1.name}</button>
+          <button id="p2" class="${this.currentPerson === 'person2' ? 'active' : ''}">${this._config.person2.name}</button>
         </div>
 
-        <div class="person-name">${personName}</div>
+        <div class="layout">
+          <div class="image"></div>
 
-        <div class="content-wrapper">
-          <div class="silhouette-container">
-            <div class="silhouette" style="background-image: url('/local/health-dashboard/${bgImage}');"></div>
-          </div>
-
-          <div class="sensors-container">
-            ${sensors.map((sensor, index) => `
-              <div class="sensor-card">
-                <div>${sensor.name || 'Sensor'}</div>
-                <div class="sensor-value" id="sensor-value-${index}">--</div>
+          <div class="grid">
+            ${sensors.map((s, i) => `
+              <div class="card">
+                <div>${s.name || s.entity}</div>
+                <div id="sensor-value-${i}" class="value">--</div>
               </div>
             `).join('')}
           </div>
@@ -190,56 +144,82 @@ class HealthDashboardCard extends HTMLElement {
       </ha-card>
     `;
 
-    this.shadowRoot.getElementById('btn-person1')?.addEventListener('click', () => this.togglePerson('person1'));
-    this.shadowRoot.getElementById('btn-person2')?.addEventListener('click', () => this.togglePerson('person2'));
+    this.shadowRoot.getElementById('p1').onclick = () => this.togglePerson('person1');
+    this.shadowRoot.getElementById('p2').onclick = () => this.togglePerson('person2');
 
     this.updateSensorValues();
   }
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
+  set hass(hass) { this._hass = hass; }
+
   setConfig(config) {
     this._config = config;
     this.render();
   }
 
+  getEntities() {
+    if (!this._hass) return [];
+    return Object.keys(this._hass.states).filter(e => e.startsWith('sensor.'));
+  }
+
   render() {
     if (!this._config) return;
 
+    const sensors = this.getEntities();
+
     this.innerHTML = `
       <style>
-        .editor { padding: 16px; }
-        .field { margin-bottom: 12px; }
-        label { display: block; font-weight: bold; margin-bottom: 4px; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        .wrap { padding: 16px; }
+        select, input { width: 100%; margin-bottom: 10px; padding: 6px; }
       </style>
 
-      <div class="editor">
-        <div class="field">
-          <label>Nom Personne 1</label>
-          <input id="p1name" value="${this._config.person1?.name || ''}">
-        </div>
+      <div class="wrap">
+        <h3>Personne 1</h3>
+        <input id="p1name" value="${this._config.person1.name || ''}">
+        <select id="p1gender">
+          <option value="male">Homme</option>
+          <option value="female">Femme</option>
+        </select>
 
-        <div class="field">
-          <label>Nom Personne 2</label>
-          <input id="p2name" value="${this._config.person2?.name || ''}">
-        </div>
+        <h4>Capteur principal</h4>
+        <select id="p1sensor">
+          ${sensors.map(e => `<option value="${e}">${e}</option>`).join('')}
+        </select>
+
+        <h3>Personne 2</h3>
+        <input id="p2name" value="${this._config.person2.name || ''}">
+        <select id="p2gender">
+          <option value="male">Homme</option>
+          <option value="female">Femme</option>
+        </select>
+
+        <h4>Capteur principal</h4>
+        <select id="p2sensor">
+          ${sensors.map(e => `<option value="${e}">${e}</option>`).join('')}
+        </select>
       </div>
     `;
 
-    this.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('change', () => this._valueChanged());
-    });
+    this.querySelectorAll('input,select').forEach(el => el.onchange = () => this.save());
   }
 
-  _valueChanged() {
-    const newConfig = {
-      ...this._config,
-      person1: { ...this._config.person1, name: this.querySelector('#p1name').value },
-      person2: { ...this._config.person2, name: this.querySelector('#p2name').value },
+  save() {
+    const config = {
+      person1: {
+        name: this.querySelector('#p1name').value,
+        gender: this.querySelector('#p1gender').value,
+        sensors: [{ entity: this.querySelector('#p1sensor').value }]
+      },
+      person2: {
+        name: this.querySelector('#p2name').value,
+        gender: this.querySelector('#p2gender').value,
+        sensors: [{ entity: this.querySelector('#p2sensor').value }]
+      }
     };
 
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: newConfig } }));
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));
   }
 }
 
@@ -250,8 +230,8 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
   name: 'Health Dashboard Card',
-  description: 'Carte santé avec éditeur visuel',
+  description: 'Carte santé avec sélection graphique des capteurs',
   preview: true,
 });
 
-console.info('%c HEALTH-DASHBOARD-CARD %c v1.1.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
+console.info('%c HEALTH-DASHBOARD-CARD %c v2.0.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
