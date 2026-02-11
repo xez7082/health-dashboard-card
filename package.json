@@ -1,0 +1,32 @@
+{
+  "name": "health-dashboard-card",
+  "version": "1.0.0",
+  "description": "Une carte personnalisée élégante pour Home Assistant permettant de suivre la santé de deux personnes",
+  "main": "health-dashboard-card.js",
+  "scripts": {
+    "test": "echo \"Aucun test configuré pour le moment\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/votre-username/health-dashboard-card.git"
+  },
+  "keywords": [
+    "home-assistant",
+    "homeassistant",
+    "lovelace",
+    "custom-card",
+    "health",
+    "santé",
+    "dashboard",
+    "health-tracking",
+    "fitness",
+    "wellness",
+    "metrics"
+  ],
+  "author": "Votre Nom",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/votre-username/health-dashboard-card/issues"
+  },
+  "homepage": "https://github.com/votre-username/health-dashboard-card#readme"
+}
