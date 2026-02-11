@@ -5,6 +5,7 @@ class HealthDashboardCard extends HTMLElement {
     this._config = null;
     this._hass = null;
     this.currentPerson = 'person1';
+    this.sensorElements = [];
   }
 
   static getConfigElement() {
@@ -42,8 +43,7 @@ class HealthDashboardCard extends HTMLElement {
 
     person.sensors?.forEach((sensor, index) => {
       const state = this._hass.states[sensor.entity];
-      const el = this.shadowRoot.querySelector(`#sensor-value-${index}`);
-
+      const el = this.sensorElements[index];
       if (el && state) {
         const unit = state.attributes.unit_of_measurement || '';
         el.textContent = `${state.state} ${unit}`.trim();
@@ -52,8 +52,42 @@ class HealthDashboardCard extends HTMLElement {
   }
 
   togglePerson(person) {
+    if (this.currentPerson === person) return;
     this.currentPerson = person;
-    this.render();
+
+    // Mettre à jour les boutons
+    this.shadowRoot.getElementById('p1').classList.toggle('active', person === 'person1');
+    this.shadowRoot.getElementById('p2').classList.toggle('active', person === 'person2');
+
+    // Mettre à jour l'image de fond avec transition
+    const imgDiv = this.shadowRoot.querySelector('.image');
+    const newImage = person === 'person1'
+      ? (this._config.person1.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png')
+      : (this._config.person2.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png');
+    imgDiv.style.backgroundImage = `url('${newImage}')`;
+
+    // Mettre à jour les capteurs
+    const sensors = person === 'person1' ? this._config.person1.sensors : this._config.person2.sensors;
+
+    // Recréer les cartes si nombre de capteurs différent
+    if (sensors.length !== this.sensorElements.length) {
+      this.renderGrid();
+    }
+
+    this.updateSensorValues();
+  }
+
+  renderGrid() {
+    const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
+    const sensors = person.sensors || [];
+    const grid = this.shadowRoot.querySelector('.grid');
+    grid.innerHTML = sensors.map((s, i) => `
+      <div class="card">
+        <div>${s.name || s.entity}</div>
+        <div id="sensor-value-${i}" class="value">--</div>
+      </div>
+    `).join('');
+    this.sensorElements = sensors.map((_, i) => this.shadowRoot.querySelector(`#sensor-value-${i}`));
   }
 
   render() {
@@ -61,7 +95,6 @@ class HealthDashboardCard extends HTMLElement {
 
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
     const sensors = person.sensors || [];
-
     const image = person.gender === 'female'
       ? '/local/health-dashboard/femme.png'
       : '/local/health-dashboard/homme.png';
@@ -69,14 +102,13 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-
         ha-card {
           position: relative;
           overflow: hidden;
           height: 600px;
           background: linear-gradient(135deg, #667eea, #764ba2);
+          transition: background 0.5s ease;
         }
-
         .header {
           position: absolute;
           top: 16px;
@@ -84,27 +116,23 @@ class HealthDashboardCard extends HTMLElement {
           display: flex;
           gap: 8px;
         }
-
         button {
           border: none;
           padding: 10px 18px;
           border-radius: 20px;
           cursor: pointer;
         }
-
         .active { background: white; }
-
         .layout {
           display: flex;
           height: 100%;
         }
-
         .image {
           flex: 0 0 40%;
           background: url('${image}') center/contain no-repeat;
           opacity: 0.35;
+          transition: background-image 0.5s ease;
         }
-
         .grid {
           flex: 1;
           display: grid;
@@ -113,14 +141,12 @@ class HealthDashboardCard extends HTMLElement {
           padding: 20px;
           overflow-y: auto;
         }
-
         .card {
           background: rgba(255,255,255,0.9);
           border-radius: 14px;
           padding: 16px;
           text-align: center;
         }
-
         .value { font-size: 22px; font-weight: bold; }
       </style>
 
@@ -129,10 +155,8 @@ class HealthDashboardCard extends HTMLElement {
           <button id="p1" class="${this.currentPerson === 'person1' ? 'active' : ''}">${this._config.person1.name}</button>
           <button id="p2" class="${this.currentPerson === 'person2' ? 'active' : ''}">${this._config.person2.name}</button>
         </div>
-
         <div class="layout">
           <div class="image"></div>
-
           <div class="grid">
             ${sensors.map((s, i) => `
               <div class="card">
@@ -147,6 +171,8 @@ class HealthDashboardCard extends HTMLElement {
 
     this.shadowRoot.getElementById('p1').onclick = () => this.togglePerson('person1');
     this.shadowRoot.getElementById('p2').onclick = () => this.togglePerson('person2');
+
+    this.sensorElements = sensors.map((_, i) => this.shadowRoot.querySelector(`#sensor-value-${i}`));
 
     this.updateSensorValues();
   }
@@ -167,7 +193,6 @@ class HealthDashboardCardEditor extends HTMLElement {
 
   renderSensors(list, prefix) {
     const entities = this.getEntities();
-
     return `
       <div id="${prefix}-sensors">
         ${(list || []).map((s, i) => `
@@ -192,7 +217,6 @@ class HealthDashboardCardEditor extends HTMLElement {
         select, input { width: 100%; padding: 6px; }
         button { cursor: pointer; }
       </style>
-
       <div class="wrap">
         <h3>Personne 1</h3>
         <input id="p1name" value="${this._config.person1.name || ''}">
@@ -244,7 +268,7 @@ class HealthDashboardCardEditor extends HTMLElement {
       person2: collect('p2')
     };
 
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));(new CustomEvent('config-changed', { detail: { config } }));
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));
   }
 }
 
@@ -259,4 +283,4 @@ window.customCards.push({
   preview: true,
 });
 
-console.info('%c HEALTH-DASHBOARD-CARD %c v3.0.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
+console.info('%c HEALTH-DASHBOARD-CARD %c v3.1.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
