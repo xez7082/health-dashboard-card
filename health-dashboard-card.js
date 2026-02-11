@@ -30,9 +30,7 @@ class HealthDashboardCard extends HTMLElement {
     this.updateSensorValues();
   }
 
-  getCardSize() {
-    return 6;
-  }
+  getCardSize() { return 6; }
 
   updateSensorValues() {
     if (!this._config || !this._hass) return;
@@ -82,9 +80,8 @@ class HealthDashboardCard extends HTMLElement {
       div.setAttribute('draggable', true);
       div.dataset.index = i;
       div.innerHTML = `<div>${s.name || s.entity}</div><div id="sensor-value-${i}" class="value">--</div>`;
-      div.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/plain', i);
-      });
+      // Drag & Drop
+      div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', i));
       div.addEventListener('dragover', e => e.preventDefault());
       div.addEventListener('drop', e => {
         e.preventDefault();
@@ -101,7 +98,6 @@ class HealthDashboardCard extends HTMLElement {
 
   render() {
     if (!this._config) return;
-
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
     const bgImage = person.background || (person.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png');
 
@@ -144,4 +140,124 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
+/* ===================== ÉDITEUR ===================== */
+
+class HealthDashboardCardEditor extends HTMLElement {
+  set hass(hass) { this._hass = hass; }
+  setConfig(config) { this._config = config; this.render(); }
+
+  getEntities(filter='') {
+    if (!this._hass) return [];
+    return Object.keys(this._hass.states)
+      .filter(e => e.startsWith('sensor.') && e.toLowerCase().includes(filter.toLowerCase()));
+  }
+
+  renderSensors(list, prefix, filter='') {
+    const entities = this.getEntities(filter);
+    return `
+      <div id="${prefix}-sensors">
+        ${(list || []).map((s,i)=>`
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <input type="text" placeholder="Nom capteur" data-name-index="${i}" data-prefix="${prefix}" value="${s.name||''}">
+            <select data-index="${i}" data-prefix="${prefix}" class="sensor-select">
+              ${entities.map(e=>`<option value="${e}" ${e===s.entity?'selected':''}>${e}</option>`).join('')}
+            </select>
+            <button data-remove="${i}" data-prefix="${prefix}">✕</button>
+          </div>
+        `).join('')}
+      </div>
+      <button data-add="${prefix}">+ Ajouter capteur</button>
+    `;
+  }
+
+  render() {
+    if (!this._config) return;
+
+    this.innerHTML = `
+      <style>
+        .wrap{padding:16px;}
+        select,input{width:100%;padding:6px;margin-bottom:6px;}
+        button{cursor:pointer;}
+      </style>
+      <div class="wrap">
+        ${['p1','p2'].map(prefix=>{
+          const p = prefix==='p1'?this._config.person1:this._config.person2;
+          return `
+          <h3>${prefix==='p1'?'Personne 1':'Personne 2'}</h3>
+          <input id="${prefix}name" value="${p.name||''}" placeholder="Nom">
+          <select id="${prefix}gender">
+            <option value="male" ${p.gender==='male'?'selected':''}>Homme</option>
+            <option value="female" ${p.gender==='female'?'selected':''}>Femme</option>
+          </select>
+          <input id="${prefix}bg" value="${p.background||''}" placeholder="URL image de fond">
+          <input type="text" id="${prefix}search" placeholder="Rechercher capteur">
+          <div id="${prefix}-sensors-wrapper">${this.renderSensors(p.sensors,prefix)}</div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    ['p1','p2'].forEach(prefix=>{
+      const wrapper = this.querySelector(`#${prefix}-sensors-wrapper`);
+      const searchInput = this.querySelector(`#${prefix}search`);
+      const renderList = () => {
+        wrapper.innerHTML = this.renderSensors(this._config[prefix==='p1'?'person1':'person2'].sensors,prefix,searchInput.value);
+        this.attachSensorEvents(wrapper,prefix);
+      };
+      searchInput.oninput = renderList;
+      renderList();
+    });
+
+    this.querySelectorAll('#p1name,#p2name,#p1bg,#p2bg,#p1gender,#p2gender').forEach(el=>el.onchange=()=>this.save());
+  }
+
+  attachSensorEvents(wrapper,prefix){
+    wrapper.querySelectorAll('[data-add]').forEach(btn=>{
+      btn.onclick=()=>{
+        const key=prefix==='p1'?'person1':'person2';
+        this._config[key].sensors.push({entity:this.getEntities()[0],name:''});
+        this.render();
+      };
+    });
+    wrapper.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.onclick=()=>{
+        const key=prefix==='p1'?'person1':'person2';
+        this._config[key].sensors.splice(btn.dataset.remove,1);
+        this.render();
+      };
+    });
+    wrapper.querySelectorAll('[data-name-index]').forEach(input=>input.onchange=()=>this.save());
+    wrapper.querySelectorAll('.sensor-select').forEach(sel=>sel.onchange=()=>this.save());
+  }
+
+  save(){
+    const collect = prefix=>{
+      const key=prefix==='p1'?'person1':'person2';
+      const sensors=[...this.querySelectorAll(`#${prefix}-sensors-wrapper .sensor-select`)].map((sel,i)=>({
+        entity:sel.value,
+        name:this.querySelector(`#${prefix}-sensors-wrapper [data-name-index="${i}"]`).value
+      }));
+      return {
+        name:this.querySelector(`#${prefix}name`).value,
+        gender:this.querySelector(`#${prefix}gender`).value,
+        background:this.querySelector(`#${prefix}bg`).value,
+        sensors
+      };
+    };
+    const config={type:'custom:health-dashboard-card',person1:collect('p1'),person2:collect('p2')};
+    this.dispatchEvent(new CustomEvent('config-changed',{detail:{config}}));
+  }
+}
+
 customElements.define('health-dashboard-card', HealthDashboardCard);
+customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
+
+window.customCards = window.customCards||[];
+window.customCards.push({
+  type:'health-dashboard-card',
+  name:'Health Dashboard Card',
+  description:'Carte santé multi-capteurs avec éditeur et drag&drop',
+  preview:true,
+});
+
+console.info('%c HEALTH-DASHBOARD-CARD %c v3.4.0 ','color:white;background:#667eea;font-weight:bold;','color:#667eea;background:white;font-weight:bold;');
