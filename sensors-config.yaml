@@ -1,0 +1,383 @@
+# Configuration des capteurs de santé pour Home Assistant
+# Ajoutez cette configuration à votre fichier configuration.yaml
+
+# ============================================
+# CAPTEURS DE SANTÉ - JEAN
+# ============================================
+
+sensor:
+  - platform: template
+    sensors:
+      # Poids
+      jean_poids:
+        friendly_name: "Poids Jean"
+        unit_of_measurement: "kg"
+        value_template: "{{ states('input_number.jean_poids') }}"
+        icon_template: mdi:scale-bathroom
+      
+      # IMC (Indice de Masse Corporelle)
+      jean_imc:
+        friendly_name: "IMC Jean"
+        unit_of_measurement: "kg/m²"
+        value_template: >
+          {% set poids = states('input_number.jean_poids') | float %}
+          {% set taille = states('input_number.jean_taille') | float / 100 %}
+          {% if taille > 0 %}
+            {{ (poids / (taille * taille)) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon_template: mdi:chart-line
+      
+      # Taille
+      jean_taille:
+        friendly_name: "Taille Jean"
+        unit_of_measurement: "cm"
+        value_template: "{{ states('input_number.jean_taille') }}"
+        icon_template: mdi:human-male-height
+      
+      # Fréquence cardiaque
+      jean_frequence_cardiaque:
+        friendly_name: "Fréquence cardiaque Jean"
+        unit_of_measurement: "bpm"
+        value_template: "{{ states('input_number.jean_frequence_cardiaque') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Tension systolique
+      jean_tension_systolique:
+        friendly_name: "Tension Systolique Jean"
+        unit_of_measurement: "mmHg"
+        value_template: "{{ states('input_number.jean_tension_systolique') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Tension diastolique
+      jean_tension_diastolique:
+        friendly_name: "Tension Diastolique Jean"
+        unit_of_measurement: "mmHg"
+        value_template: "{{ states('input_number.jean_tension_diastolique') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Température corporelle
+      jean_temperature:
+        friendly_name: "Température Jean"
+        unit_of_measurement: "°C"
+        value_template: "{{ states('input_number.jean_temperature') }}"
+        icon_template: mdi:thermometer
+      
+      # Glycémie
+      jean_glycemie:
+        friendly_name: "Glycémie Jean"
+        unit_of_measurement: "mg/dL"
+        value_template: "{{ states('input_number.jean_glycemie') }}"
+        icon_template: mdi:water
+      
+      # Saturation en oxygène
+      jean_saturation_o2:
+        friendly_name: "Saturation O2 Jean"
+        unit_of_measurement: "%"
+        value_template: "{{ states('input_number.jean_saturation_o2') }}"
+        icon_template: mdi:lungs
+      
+      # Pas quotidiens
+      jean_pas_quotidiens:
+        friendly_name: "Pas quotidiens Jean"
+        unit_of_measurement: "pas"
+        value_template: "{{ states('input_number.jean_pas_quotidiens') }}"
+        icon_template: mdi:walk
+      
+      # Calories brûlées
+      jean_calories:
+        friendly_name: "Calories Jean"
+        unit_of_measurement: "kcal"
+        value_template: "{{ states('input_number.jean_calories') }}"
+        icon_template: mdi:fire
+      
+      # Heures de sommeil
+      jean_sommeil:
+        friendly_name: "Sommeil Jean"
+        unit_of_measurement: "h"
+        value_template: "{{ states('input_number.jean_sommeil') }}"
+        icon_template: mdi:sleep
+
+# ============================================
+# CAPTEURS DE SANTÉ - MARIE
+# ============================================
+
+  - platform: template
+    sensors:
+      # Poids
+      marie_poids:
+        friendly_name: "Poids Marie"
+        unit_of_measurement: "kg"
+        value_template: "{{ states('input_number.marie_poids') }}"
+        icon_template: mdi:scale-bathroom
+      
+      # IMC (Indice de Masse Corporelle)
+      marie_imc:
+        friendly_name: "IMC Marie"
+        unit_of_measurement: "kg/m²"
+        value_template: >
+          {% set poids = states('input_number.marie_poids') | float %}
+          {% set taille = states('input_number.marie_taille') | float / 100 %}
+          {% if taille > 0 %}
+            {{ (poids / (taille * taille)) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon_template: mdi:chart-line
+      
+      # Taille
+      marie_taille:
+        friendly_name: "Taille Marie"
+        unit_of_measurement: "cm"
+        value_template: "{{ states('input_number.marie_taille') }}"
+        icon_template: mdi:human-female-height
+      
+      # Fréquence cardiaque
+      marie_frequence_cardiaque:
+        friendly_name: "Fréquence cardiaque Marie"
+        unit_of_measurement: "bpm"
+        value_template: "{{ states('input_number.marie_frequence_cardiaque') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Tension systolique
+      marie_tension_systolique:
+        friendly_name: "Tension Systolique Marie"
+        unit_of_measurement: "mmHg"
+        value_template: "{{ states('input_number.marie_tension_systolique') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Tension diastolique
+      marie_tension_diastolique:
+        friendly_name: "Tension Diastolique Marie"
+        unit_of_measurement: "mmHg"
+        value_template: "{{ states('input_number.marie_tension_diastolique') }}"
+        icon_template: mdi:heart-pulse
+      
+      # Température corporelle
+      marie_temperature:
+        friendly_name: "Température Marie"
+        unit_of_measurement: "°C"
+        value_template: "{{ states('input_number.marie_temperature') }}"
+        icon_template: mdi:thermometer
+      
+      # Glycémie
+      marie_glycemie:
+        friendly_name: "Glycémie Marie"
+        unit_of_measurement: "mg/dL"
+        value_template: "{{ states('input_number.marie_glycemie') }}"
+        icon_template: mdi:water
+      
+      # Saturation en oxygène
+      marie_saturation_o2:
+        friendly_name: "Saturation O2 Marie"
+        unit_of_measurement: "%"
+        value_template: "{{ states('input_number.marie_saturation_o2') }}"
+        icon_template: mdi:lungs
+      
+      # Pas quotidiens
+      marie_pas_quotidiens:
+        friendly_name: "Pas quotidiens Marie"
+        unit_of_measurement: "pas"
+        value_template: "{{ states('input_number.marie_pas_quotidiens') }}"
+        icon_template: mdi:walk
+      
+      # Calories brûlées
+      marie_calories:
+        friendly_name: "Calories Marie"
+        unit_of_measurement: "kcal"
+        value_template: "{{ states('input_number.marie_calories') }}"
+        icon_template: mdi:fire
+      
+      # Heures de sommeil
+      marie_sommeil:
+        friendly_name: "Sommeil Marie"
+        unit_of_measurement: "h"
+        value_template: "{{ states('input_number.marie_sommeil') }}"
+        icon_template: mdi:sleep
+
+# ============================================
+# INPUT NUMBERS - JEAN
+# Pour permettre la saisie manuelle des valeurs
+# ============================================
+
+input_number:
+  jean_poids:
+    name: Poids Jean
+    min: 30
+    max: 200
+    step: 0.1
+    unit_of_measurement: kg
+    icon: mdi:scale-bathroom
+  
+  jean_taille:
+    name: Taille Jean
+    min: 100
+    max: 250
+    step: 1
+    unit_of_measurement: cm
+    icon: mdi:human-male-height
+  
+  jean_frequence_cardiaque:
+    name: Fréquence cardiaque Jean
+    min: 40
+    max: 220
+    step: 1
+    unit_of_measurement: bpm
+    icon: mdi:heart-pulse
+  
+  jean_tension_systolique:
+    name: Tension Systolique Jean
+    min: 60
+    max: 200
+    step: 1
+    unit_of_measurement: mmHg
+    icon: mdi:heart-pulse
+  
+  jean_tension_diastolique:
+    name: Tension Diastolique Jean
+    min: 40
+    max: 130
+    step: 1
+    unit_of_measurement: mmHg
+    icon: mdi:heart-pulse
+  
+  jean_temperature:
+    name: Température Jean
+    min: 35
+    max: 42
+    step: 0.1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  
+  jean_glycemie:
+    name: Glycémie Jean
+    min: 50
+    max: 400
+    step: 1
+    unit_of_measurement: mg/dL
+    icon: mdi:water
+  
+  jean_saturation_o2:
+    name: Saturation O2 Jean
+    min: 70
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:lungs
+  
+  jean_pas_quotidiens:
+    name: Pas quotidiens Jean
+    min: 0
+    max: 50000
+    step: 100
+    unit_of_measurement: pas
+    icon: mdi:walk
+  
+  jean_calories:
+    name: Calories Jean
+    min: 0
+    max: 5000
+    step: 10
+    unit_of_measurement: kcal
+    icon: mdi:fire
+  
+  jean_sommeil:
+    name: Sommeil Jean
+    min: 0
+    max: 24
+    step: 0.5
+    unit_of_measurement: h
+    icon: mdi:sleep
+
+# ============================================
+# INPUT NUMBERS - MARIE
+# ============================================
+
+  marie_poids:
+    name: Poids Marie
+    min: 30
+    max: 200
+    step: 0.1
+    unit_of_measurement: kg
+    icon: mdi:scale-bathroom
+  
+  marie_taille:
+    name: Taille Marie
+    min: 100
+    max: 250
+    step: 1
+    unit_of_measurement: cm
+    icon: mdi:human-female-height
+  
+  marie_frequence_cardiaque:
+    name: Fréquence cardiaque Marie
+    min: 40
+    max: 220
+    step: 1
+    unit_of_measurement: bpm
+    icon: mdi:heart-pulse
+  
+  marie_tension_systolique:
+    name: Tension Systolique Marie
+    min: 60
+    max: 200
+    step: 1
+    unit_of_measurement: mmHg
+    icon: mdi:heart-pulse
+  
+  marie_tension_diastolique:
+    name: Tension Diastolique Marie
+    min: 40
+    max: 130
+    step: 1
+    unit_of_measurement: mmHg
+    icon: mdi:heart-pulse
+  
+  marie_temperature:
+    name: Température Marie
+    min: 35
+    max: 42
+    step: 0.1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  
+  marie_glycemie:
+    name: Glycémie Marie
+    min: 50
+    max: 400
+    step: 1
+    unit_of_measurement: mg/dL
+    icon: mdi:water
+  
+  marie_saturation_o2:
+    name: Saturation O2 Marie
+    min: 70
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:lungs
+  
+  marie_pas_quotidiens:
+    name: Pas quotidiens Marie
+    min: 0
+    max: 50000
+    step: 100
+    unit_of_measurement: pas
+    icon: mdi:walk
+  
+  marie_calories:
+    name: Calories Marie
+    min: 0
+    max: 5000
+    step: 10
+    unit_of_measurement: kcal
+    icon: mdi:fire
+  
+  marie_sommeil:
+    name: Sommeil Marie
+    min: 0
+    max: 24
+    step: 0.5
+    unit_of_measurement: h
+    icon: mdi:sleep

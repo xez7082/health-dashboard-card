@@ -1,0 +1,87 @@
+# Exemple de configuration pour Health Dashboard Card
+# Copiez ce code dans votre dashboard Lovelace (mode YAML)
+
+type: custom:health-dashboard-card
+person1:
+  name: "Jean"
+  gender: male
+  background_image: male-silhouette.png
+  sensors:
+    - entity: sensor.jean_poids
+      name: "Poids"
+      icon: "⚖️"
+    - entity: sensor.jean_imc
+      name: "IMC"
+      icon: "📊"
+    - entity: sensor.jean_taille
+      name: "Taille"
+      icon: "📏"
+    - entity: sensor.jean_frequence_cardiaque
+      name: "Cœur"
+      icon: "❤️"
+    - entity: sensor.jean_tension_systolique
+      name: "Tension Sys"
+      icon: "🩺"
+    - entity: sensor.jean_tension_diastolique
+      name: "Tension Dia"
+      icon: "🩺"
+    - entity: sensor.jean_temperature
+      name: "Température"
+      icon: "🌡️"
+    - entity: sensor.jean_glycemie
+      name: "Glycémie"
+      icon: "🩸"
+    - entity: sensor.jean_saturation_o2
+      name: "Saturation O2"
+      icon: "🫀"
+    - entity: sensor.jean_pas_quotidiens
+      name: "Pas"
+      icon: "🏃"
+    - entity: sensor.jean_calories
+      name: "Calories"
+      icon: "🔥"
+    - entity: sensor.jean_sommeil
+      name: "Sommeil"
+      icon: "😴"
+
+person2:
+  name: "Marie"
+  gender: female
+  background_image: female-silhouette.png
+  sensors:
+    - entity: sensor.marie_poids
+      name: "Poids"
+      icon: "⚖️"
+    - entity: sensor.marie_imc
+      name: "IMC"
+      icon: "📊"
+    - entity: sensor.marie_taille
+      name: "Taille"
+      icon: "📏"
+    - entity: sensor.marie_frequence_cardiaque
+      name: "Cœur"
+      icon: "❤️"
+    - entity: sensor.marie_tension_systolique
+      name: "Tension Sys"
+      icon: "🩺"
+    - entity: sensor.marie_tension_diastolique
+      name: "Tension Dia"
+      icon: "🩺"
+    - entity: sensor.marie_temperature
+      name: "Température"
+      icon: "🌡️"
+    - entity: sensor.marie_glycemie
+      name: "Glycémie"
+      icon: "🩸"
+    - entity: sensor.marie_saturation_o2
+      name: "Saturation O2"
+      icon: "🫀"
+    - entity: sensor.marie_pas_quotidiens
+      name: "Pas"
+      icon: "🏃"
+    - entity: sensor.marie_calories
+      name: "Calories"
+      icon: "🔥"
+    - entity: sensor.marie_sommeil
+      name: "Sommeil"
+      icon: "😴"
