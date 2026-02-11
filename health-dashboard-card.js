@@ -96,8 +96,7 @@ class HealthDashboardCard extends HTMLElement {
           position: relative;
           overflow: hidden;
           height: 600px;
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          transition: background 0.5s ease;
+          background: transparent; /* Plus de fond violet */
         }
         .header {
           position: absolute;
@@ -133,6 +132,8 @@ class HealthDashboardCard extends HTMLElement {
         }
         .card {
           text-align: center;
+          color: white;
+          text-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
         .value { font-size: 22px; font-weight: bold; }
       </style>
@@ -172,17 +173,19 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.render();
   }
 
-  getEntities() {
+  getEntities(filter='') {
     if (!this._hass) return [];
-    return Object.keys(this._hass.states).filter(e => e.startsWith('sensor.'));
+    return Object.keys(this._hass.states)
+      .filter(e => e.startsWith('sensor.') && e.toLowerCase().includes(filter.toLowerCase()));
   }
 
-  renderSensors(list, prefix) {
-    const entities = this.getEntities();
+  renderSensors(list, prefix, filter='') {
+    const entities = this.getEntities(filter);
     return `
       <div id="${prefix}-sensors">
         ${(list || []).map((s, i) => `
           <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <input type="text" placeholder="Nom capteur" data-name-index="${i}" data-prefix="${prefix}" value="${s.name || ''}">
             <select data-index="${i}" data-prefix="${prefix}" class="sensor-select">
               ${entities.map(e => `<option value="${e}" ${e === s.entity ? 'selected' : ''}>${e}</option>`).join('')}
             </select>
@@ -211,7 +214,10 @@ class HealthDashboardCardEditor extends HTMLElement {
           <option value="female" ${this._config.person1.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
         <input id="p1bg" value="${this._config.person1.background || ''}" placeholder="URL image de fond">
-        ${this.renderSensors(this._config.person1.sensors, 'p1')}
+        <input type="text" id="p1search" placeholder="Rechercher capteur">
+        <div id="p1-sensors-wrapper">
+          ${this.renderSensors(this._config.person1.sensors, 'p1')}
+        </div>
 
         <h3>Personne 2</h3>
         <input id="p2name" value="${this._config.person2.name || ''}" placeholder="Nom">
@@ -220,43 +226,68 @@ class HealthDashboardCardEditor extends HTMLElement {
           <option value="female" ${this._config.person2.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
         <input id="p2bg" value="${this._config.person2.background || ''}" placeholder="URL image de fond">
-        ${this.renderSensors(this._config.person2.sensors, 'p2')}
+        <input type="text" id="p2search" placeholder="Rechercher capteur">
+        <div id="p2-sensors-wrapper">
+          ${this.renderSensors(this._config.person2.sensors, 'p2')}
+        </div>
       </div>
     `;
 
-    this.querySelectorAll('input,select').forEach(el => el.onchange = () => this.save());
+    // Gestion des boutons et inputs
+    ['p1','p2'].forEach(prefix => {
+      const wrapper = this.querySelector(`#${prefix}-sensors-wrapper`);
+      const searchInput = this.querySelector(`#${prefix}search`);
+      const renderList = () => {
+        wrapper.innerHTML = this.renderSensors(this._config[prefix === 'p1' ? 'person1':'person2'].sensors, prefix, searchInput.value);
+        this.attachSensorEvents(wrapper, prefix);
+      };
+      searchInput.oninput = renderList;
+      renderList();
+    });
 
-    this.querySelectorAll('[data-add]').forEach(btn => {
+    this.querySelectorAll('#p1name,#p2name,#p1bg,#p2bg,#p1gender,#p2gender').forEach(el => el.onchange = () => this.save());
+  }
+
+  attachSensorEvents(wrapper, prefix) {
+    wrapper.querySelectorAll('[data-add]').forEach(btn => {
       btn.onclick = () => {
-        const key = btn.dataset.add === 'p1' ? 'person1' : 'person2';
-        this._config[key].sensors.push({ entity: this.getEntities()[0] });
+        const key = prefix === 'p1' ? 'person1' : 'person2';
+        this._config[key].sensors.push({ entity: this.getEntities()[0], name: '' });
         this.render();
       };
     });
-
-    this.querySelectorAll('[data-remove]').forEach(btn => {
+    wrapper.querySelectorAll('[data-remove]').forEach(btn => {
       btn.onclick = () => {
-        const key = btn.dataset.prefix === 'p1' ? 'person1' : 'person2';
+        const key = prefix === 'p1' ? 'person1' : 'person2';
         this._config[key].sensors.splice(btn.dataset.remove, 1);
         this.render();
       };
     });
+    wrapper.querySelectorAll('[data-name-index]').forEach(input => {
+      input.onchange = () => this.save();
+    });
+    wrapper.querySelectorAll('.sensor-select').forEach(sel => sel.onchange = () => this.save());
   }
 
   save() {
-    const collect = (prefix) => ({
-      name: this.querySelector(`#${prefix}name`).value,
-      gender: this.querySelector(`#${prefix}gender`).value,
-      background: this.querySelector(`#${prefix}bg`).value,
-      sensors: [...this.querySelectorAll(`.sensor-select[data-prefix="${prefix}"]`)].map(s => ({ entity: s.value }))
-    });
-
+    const collect = (prefix) => {
+      const key = prefix === 'p1' ? 'person1':'person2';
+      const sensors = [...this.querySelectorAll(`#${prefix}-sensors-wrapper .sensor-select`)].map((sel, i) => ({
+        entity: sel.value,
+        name: this.querySelector(`#${prefix}-sensors-wrapper [data-name-index="${i}"]`).value
+      }));
+      return {
+        name: this.querySelector(`#${prefix}name`).value,
+        gender: this.querySelector(`#${prefix}gender`).value,
+        background: this.querySelector(`#${prefix}bg`).value,
+        sensors
+      };
+    };
     const config = {
       type: 'custom:health-dashboard-card',
       person1: collect('p1'),
       person2: collect('p2')
     };
-
     this.dispatchEvent(new CustomEvent('config-changed', { detail: { config } }));
   }
 }
@@ -268,8 +299,8 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
   name: 'Health Dashboard Card',
-  description: 'Carte santé multi-capteurs avec éditeur visuel',
+  description: 'Carte santé multi-capteurs avec éditeur visuel et recherche',
   preview: true,
 });
 
-console.info('%c HEALTH-DASHBOARD-CARD %c v3.2.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
+console.info('%c HEALTH-DASHBOARD-CARD %c v3.3.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
