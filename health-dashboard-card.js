@@ -7,6 +7,17 @@ class HealthDashboardCard extends HTMLElement {
     this.currentPerson = 'person1';
   }
 
+  static getConfigElement() {
+    return document.createElement('health-dashboard-card-editor');
+  }
+
+  static getStubConfig() {
+    return {
+      person1: { name: 'Personne 1', sensors: [] },
+      person2: { name: 'Personne 2', sensors: [] },
+    };
+  }
+
   setConfig(config) {
     if (!config.person1 || !config.person2) {
       throw new Error('Vous devez définir person1 et person2 dans la configuration');
@@ -26,15 +37,15 @@ class HealthDashboardCard extends HTMLElement {
 
   updateSensorValues() {
     if (!this._config || !this._hass) return;
-    
+
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
-    
+
     if (person.sensors) {
       person.sensors.forEach((sensor, index) => {
         const entityId = sensor.entity;
         const state = this._hass.states[entityId];
         const valueElement = this.shadowRoot.querySelector(`#sensor-value-${index}`);
-        
+
         if (valueElement && state) {
           const unit = state.attributes.unit_of_measurement || '';
           valueElement.textContent = `${state.state} ${unit}`.trim();
@@ -59,11 +70,8 @@ class HealthDashboardCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: block;
-          padding: 0;
-        }
-        
+        :host { display: block; }
+
         ha-card {
           position: relative;
           overflow: hidden;
@@ -90,13 +98,6 @@ class HealthDashboardCard extends HTMLElement {
           font-size: 14px;
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .person-button:hover {
-          background: white;
-          transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
 
         .person-button.active {
@@ -116,7 +117,6 @@ class HealthDashboardCard extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          position: relative;
           height: 100%;
         }
 
@@ -127,7 +127,6 @@ class HealthDashboardCard extends HTMLElement {
           background-repeat: no-repeat;
           background-position: center;
           opacity: 0.3;
-          filter: brightness(1.2);
         }
 
         .sensors-container {
@@ -137,45 +136,18 @@ class HealthDashboardCard extends HTMLElement {
           gap: 16px;
           padding: 20px;
           overflow-y: auto;
-          max-height: 100%;
         }
 
         .sensor-card {
           background: rgba(255, 255, 255, 0.95);
           border-radius: 16px;
           padding: 20px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          transition: all 0.3s ease;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
           text-align: center;
-        }
-
-        .sensor-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .sensor-icon {
-          font-size: 32px;
-          margin-bottom: 12px;
-          color: #667eea;
-        }
-
-        .sensor-name {
-          font-size: 13px;
-          color: #666;
-          margin-bottom: 8px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
         }
 
         .sensor-value {
           font-size: 24px;
           font-weight: bold;
-          color: #333;
         }
 
         .person-name {
@@ -186,22 +158,6 @@ class HealthDashboardCard extends HTMLElement {
           font-size: 32px;
           font-weight: bold;
           color: rgba(255, 255, 255, 0.9);
-          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-          z-index: 5;
-        }
-
-        @media (max-width: 768px) {
-          .content-wrapper {
-            flex-direction: column;
-          }
-          
-          .silhouette-container {
-            flex: 0 0 30%;
-          }
-          
-          .sensors-container {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          }
         }
       </style>
 
@@ -225,8 +181,7 @@ class HealthDashboardCard extends HTMLElement {
           <div class="sensors-container">
             ${sensors.map((sensor, index) => `
               <div class="sensor-card">
-                <div class="sensor-icon">${sensor.icon || '📊'}</div>
-                <div class="sensor-name">${sensor.name || 'Sensor'}</div>
+                <div>${sensor.name || 'Sensor'}</div>
                 <div class="sensor-value" id="sensor-value-${index}">--</div>
               </div>
             `).join('')}
@@ -235,36 +190,68 @@ class HealthDashboardCard extends HTMLElement {
       </ha-card>
     `;
 
-    // Ajouter les event listeners après le rendu
-    const person1Button = this.shadowRoot.getElementById('btn-person1');
-    const person2Button = this.shadowRoot.getElementById('btn-person2');
-    
-    if (person1Button) {
-      person1Button.addEventListener('click', () => this.togglePerson('person1'));
-    }
-    if (person2Button) {
-      person2Button.addEventListener('click', () => this.togglePerson('person2'));
-    }
+    this.shadowRoot.getElementById('btn-person1')?.addEventListener('click', () => this.togglePerson('person1'));
+    this.shadowRoot.getElementById('btn-person2')?.addEventListener('click', () => this.togglePerson('person2'));
 
-    // Mettre à jour les valeurs des capteurs
     this.updateSensorValues();
   }
 }
 
-// Enregistrer l'élément personnalisé
-customElements.define('health-dashboard-card', HealthDashboardCard);
+class HealthDashboardCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this.render();
+  }
 
-// Ajouter à la liste des cartes personnalisées
+  render() {
+    if (!this._config) return;
+
+    this.innerHTML = `
+      <style>
+        .editor { padding: 16px; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 4px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+      </style>
+
+      <div class="editor">
+        <div class="field">
+          <label>Nom Personne 1</label>
+          <input id="p1name" value="${this._config.person1?.name || ''}">
+        </div>
+
+        <div class="field">
+          <label>Nom Personne 2</label>
+          <input id="p2name" value="${this._config.person2?.name || ''}">
+        </div>
+      </div>
+    `;
+
+    this.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('change', () => this._valueChanged());
+    });
+  }
+
+  _valueChanged() {
+    const newConfig = {
+      ...this._config,
+      person1: { ...this._config.person1, name: this.querySelector('#p1name').value },
+      person2: { ...this._config.person2, name: this.querySelector('#p2name').value },
+    };
+
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: newConfig } }));
+  }
+}
+
+customElements.define('health-dashboard-card', HealthDashboardCard);
+customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
+
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
   name: 'Health Dashboard Card',
-  description: 'Une carte personnalisée pour suivre la santé de deux personnes',
+  description: 'Carte santé avec éditeur visuel',
   preview: true,
 });
 
-console.info(
-  '%c HEALTH-DASHBOARD-CARD %c v1.0.0 ',
-  'color: white; background: #667eea; font-weight: bold;',
-  'color: #667eea; background: white; font-weight: bold;'
-);
+console.info('%c HEALTH-DASHBOARD-CARD %c v1.1.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
