@@ -14,8 +14,8 @@ class HealthDashboardCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      person1: { name: 'Personne 1', gender: 'male', sensors: [] },
-      person2: { name: 'Personne 2', gender: 'female', sensors: [] },
+      person1: { name: 'Personne 1', gender: 'male', background: '', sensors: [] },
+      person2: { name: 'Personne 2', gender: 'female', background: '', sensors: [] },
     };
   }
 
@@ -38,9 +38,7 @@ class HealthDashboardCard extends HTMLElement {
 
   updateSensorValues() {
     if (!this._config || !this._hass) return;
-
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
-
     person.sensors?.forEach((sensor, index) => {
       const state = this._hass.states[sensor.entity];
       const el = this.sensorElements[index];
@@ -55,25 +53,19 @@ class HealthDashboardCard extends HTMLElement {
     if (this.currentPerson === person) return;
     this.currentPerson = person;
 
-    // Mettre à jour les boutons
     this.shadowRoot.getElementById('p1').classList.toggle('active', person === 'person1');
     this.shadowRoot.getElementById('p2').classList.toggle('active', person === 'person2');
 
-    // Mettre à jour l'image de fond avec transition
     const imgDiv = this.shadowRoot.querySelector('.image');
-    const newImage = person === 'person1'
+    const bgImage = person === 'person1' ? this._config.person1.background : this._config.person2.background;
+    const defaultImage = person === 'person1' 
       ? (this._config.person1.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png')
       : (this._config.person2.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png');
-    imgDiv.style.backgroundImage = `url('${newImage}')`;
 
-    // Mettre à jour les capteurs
+    imgDiv.style.backgroundImage = `url('${bgImage || defaultImage}')`;
+
     const sensors = person === 'person1' ? this._config.person1.sensors : this._config.person2.sensors;
-
-    // Recréer les cartes si nombre de capteurs différent
-    if (sensors.length !== this.sensorElements.length) {
-      this.renderGrid();
-    }
-
+    if (sensors.length !== this.sensorElements.length) this.renderGrid();
     this.updateSensorValues();
   }
 
@@ -95,9 +87,7 @@ class HealthDashboardCard extends HTMLElement {
 
     const person = this.currentPerson === 'person1' ? this._config.person1 : this._config.person2;
     const sensors = person.sensors || [];
-    const image = person.gender === 'female'
-      ? '/local/health-dashboard/femme.png'
-      : '/local/health-dashboard/homme.png';
+    const bgImage = person.background || (person.gender === 'female' ? '/local/health-dashboard/femme.png' : '/local/health-dashboard/homme.png');
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -129,7 +119,7 @@ class HealthDashboardCard extends HTMLElement {
         }
         .image {
           flex: 0 0 40%;
-          background: url('${image}') center/contain no-repeat;
+          background: url('${bgImage}') center/cover no-repeat;
           opacity: 0.35;
           transition: background-image 0.5s ease;
         }
@@ -142,9 +132,6 @@ class HealthDashboardCard extends HTMLElement {
           overflow-y: auto;
         }
         .card {
-          background: rgba(255,255,255,0.9);
-          border-radius: 14px;
-          padding: 16px;
           text-align: center;
         }
         .value { font-size: 22px; font-weight: bold; }
@@ -173,7 +160,6 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.getElementById('p2').onclick = () => this.togglePerson('person2');
 
     this.sensorElements = sensors.map((_, i) => this.shadowRoot.querySelector(`#sensor-value-${i}`));
-
     this.updateSensorValues();
   }
 }
@@ -214,24 +200,26 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.innerHTML = `
       <style>
         .wrap { padding: 16px; }
-        select, input { width: 100%; padding: 6px; }
+        select, input { width: 100%; padding: 6px; margin-bottom: 6px; }
         button { cursor: pointer; }
       </style>
       <div class="wrap">
         <h3>Personne 1</h3>
-        <input id="p1name" value="${this._config.person1.name || ''}">
+        <input id="p1name" value="${this._config.person1.name || ''}" placeholder="Nom">
         <select id="p1gender">
           <option value="male" ${this._config.person1.gender === 'male' ? 'selected' : ''}>Homme</option>
           <option value="female" ${this._config.person1.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
+        <input id="p1bg" value="${this._config.person1.background || ''}" placeholder="URL image de fond">
         ${this.renderSensors(this._config.person1.sensors, 'p1')}
 
         <h3>Personne 2</h3>
-        <input id="p2name" value="${this._config.person2.name || ''}">
+        <input id="p2name" value="${this._config.person2.name || ''}" placeholder="Nom">
         <select id="p2gender">
           <option value="male" ${this._config.person2.gender === 'male' ? 'selected' : ''}>Homme</option>
           <option value="female" ${this._config.person2.gender === 'female' ? 'selected' : ''}>Femme</option>
         </select>
+        <input id="p2bg" value="${this._config.person2.background || ''}" placeholder="URL image de fond">
         ${this.renderSensors(this._config.person2.sensors, 'p2')}
       </div>
     `;
@@ -259,6 +247,7 @@ class HealthDashboardCardEditor extends HTMLElement {
     const collect = (prefix) => ({
       name: this.querySelector(`#${prefix}name`).value,
       gender: this.querySelector(`#${prefix}gender`).value,
+      background: this.querySelector(`#${prefix}bg`).value,
       sensors: [...this.querySelectorAll(`.sensor-select[data-prefix="${prefix}"]`)].map(s => ({ entity: s.value }))
     });
 
@@ -283,4 +272,4 @@ window.customCards.push({
   preview: true,
 });
 
-console.info('%c HEALTH-DASHBOARD-CARD %c v3.1.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
+console.info('%c HEALTH-DASHBOARD-CARD %c v3.2.0 ', 'color: white; background: #667eea; font-weight: bold;', 'color: #667eea; background: white; font-weight: bold;');
