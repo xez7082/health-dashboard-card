@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V6 (SEARCH & MDI ICONS)
+// HEALTH DASHBOARD CARD – VERSION V7 (FOCUS STABLE)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -42,20 +42,20 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .card { position: relative; width: 100%; height: 600px; background: #111; border-radius: 16px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.35; pointer-events: none; }
+        .card { position: relative; width: 100%; height: 600px; background: #0f172a; border-radius: 16px; overflow: hidden; font-family: sans-serif; color: white; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.3; pointer-events: none; }
         svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
         .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 10; }
-        .btn { border: none; padding: 10px 18px; border-radius: 25px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; font-weight: bold; }
-        .btn.active { background: #00d2ff; box-shadow: 0 0 15px #00d2ff; }
+        .btn { border: none; padding: 10px 18px; border-radius: 25px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; transition: 0.3s; }
+        .btn.active { background: #38bdf8; box-shadow: 0 0 15px #38bdf8; }
         .sensor { position: absolute; transform: translate(-50%, -50%); padding: 10px; border-radius: 12px; min-width: 90px; 
-                  text-align: center; cursor: grab; z-index: 5; background: rgba(30, 30, 30, 0.8); 
-                  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+                  text-align: center; cursor: grab; z-index: 5; background: rgba(30, 41, 59, 0.7); 
+                  backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
         .icon-box { font-size: 24px; color: var(--icon-color); }
         ha-icon { --mdc-icon-size: 28px; }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
-        .label { font-size: 10px; text-transform: uppercase; margin-top: 5px; opacity: 0.8; }
+        .pulse { animation: pulse 2s infinite ease-in-out; display: inline-block; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        .label { font-size: 10px; text-transform: uppercase; margin-top: 5px; font-weight: 600; }
         .val { font-size: 15px; font-weight: bold; }
       </style>
       <div class="card">
@@ -110,11 +110,18 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITEUR V6 AVEC RECHERCHE
+// EDITEUR V7 ANTI-SAUT
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this.currentTab = 'person1'; }
   set hass(hass) { this._hass = hass; }
-  setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
+  
+  setConfig(config) {
+    this._config = JSON.parse(JSON.stringify(config));
+    if (!this._initialized) {
+        this.render();
+        this._initialized = true;
+    }
+  }
 
   configChanged() {
     this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
@@ -126,41 +133,38 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        .editor-container { font-family: sans-serif; padding: 10px; }
-        .tabs { display: flex; margin-bottom: 15px; background: #eee; border-radius: 8px; overflow: hidden; }
-        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border: none; }
-        .tab.active { background: #00d2ff; color: white; font-weight: bold; }
-        .sensor-block { border: 1px solid #ccc; padding: 12px; border-radius: 8px; margin-bottom: 15px; background: #fdfdfd; }
-        .search-container { position: relative; }
-        .results { position: absolute; width: 100%; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 100; display: none; }
-        .results div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 12px; }
+        .ed-body { padding: 10px; color: var(--primary-text-color); }
+        .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; background: #ddd; border-radius: 4px; border: none; text-align: center; font-weight: bold; }
+        .tab.active { background: #38bdf8; color: white; }
+        .s-block { border: 1px solid #ccc; padding: 12px; border-radius: 8px; margin-bottom: 15px; position: relative; background: var(--card-background-color); }
+        .results { position: absolute; width: 90%; max-height: 120px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 100; color: black; display: none; }
+        .results div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
         .results div:hover { background: #f0f0f0; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
-        .btn-add { background: #4caf50; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; }
-        .btn-del { background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; margin: 4px 0; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-add { background: #10b981; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-del { background: #ef4444; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; margin-top: 5px; width: 100%; }
       </style>
-      <div class="editor-container">
+      <div class="ed-body">
         <div class="tabs">
-          <div class="tab ${this.currentTab==='person1'?'active':''}" data-tab="person1">Homme</div>
-          <div class="tab ${this.currentTab==='person2'?'active':''}" data-tab="person2">Femme</div>
+          <button class="tab ${this.currentTab==='person1'?'active':''}" id="btn-p1">Homme</button>
+          <button class="tab ${this.currentTab==='person2'?'active':''}" id="btn-p2">Femme</button>
         </div>
         
         <label>Nom :</label>
-        <input type="text" id="main-name" value="${person.name}">
+        <input type="text" id="p-name" value="${person.name}">
         <hr>
         
-        <div id="sensors-list">
+        <div id="sensors-container">
           ${(person.sensors || []).map((s, i) => `
-            <div class="sensor-block">
-              <strong>Capteur #${i+1}</strong>
-              <div class="search-container">
-                <input type="text" class="search-input" data-idx="${i}" placeholder="Chercher un sensor..." value="${s.entity}">
-                <div class="results" id="results-${i}"></div>
-              </div>
-              <input type="text" class="s-name" data-idx="${i}" placeholder="Nom (ex: Tension)" value="${s.name}">
-              <input type="text" class="s-icon" data-idx="${i}" placeholder="Icon (ex: mdi:heart ou ❤️)" value="${s.icon}">
+            <div class="s-block">
+              <strong>Capteur ${i+1}</strong>
+              <input type="text" class="s-search" data-idx="${i}" placeholder="Chercher une entité..." value="${s.entity}">
+              <div class="results" id="res-${i}"></div>
+              <input type="text" class="s-label" data-idx="${i}" placeholder="Label" value="${s.name}">
+              <input type="text" class="s-icon" data-idx="${i}" placeholder="Icon (mdi:heart)" value="${s.icon}">
               <input type="color" class="s-color" data-idx="${i}" value="${s.color}">
-              <button class="btn-del" data-idx="${i}">🗑️ Supprimer</button>
+              <button class="btn-del" data-idx="${i}">Supprimer</button>
             </div>
           `).join('')}
         </div>
@@ -168,52 +172,56 @@ class HealthDashboardCardEditor extends HTMLElement {
       </div>
     `;
 
-    this._attachEvents();
+    this._setupListeners();
   }
 
-  _attachEvents() {
-    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this.currentTab = t.dataset.tab; this.render(); });
-    this.querySelector('#main-name').oninput = (e) => { this._config[this.currentTab].name = e.target.value; this.configChanged(); };
+  _setupListeners() {
+    this.querySelector('#btn-p1').onclick = () => { this.currentTab = 'person1'; this.render(); };
+    this.querySelector('#btn-p2').onclick = () => { this.currentTab = 'person2'; this.render(); };
     
     const person = this._config[this.currentTab];
 
-    // Logique de recherche prédictive
-    this.querySelectorAll('.search-input').forEach(input => {
+    this.querySelector('#p-name').oninput = (e) => {
+        person.name = e.target.value;
+        this.configChanged();
+    };
+
+    this.querySelectorAll('.s-search').forEach(input => {
       input.oninput = (e) => {
-        const val = e.target.value.toLowerCase();
         const idx = e.target.dataset.idx;
-        const resultsDiv = this.querySelector(`#results-${idx}`);
-        
-        if (val.length < 2) { resultsDiv.style.display = 'none'; return; }
-        
-        const matches = Object.keys(this._hass.states)
-          .filter(ent => ent.includes(val))
-          .slice(0, 10);
-        
-        resultsDiv.innerHTML = matches.map(m => `<div data-val="${m}">${m}</div>`).join('');
-        resultsDiv.style.display = 'block';
-        
-        resultsDiv.querySelectorAll('div').forEach(div => {
-          div.onclick = () => {
-            person.sensors[idx].entity = div.dataset.val;
-            input.value = div.dataset.val;
-            resultsDiv.style.display = 'none';
-            this.configChanged();
-          };
+        const val = e.target.value.toLowerCase();
+        const res = this.querySelector(`#res-${idx}`);
+        person.sensors[idx].entity = e.target.value;
+        this.configChanged();
+
+        if (val.length < 2) { res.style.display = 'none'; return; }
+        const matches = Object.keys(this._hass.states).filter(k => k.includes(val)).slice(0, 8);
+        res.innerHTML = matches.map(m => `<div data-val="${m}">${m}</div>`).join('');
+        res.style.display = 'block';
+
+        res.querySelectorAll('div').forEach(d => d.onclick = () => {
+          person.sensors[idx].entity = d.dataset.val;
+          input.value = d.dataset.val;
+          res.style.display = 'none';
+          this.configChanged();
         });
       };
     });
 
-    this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].name = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-label').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].name = e.target.value; this.configChanged(); });
     this.querySelectorAll('.s-icon').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].icon = e.target.value; this.configChanged(); });
     this.querySelectorAll('.s-color').forEach(el => el.onchange = (e) => { person.sensors[el.dataset.idx].color = e.target.value; this.configChanged(); });
+
     this.querySelector('.btn-add').onclick = () => {
-      person.sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', color: '#00d2ff', x: 50, y: 50 });
-      this.render(); this.configChanged();
+      person.sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', color: '#38bdf8', x: 50, y: 50 });
+      this.render();
+      this.configChanged();
     };
+
     this.querySelectorAll('.btn-del').forEach(btn => btn.onclick = () => {
       person.sensors.splice(btn.dataset.idx, 1);
-      this.render(); this.configChanged();
+      this.render();
+      this.configChanged();
     });
   }
 }
@@ -222,4 +230,4 @@ customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V6", description: "Recherche prédictive et icônes MDI." });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V7", description: "Éditeur stable sans sauts de focus." });
