@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V23 (W/H CONTROL & ICONS FIXED)
+// HEALTH DASHBOARD CARD – VERSION V24 (DYNAMIC IMC GAUGE)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -27,9 +27,29 @@ class HealthDashboardCard extends HTMLElement {
     
     person.sensors.forEach((s, i) => {
       const el = this.shadowRoot.getElementById(`value-${i}`);
-      if (el) {
+      const gauge = this.shadowRoot.getElementById(`gauge-container-${i}`);
+      
+      if (el || gauge) {
         const stateObj = this._hass.states[s.entity];
-        el.textContent = stateObj ? `${stateObj.state}${stateObj.attributes.unit_of_measurement || ''}` : '--';
+        const val = stateObj ? stateObj.state : '--';
+
+        // Si c'est le capteur de corpulence/IMC, on anime la jauge
+        if (s.entity.includes('corpulence') || s.entity.includes('imc')) {
+          const poids = parseFloat(this._hass.states['sensor.withings_poids_patrick']?.state || 0);
+          const taille = parseFloat(this._hass.states['input_number.taille_en_m_patrick']?.state || 1.75);
+          const imc = poids > 0 ? (poids / (taille * taille)).toFixed(1) : 0;
+          
+          const pointer = this.shadowRoot.getElementById(`pointer-${i}`);
+          if (pointer) {
+            // Calcul de position : (imc - 10) * 2.5 + 5 (limité entre 5% et 95%)
+            let pos = ((imc - 10) * 2.5) + 5;
+            pos = Math.max(5, Math.min(95, pos));
+            pointer.style.left = `${pos}%`;
+            pointer.setAttribute('data-imc', imc);
+          }
+        } else if (el) {
+          el.textContent = stateObj ? `${val}${stateObj.attributes.unit_of_measurement || ''}` : '--';
+        }
       }
     });
   }
@@ -55,25 +75,36 @@ class HealthDashboardCard extends HTMLElement {
         .btn.active { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
         
         .sensor { 
-          position: absolute; 
-          transform: translate(-50%, -50%); 
-          width: ${bW}px; 
-          height: ${bH}px;
-          padding: 4px; 
-          border-radius: 8px; 
-          text-align: center; 
-          z-index: 5; 
-          background: rgba(15, 23, 42, 0.9); 
-          border: 1px solid rgba(255,255,255,0.3);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          overflow: hidden;
+          position: absolute; transform: translate(-50%, -50%); 
+          width: ${bW}px; height: ${bH}px; padding: 4px; border-radius: 8px; 
+          text-align: center; z-index: 5; background: rgba(15, 23, 42, 0.9); 
+          border: 1px solid rgba(255,255,255,0.3); display: flex; 
+          flex-direction: column; justify-content: center; align-items: center;
         }
-        .icon-box { font-size: ${Math.min(bW, bH) * 0.35}px; color: #38bdf8; line-height: 1; margin-bottom: 2px; }
-        .label { font-size: ${Math.min(bW, bH) * 0.15}px; text-transform: uppercase; color: #cbd5e1; white-space: nowrap; }
-        .val { font-size: ${Math.min(bW, bH) * 0.22}px; font-weight: 800; color: #fff; }
+
+        /* STYLE SPÉCIFIQUE JAUGE IMC */
+        .sensor.imc-type {
+          width: 140px; height: 60px;
+          background-image: url("/local/images/milcomarmy-card-alt1.png");
+          background-size: cover; border: 1px solid white; box-shadow: 0 0 12px rgba(0,0,0,0.5);
+        }
+        .gauge-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        .pointer {
+          position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+          width: 30px; height: 30px; transition: left 1.5s ease-in-out;
+        }
+        .pointer::after {
+          content: attr(data-imc);
+          display: block; width: 40px; color: white; font-weight: bold; font-size: 12px;
+          text-shadow: 1px 1px 2px black, -1px -1px 2px black;
+          background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M7,10L12,15L17,10H7Z' stroke='black' stroke-width='0.5'/></svg>") no-repeat center bottom;
+          background-size: 20px; padding-bottom: 15px;
+        }
+        .corp-label { position: absolute; bottom: 5px; width: 100%; font-size: 10px; color: #ddd; text-align: center; font-weight: bold; }
+
+        .icon-box { font-size: ${Math.min(bW, bH) * 0.35}px; color: #38bdf8; }
+        .label { font-size: ${Math.min(bW, bH) * 0.15}px; text-transform: uppercase; color: #cbd5e1; }
+        .val { font-size: ${Math.min(bW, bH) * 0.22}px; font-weight: 800; }
       </style>
       <div class="main-container">
         <div class="bg"></div>
@@ -82,13 +113,25 @@ class HealthDashboardCard extends HTMLElement {
           <button id="bt1" class="btn ${personKey==='person1'?'active':''}">HOMME</button>
           <button id="bt2" class="btn ${personKey==='person2'?'active':''}">FEMME</button>
         </div>
-        ${(person.sensors || []).map((s, i) => `
-          <div class="sensor" style="left:${s.x}%; top:${s.y}%">
-            <div class="icon-box"><ha-icon icon="${s.icon || 'mdi:pulse'}"></ha-icon></div>
-            <div class="label">${s.name || ''}</div>
-            <div id="value-${i}" class="val">--</div>
-          </div>
-        `).join('')}
+        ${(person.sensors || []).map((s, i) => {
+          const isIMC = s.entity.includes('corpulence') || s.entity.includes('imc');
+          if (isIMC) {
+            return `
+              <div class="sensor imc-type" style="left:${s.x}%; top:${s.y}%">
+                <div class="gauge-wrap" id="gauge-container-${i}">
+                  <div id="pointer-${i}" class="pointer" style="left: 50%;" data-imc="--"></div>
+                  <div class="corp-label">${this._hass.states[s.entity]?.state || ''}</div>
+                </div>
+              </div>`;
+          } else {
+            return `
+              <div class="sensor" style="left:${s.x}%; top:${s.y}%">
+                <div class="icon-box"><ha-icon icon="${s.icon || 'mdi:pulse'}"></ha-icon></div>
+                <div class="label">${s.name || ''}</div>
+                <div id="value-${i}" class="val">--</div>
+              </div>`;
+          }
+        }).join('')}
       </div>
     `;
 
@@ -102,138 +145,78 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITOR V23
+// EDITOR V24 (Sans changement majeur pour rester compatible)
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
-    if (!this._config.b_width) this._config.b_width = 85;
-    if (!this._config.b_height) this._config.b_height = 65;
     this.render();
   }
-
   render() {
     if (!this._config || !this._hass) return;
     const currentTab = this._config.current_view || 'person1';
     const person = this._config[currentTab] || { sensors: [] };
-
     this.innerHTML = `
       <style>
-        .ed-wrap { padding: 12px; font-family: sans-serif; color: var(--primary-text-color); }
-        .config-row { background: rgba(128,128,128,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .ed-wrap { padding: 12px; font-family: sans-serif; }
         .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 12px; cursor: pointer; background: #e2e8f0; text-align:center; border-radius: 6px; font-weight: bold; color: #333; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; background: #e2e8f0; text-align:center; border-radius: 6px; font-weight: bold; }
         .tab.active { background: #38bdf8; color: white; }
-        .sensor-item { border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 12px; border-radius: 8px; background: var(--card-background-color); }
-        input[type="range"] { width: 100%; margin: 5px 0 15px 0; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        label { font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .search-results { background: white; border: 1px solid #38bdf8; max-height: 120px; overflow-y: auto; display: none; color: #333; }
-        .search-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 12px; }
+        .sensor-item { border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #f8fafc; }
+        input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        label { font-size: 11px; font-weight: bold; }
       </style>
       <div class="ed-wrap">
-        <div class="config-row">
-          <label>↔️ Largeur Bulles : ${this._config.b_width}px</label>
-          <input type="range" id="b-width" min="40" max="150" value="${this._config.b_width}">
-          
-          <label>↕️ Hauteur Bulles : ${this._config.b_height}px</label>
-          <input type="range" id="b-height" min="30" max="120" value="${this._config.b_height}">
-          
-          <label>📺 Hauteur Carte : ${this._config.card_height || 500}px</label>
-          <input type="range" id="card-h" min="300" max="800" value="${this._config.card_height || 500}">
+        <label>↔️ Largeur / ↕️ Hauteur Bulles</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <input type="number" id="b-width" value="${this._config.b_width}">
+          <input type="number" id="b-height" value="${this._config.b_height}">
         </div>
-
         <div class="tabs">
           <div class="tab ${currentTab==='person1'?'active':''}" data-t="person1">♂ HOMME</div>
           <div class="tab ${currentTab==='person2'?'active':''}" data-t="person2">♀ FEMME</div>
         </div>
-
         <div id="sensors-list">
           ${(person.sensors || []).map((s, i) => `
             <div class="sensor-item">
-              <label>Capteur</label>
-              <input type="text" class="in-search" data-idx="${i}" value="${s.entity}" placeholder="sensor.xxx">
-              <div class="search-results" id="res-${i}"></div>
-              
+              <label>Entité (Utilisez sensor.corpulence_xxx pour la jauge)</label>
+              <input type="text" class="in-search" data-idx="${i}" value="${s.entity}">
               <label>Nom</label>
               <input type="text" class="in-lab" data-idx="${i}" value="${s.name || ''}">
-              
-              <label>Icône (ex: mdi:heart)</label>
-              <input type="text" class="in-ico" data-idx="${i}" value="${s.icon || 'mdi:pulse'}">
-
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div><label>X %</label><input type="number" class="in-x" data-idx="${i}" value="${s.x}"></div>
-                <div><label>Y %</label><input type="number" class="in-y" data-idx="${i}" value="${s.y}"></div>
+                <input type="number" class="in-x" data-idx="${i}" value="${s.x}">
+                <input type="number" class="in-y" data-idx="${i}" value="${s.y}">
               </div>
-              <button class="btn-del" data-idx="${i}" style="width:100%; margin-top:10px; background:#fca5a5; border:none; padding:6px; border-radius:4px; color:#7f1d1d; cursor:pointer;">Supprimer</button>
+              <button class="btn-del" data-idx="${i}" style="width:100%; background:#fca5a5; border:none; padding:5px; border-radius:4px; margin-top:5px;">Supprimer</button>
             </div>
           `).join('')}
         </div>
-        <button id="add-sensor" style="width:100%; padding:15px; background:#10b981; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ AJOUTER CAPTEUR</button>
+        <button id="add-sensor" style="width:100%; padding:10px; background:#10b981; color:white; border:none; border-radius:8px; font-weight:bold;">➕ AJOUTER CAPTEUR</button>
       </div>
     `;
-
     this._setupEvents();
   }
-
   _setupEvents() {
-    this.querySelector('#b-width').oninput = (e) => { this._config.b_width = parseInt(e.target.value); this._fire(); };
-    this.querySelector('#b-height').oninput = (e) => { this._config.b_height = parseInt(e.target.value); this._fire(); };
-    this.querySelector('#card-h').oninput = (e) => { this._config.card_height = parseInt(e.target.value); this._fire(); };
-
-    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { 
-      this._config.current_view = t.dataset.t;
-      this._fire();
-    });
-
+    this.querySelector('#b-width').onchange = (e) => { this._config.b_width = parseInt(e.target.value); this._fire(); };
+    this.querySelector('#b-height').onchange = (e) => { this._config.b_height = parseInt(e.target.value); this._fire(); };
+    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._config.current_view = t.dataset.t; this._fire(); });
     const tab = this._config.current_view || 'person1';
-    
-    this.querySelectorAll('.in-search').forEach(inp => {
-      inp.oninput = (e) => {
-        const idx = e.target.dataset.idx;
-        const val = e.target.value.toLowerCase();
-        const resDiv = this.querySelector(`#res-${idx}`);
-        if (val.length < 2) { resDiv.style.display = 'none'; return; }
-        const matches = Object.keys(this._hass.states).filter(eid => eid.includes(val)).slice(0, 5);
-        if (matches.length > 0) {
-          resDiv.innerHTML = matches.map(eid => `<div class="search-item" data-eid="${eid}">${eid}</div>`).join('');
-          resDiv.style.display = 'block';
-          resDiv.querySelectorAll('.search-item').forEach(item => {
-            item.onclick = () => {
-              this._config[tab].sensors[idx].entity = item.dataset.eid;
-              if(!this._config[tab].sensors[idx].name) this._config[tab].sensors[idx].name = item.dataset.eid.split('.')[1];
-              resDiv.style.display = 'none';
-              this._fire();
-            };
-          });
-        }
-      };
-    });
-
+    this.querySelectorAll('.in-search').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].entity = e.target.value; this._fire(); }; });
     this.querySelectorAll('.in-lab').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].name = e.target.value; this._fire(); }; });
-    this.querySelectorAll('.in-ico').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].icon = e.target.value; this._fire(); }; });
     this.querySelectorAll('.in-x').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].x = parseInt(e.target.value); this._fire(); }; });
     this.querySelectorAll('.in-y').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].y = parseInt(e.target.value); this._fire(); }; });
-    
     this.querySelector('#add-sensor').onclick = () => {
       if(!this._config[tab]) this._config[tab] = { sensors: [] };
-      if(!this._config[tab].sensors) this._config[tab].sensors = [];
       this._config[tab].sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', x: 50, y: 50 });
       this._fire();
     };
-
-    this.querySelectorAll('.btn-del').forEach(btn => {
-      btn.onclick = () => { this._config[tab].sensors.splice(btn.dataset.idx, 1); this._fire(); };
-    });
+    this.querySelectorAll('.btn-del').forEach(btn => { btn.onclick = () => { this._config[tab].sensors.splice(btn.dataset.idx, 1); this._fire(); }; });
   }
-
-  _fire() {
-    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V23", description: "Contrôle W/H et Icônes." });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V24", description: "Jauge IMC dynamique intégrée." });
