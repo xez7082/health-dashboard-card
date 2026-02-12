@@ -1,4 +1,5 @@
-// HEALTH DASHBOARD CARD – V8 FIX FEMME + IMAGE FULL
+// HEALTH DASHBOARD CARD – V9 RESTORE DISPLAY
+// Fix écran noir + restore image + sensors + editor controls
 
 class HealthDashboardCard extends HTMLElement {
   constructor() {
@@ -15,8 +16,9 @@ class HealthDashboardCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      person1: { name: "Homme", gender: "male", image: "", sensors: [] },
-      person2: { name: "Femme", gender: "female", image: "", sensors: [] },
+      type: "custom:health-dashboard-card",
+      person1: { name: "Homme", gender: "male", image: "/local/health-dashboard/homme.png", sensors: [] },
+      person2: { name: "Femme", gender: "female", image: "/local/health-dashboard/femme.png", sensors: [] },
     };
   }
 
@@ -37,7 +39,7 @@ class HealthDashboardCard extends HTMLElement {
 
     person.sensors?.forEach((s, i) => {
       const el = this.shadowRoot.querySelector(`#value-${i}`);
-      const state = this._hass.states[s.entity];
+      const state = this._hass.states?.[s.entity];
       if (el && state) {
         const unit = state.attributes.unit_of_measurement || "";
         el.textContent = `${state.state} ${unit}`.trim();
@@ -60,14 +62,13 @@ class HealthDashboardCard extends HTMLElement {
           height:650px;
           overflow:hidden;
           border-radius:20px;
+          background:#000;
         }
 
         .bg {
           position:absolute;
           inset:0;
-          background:url('${person.image || "/local/health-dashboard/default.png"}') center/contain no-repeat;
-          background-size:contain; /* image entière visible */
-          background-color:black;
+          background:url('${person.image}') center/contain no-repeat;
         }
 
         .topbar {
@@ -119,52 +120,10 @@ class HealthDashboardCard extends HTMLElement {
       </div>
     `;
 
-    this.shadowRoot.getElementById("p1").onclick = () => {
-      this.currentPerson = "person1";
-      this.render();
-    };
+    this.shadowRoot.getElementById("p1").onclick = () => { this.currentPerson = "person1"; this.render(); };
+    this.shadowRoot.getElementById("p2").onclick = () => { this.currentPerson = "person2"; this.render(); };
 
-    this.shadowRoot.getElementById("p2").onclick = () => {
-      this.currentPerson = "person2";
-      this.render();
-    };
-
-    this.enableDrag();
     this.updateSensors();
-  }
-
-  enableDrag() {
-    const person = this._config[this.currentPerson];
-
-    person.sensors?.forEach((s, i) => {
-      const el = this.shadowRoot.getElementById(`sensor-${i}`);
-      if (!el) return;
-
-      el.onmousedown = (e) => {
-        e.preventDefault();
-
-        const move = (ev) => {
-          const rect = this.shadowRoot.querySelector(".card").getBoundingClientRect();
-
-          const x = ((ev.clientX - rect.left) / rect.width) * 100;
-          const y = ((ev.clientY - rect.top) / rect.height) * 100;
-
-          s.x = Math.max(0, Math.min(100, x));
-          s.y = Math.max(0, Math.min(100, y));
-
-          el.style.left = s.x + "%";
-          el.style.top = s.y + "%";
-        };
-
-        const up = () => {
-          window.removeEventListener("mousemove", move);
-          window.removeEventListener("mouseup", up);
-        };
-
-        window.addEventListener("mousemove", move);
-        window.addEventListener("mouseup", up);
-      };
-    });
   }
 }
 
@@ -185,25 +144,13 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.innerHTML = `
       <style>
         .tabs { display:flex; gap:10px; margin-bottom:10px; }
-        .tabs button { padding:6px 12px; cursor:pointer; }
-
         .preview {
-          position:relative;
           width:100%;
-          height:500px;
-          background:url('${p.image || "/local/health-dashboard/default.png"}') center/contain no-repeat;
+          height:400px;
+          background:url('${p.image}') center/contain no-repeat;
           background-color:black;
           border:1px solid #ccc;
           margin-bottom:10px;
-        }
-
-        .dot {
-          position:absolute;
-          transform:translate(-50%, -50%);
-          background:red;
-          color:white;
-          padding:2px 6px;
-          font-size:12px;
         }
       </style>
 
@@ -212,19 +159,20 @@ class HealthDashboardCardEditor extends HTMLElement {
         <button id="t2">Femme</button>
       </div>
 
-      <input id="image" placeholder="/local/image.png" value="${p.image || ""}" />
+      <input id="image" value="${p.image}" placeholder="/local/image.png" />
 
-      <div class="preview">
-        ${(p.sensors || []).map((s, i) => `
-          <div class="dot" style="left:${s.x || 50}%; top:${s.y || 50}%">${i+1}</div>
-        `).join("")}
-      </div>
+      <div class="preview"></div>
 
       <button id="add">+ capteur</button>
     `;
 
     this.querySelector("#t1").onclick = () => { this.tab = "person1"; this.render(); };
     this.querySelector("#t2").onclick = () => { this.tab = "person2"; this.render(); };
+
+    this.querySelector("#image").onchange = (e) => {
+      this._config[this.tab].image = e.target.value;
+      this.save();
+    };
 
     this.querySelector("#add").onclick = () => {
       this._config[this.tab].sensors.push({ entity: "sensor.test", x: 50, y: 50 });
