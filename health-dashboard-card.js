@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V12 (SYNC FIXED)
+// HEALTH DASHBOARD CARD – VERSION V13 (YAML FORCE UPDATE)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -9,6 +9,7 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
+    // On travaille sur une copie propre
     this._config = JSON.parse(JSON.stringify(config));
     if (this._config.img_offset === undefined) this._config.img_offset = 50; 
     if (this._config.card_height === undefined) this._config.card_height = 550;
@@ -22,7 +23,8 @@ class HealthDashboardCard extends HTMLElement {
 
   updateSensors() {
     if (!this._hass || !this._config || !this.shadowRoot) return;
-    const person = this._config[this.currentPerson || 'person1'];
+    const personKey = this.currentPerson || 'person1';
+    const person = this._config[personKey];
     (person.sensors || []).forEach((s, i) => {
       const el = this.shadowRoot.getElementById(`value-${i}`);
       if (el) {
@@ -48,9 +50,9 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; top: 12px; width: 100%; display: flex; justify-content: center; gap: 8px; z-index: 10; }
         .btn { border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; font-size: 10px; font-weight: bold; }
         .btn.active { background: #38bdf8; }
-        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 6px; border-radius: 8px; width: 22%; min-width: 70px; text-align: center; z-index: 5; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.2); cursor: grab; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 6px; border-radius: 8px; width: 22%; min-width: 70px; text-align: center; z-index: 5; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.3); cursor: grab; }
         .icon-box { font-size: 1.2em; color: var(--icon-color); }
-        .label { font-size: 0.6em; text-transform: uppercase; margin-top: 2px; opacity: 0.8; }
+        .label { font-size: 0.6em; text-transform: uppercase; margin-top: 2px; }
         .val { font-size: 0.85em; font-weight: 800; }
       </style>
       <div class="main-container">
@@ -72,21 +74,19 @@ class HealthDashboardCard extends HTMLElement {
 
     this.shadowRoot.getElementById('p1').onclick = () => { this.currentPerson = 'person1'; this.render(); };
     this.shadowRoot.getElementById('p2').onclick = () => { this.currentPerson = 'person2'; this.render(); };
-    if (!this._config.locked) this.enableDrag();
+    this.enableDrag();
     this.updateSensors();
   }
 
   enableDrag() {
     const container = this.shadowRoot.querySelector('.main-container');
     const personKey = this.currentPerson || 'person1';
-    const person = this._config[personKey];
-
-    (person.sensors || []).forEach((s, i) => {
+    
+    (this._config[personKey].sensors || []).forEach((s, i) => {
       const el = this.shadowRoot.getElementById(`sensor-${i}`);
       if (!el) return;
 
       el.onmousedown = (e) => {
-        e.preventDefault();
         this._isDragging = true;
         const rect = container.getBoundingClientRect();
 
@@ -104,11 +104,12 @@ class HealthDashboardCard extends HTMLElement {
           window.removeEventListener('mousemove', onMouseMove);
           window.removeEventListener('mouseup', onMouseUp);
           
-          // CRUCIAL: Notifie l'éditeur visuel du changement
+          // FORCE UPDATE: On recrée l'objet config de zéro pour forcer la détection
+          const newConfig = JSON.parse(JSON.stringify(this._config));
           const event = new CustomEvent("config-changed", {
-            detail: { config: this._config },
+            detail: { config: newConfig },
             bubbles: true,
-            composed: true,
+            composed: true
           });
           this.dispatchEvent(event);
         };
@@ -120,13 +121,13 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITOR V12
+// EDITOR V13 (STABLE SYNC)
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._initialized = false; }
+  constructor() { super(); }
   set hass(hass) { this._hass = hass; }
   setConfig(config) {
-    this._config = config;
-    if (!this._initialized) { this.render(); this._initialized = true; }
+    this._config = JSON.parse(JSON.stringify(config));
+    this.render();
   }
 
   render() {
@@ -136,21 +137,21 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        .ed-wrap { padding: 10px; font-family: sans-serif; background: var(--card-background-color); }
-        .section { background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .ed-wrap { padding: 12px; color: var(--primary-text-color); }
+        .section { background: rgba(128,128,128,0.1); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
         .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
-        .tab { flex: 1; padding: 8px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; text-align:center; }
-        .tab.active { background: #38bdf8; color: white; border-color: #38bdf8; }
-        .sensor-item { border: 1px solid #ccc; padding: 8px; margin-bottom: 8px; border-radius: 4px; position: relative; }
-        input { width: 100%; padding: 6px; margin: 3px 0; box-sizing: border-box; }
-        .results-list { position: absolute; width: 95%; max-height: 100px; overflow-y: auto; background: white; z-index: 100; color: black; border: 1px solid #ccc; display:none; }
-        .results-list div { padding: 5px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; background: rgba(128,128,128,0.2); border-radius: 4px; text-align:center; }
+        .tab.active { background: #38bdf8; color: white; }
+        .sensor-item { border: 1px solid rgba(128,128,128,0.3); padding: 10px; margin-bottom: 10px; border-radius: 8px; position: relative; }
+        input { width: 100%; padding: 8px; margin: 4px 0; box-sizing: border-box; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid #ccc; border-radius: 4px;}
+        .results-list { position: absolute; width: 95%; max-height: 120px; overflow-y: auto; background: white; z-index: 1000; color: black; border: 1px solid #ccc; display:none; }
+        .results-list div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
       </style>
       <div class="ed-wrap">
         <div class="section">
-          <label>Hauteur Carte: ${this._config.card_height}px</label>
+          <label>Hauteur: ${this._config.card_height}px</label>
           <input type="range" id="card-h" min="300" max="800" step="10" value="${this._config.card_height}">
-          <label>Cadrage Image: ${this._config.img_offset}%</label>
+          <label>Offset Image: ${this._config.img_offset}%</label>
           <input type="range" id="img-pos" min="0" max="100" value="${this._config.img_offset}">
         </div>
 
@@ -159,18 +160,18 @@ class HealthDashboardCardEditor extends HTMLElement {
           <div class="tab ${tab==='person2'?'active':''}" data-t="person2">Femme</div>
         </div>
 
-        <div id="sensors">
+        <div id="sensors-list">
           ${(person.sensors || []).map((s, i) => `
             <div class="sensor-item">
-              <input type="text" class="in-ent" data-idx="${i}" placeholder="Entité..." value="${s.entity}">
+              <input type="text" class="in-ent" data-idx="${i}" placeholder="Chercher entité..." value="${s.entity}">
               <div class="results-list" id="res-${i}"></div>
-              <input type="text" class="in-lab" data-idx="${i}" placeholder="Nom" value="${s.name}">
+              <input type="text" class="in-lab" data-idx="${i}" placeholder="Label" value="${s.name}">
               <input type="text" class="in-ico" data-idx="${i}" placeholder="Icône" value="${s.icon}">
-              <button class="del-btn" data-idx="${i}" style="width:100%; background:#ff4444; color:white; border:none; padding:4px; margin-top:4px; border-radius:4px;">Supprimer</button>
+              <button class="del-btn" data-idx="${i}" style="width:100%; background:#ef4444; color:white; border:none; padding:8px; margin-top:5px; border-radius:4px; cursor:pointer;">Supprimer</button>
             </div>
           `).join('')}
         </div>
-        <button id="add-s" style="width:100%; padding:10px; background:#4caf50; color:white; border:none; border-radius:4px;">➕ Ajouter Capteur</button>
+        <button id="add-s" style="width:100%; padding:12px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">➕ Ajouter un capteur</button>
       </div>
     `;
 
@@ -183,6 +184,7 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#img-pos').onchange = (e) => { this._config.img_offset = e.target.value; this._fire(); };
     
     const tab = this._currentTab || 'person1';
+
     this.querySelectorAll('.in-ent').forEach(inp => {
       inp.oninput = (e) => {
         const idx = e.target.dataset.idx;
@@ -190,24 +192,29 @@ class HealthDashboardCardEditor extends HTMLElement {
         const res = this.querySelector(`#res-${idx}`);
         this._config[tab].sensors[idx].entity = e.target.value;
         this._fire();
+
         if (val.length < 2) { res.style.display = 'none'; return; }
-        const matches = Object.keys(this._hass.states).filter(k => k.includes(val)).slice(0, 5);
+        const matches = Object.keys(this._hass.states).filter(k => k.includes(val)).slice(0, 10);
         res.innerHTML = matches.map(m => `<div data-v="${m}">${m}</div>`).join('');
         res.style.display = 'block';
         res.querySelectorAll('div').forEach(d => d.onclick = () => {
           this._config[tab].sensors[idx].entity = d.dataset.v;
-          inp.value = d.dataset.v; res.style.display = 'none'; this._fire();
+          inp.value = d.dataset.v;
+          res.style.display = 'none';
+          this._fire();
         });
       };
     });
 
     this.querySelectorAll('.in-lab').forEach(el => el.oninput = (e) => { this._config[tab].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
     this.querySelectorAll('.in-ico').forEach(el => el.oninput = (e) => { this._config[tab].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
+
     this.querySelector('#add-s').onclick = () => {
       if(!this._config[tab].sensors) this._config[tab].sensors = [];
       this._config[tab].sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', color: '#38bdf8', x: 50, y: 50 });
       this.render(); this._fire();
     };
+
     this.querySelectorAll('.del-btn').forEach(b => b.onclick = () => {
       this._config[tab].sensors.splice(b.dataset.idx, 1);
       this.render(); this._fire();
@@ -215,10 +222,11 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   _fire() {
+    const newConfig = JSON.parse(JSON.stringify(this._config));
     this.dispatchEvent(new CustomEvent("config-changed", {
-      detail: { config: this._config },
+      detail: { config: newConfig },
       bubbles: true,
-      composed: true,
+      composed: true
     }));
   }
 }
@@ -227,4 +235,4 @@ customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V12", description: "Correction synchronisation éditeur visuel." });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V13", description: "Synchronisation YAML forcée." });
