@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V32 (COLOR LOGIC FOR WEIGHT DIFFERENCE)
+// HEALTH DASHBOARD CARD – VERSION V33 (FORCED HYDRATION UNIT)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -32,7 +32,8 @@ class HealthDashboardCard extends HTMLElement {
     if (!person || !person.sensors) return;
     
     person.sensors.forEach((s, i) => {
-      const isIMC = s.entity && (s.entity.toLowerCase().includes('corpulence') || s.entity.toLowerCase().includes('imc'));
+      const entityId = s.entity ? s.entity.toLowerCase() : '';
+      const isIMC = entityId.includes('corpulence') || entityId.includes('imc');
       const el = this.shadowRoot.getElementById(`value-${i}`);
       const stateObj = this._hass.states[s.entity];
 
@@ -49,20 +50,24 @@ class HealthDashboardCard extends HTMLElement {
           pointer.setAttribute('data-imc', imc > 0 ? imc : '--');
         }
       } else if (el && stateObj) {
-        const val = parseFloat(stateObj.state);
-        el.textContent = `${stateObj.state}${stateObj.attributes.unit_of_measurement || ''}`;
+        let valText = stateObj.state;
+        let unit = stateObj.attributes.unit_of_measurement || '';
         
-        // LOGIQUE DE COULEUR POUR LA DIFFÉRENCE
-        if (s.entity.toLowerCase().includes('difference')) {
-          if (val < 0) {
-            el.style.color = "#4ade80"; // Vert (Perte)
-          } else if (val > 0) {
-            el.style.color = "#f87171"; // Rouge (Prise)
-          } else {
-            el.style.color = "white";
-          }
+        // FORCE LE POURCENTAGE POUR L'HYDRATATION
+        if (entityId.includes('hydration')) {
+          unit = '%';
+        }
+
+        el.textContent = `${valText}${unit}`;
+        
+        // LOGIQUE COULEUR DIFFÉRENCE
+        if (entityId.includes('difference')) {
+          const valNum = parseFloat(valText);
+          if (valNum < 0) el.style.color = "#4ade80"; // Vert
+          else if (valNum > 0) el.style.color = "#f87171"; // Rouge
+          else el.style.color = "white";
         } else {
-          el.style.color = "white"; // Couleur normale pour les autres capteurs
+          el.style.color = "white";
         }
       }
     });
@@ -91,7 +96,7 @@ class HealthDashboardCard extends HTMLElement {
         .corp-label { position: absolute; bottom: ${this._config.imc_title_pos}px; width: 100%; font-size: ${this._config.imc_title_size}px; text-align: center; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000; text-transform: uppercase; }
         .icon-box { font-size: 1.4em; color: #38bdf8; }
         .label { font-size: 0.7em; color: #cbd5e1; text-transform: uppercase; }
-        .val { font-size: 0.9em; font-weight: bold; transition: color 0.3s; }
+        .val { font-size: 0.9em; font-weight: bold; }
       </style>
       <div class="main-container">
         <div class="topbar">
@@ -117,7 +122,7 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// EDITOR V32 (DARK MODE & RESTORED BUTTONS)
+// EDITOR V33
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -130,14 +135,14 @@ class HealthDashboardCardEditor extends HTMLElement {
         .ed-wrap { padding: 15px; background: #111827; color: #e5e7eb; font-family: sans-serif; border-radius: 10px; }
         .section { background: #1f2937; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #374151; }
         .tabs { display: flex; gap: 8px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; padding: 10px; border-radius: 6px; border: none; background: #374151; color: white; cursor: pointer; font-weight: bold; }
-        .tab-btn.active { background: #0284c7; box-shadow: 0 0 10px rgba(2, 132, 199, 0.5); }
+        .tab-btn { flex: 1; padding: 10px; border-radius: 6px; border: none; background: #374151; color: white; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .tab-btn.active { background: #0284c7; }
         label { font-size: 10px; color: #9ca3af; text-transform: uppercase; font-weight: bold; display: block; margin-top: 8px; }
         input { background: #374151; color: white; border: 1px solid #4b5563; border-radius: 4px; padding: 6px; width: 100%; box-sizing: border-box; }
         input[type="range"] { accent-color: #38bdf8; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        h4 { margin: 0 0 10px 0; font-size: 11px; color: #38bdf8; text-transform: uppercase; }
         .s-item { background: #111827; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #38bdf8; }
-        h4 { margin: 0 0 10px 0; font-size: 11px; color: #38bdf8; text-transform: uppercase; border-bottom: 1px solid #374151; }
       </style>
       <div class="ed-wrap">
         <div class="tabs">
@@ -146,8 +151,8 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
 
         <div class="section">
-          <h4>⚖️ JAUGE IMC / CORPULENCE</h4>
-          <label>Position Titre (Haut/Bas) : ${this._config.imc_title_pos}px</label>
+          <h4>⚖️ JAUGE CORPULENCE</h4>
+          <label>Position Titre (Y) : ${this._config.imc_title_pos}px</label>
           <input type="range" id="itp" min="-20" max="120" value="${this._config.imc_title_pos}">
           <label>Taille Titre : ${this._config.imc_title_size}px</label>
           <input type="range" id="its" min="7" max="25" value="${this._config.imc_title_size}">
@@ -160,7 +165,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div id="list">
           ${person.sensors.map((s, i) => `
             <div class="s-item">
-              <label>Entité (ex: sensor.difference_poids...)</label>
+              <label>Entité</label>
               <input type="text" class="ent" data-idx="${i}" value="${s.entity}">
               <label>Titre</label>
               <input type="text" class="lab" data-idx="${i}" value="${s.name || ''}">
@@ -168,7 +173,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div><label>X%</label><input type="number" class="ix" data-idx="${i}" value="${s.x}"></div>
                 <div><label>Y%</label><input type="number" class="iy" data-idx="${i}" value="${s.y}"></div>
               </div>
-              <button class="del" data-idx="${i}" style="width:100%; background:#7f1d1d; color:white; border:none; border-radius:4px; margin-top:5px; cursor:pointer; padding:4px; font-size:10px;">SUPPRIMER</button>
+              <button class="del" data-idx="${i}" style="width:100%; background:#7f1d1d; color:white; border:none; padding:4px; margin-top:5px; border-radius:4px; cursor:pointer;">SUPPRIMER</button>
             </div>
           `).join('')}
         </div>
@@ -195,4 +200,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V32" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V33" });
