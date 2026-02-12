@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V5 (FIXED EDITOR & SENSORS)
+// HEALTH DASHBOARD CARD – VERSION V6 (SEARCH & MDI ICONS)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -10,17 +10,8 @@ class HealthDashboardCard extends HTMLElement {
 
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
-  static getStubConfig() {
-    return {
-      person1: { name: 'Homme', gender: 'male', image: '', sensors: [] },
-      person2: { name: 'Femme', gender: 'female', image: '', sensors: [] },
-    };
-  }
-
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
-    if (!this._config.person1.sensors) this._config.person1.sensors = [];
-    if (!this._config.person2.sensors) this._config.person2.sensors = [];
     this.render();
   }
 
@@ -51,30 +42,34 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .card { position: relative; width: 100%; height: 600px; background: #1a1a2e; border-radius: 16px; overflow: hidden; font-family: sans-serif; }
-        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.4; pointer-events: none; }
+        .card { position: relative; width: 100%; height: 600px; background: #111; border-radius: 16px; overflow: hidden; font-family: sans-serif; color: white; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.35; pointer-events: none; }
         svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
         .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 10; }
-        .btn { border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; transition: 0.3s; }
-        .btn.active { background: #4ecca3; box-shadow: 0 0 10px #4ecca3; }
-        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 8px; border-radius: 12px; min-width: 80px; 
-                  text-align: center; cursor: grab; z-index: 5; background: rgba(255,255,255,0.05); 
-                  backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .icon-pulse { animation: pulse 2s infinite ease-in-out; display: inline-block; font-size: 20px; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
-        .label { font-size: 9px; text-transform: uppercase; font-weight: bold; margin: 4px 0; }
-        .val { font-size: 14px; font-weight: bold; color: white; }
+        .btn { border: none; padding: 10px 18px; border-radius: 25px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; font-weight: bold; }
+        .btn.active { background: #00d2ff; box-shadow: 0 0 15px #00d2ff; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 10px; border-radius: 12px; min-width: 90px; 
+                  text-align: center; cursor: grab; z-index: 5; background: rgba(30, 30, 30, 0.8); 
+                  backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .icon-box { font-size: 24px; color: var(--icon-color); }
+        ha-icon { --mdc-icon-size: 28px; }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        .label { font-size: 10px; text-transform: uppercase; margin-top: 5px; opacity: 0.8; }
+        .val { font-size: 15px; font-weight: bold; }
       </style>
       <div class="card">
         <div class="bg"></div>
-        <svg>${(person.sensors || []).map((s, i) => `<line id="line-${i}" x1="50%" y1="50%" x2="${s.x}%" y2="${s.y}%" stroke="${s.color}" stroke-width="1" stroke-dasharray="3" opacity="0.5"/>`).join('')}</svg>
+        <svg>${(person.sensors || []).map((s, i) => `<line id="line-${i}" x1="50%" y1="50%" x2="${s.x}%" y2="${s.y}%" stroke="${s.color}" stroke-width="1.5" stroke-dasharray="4" opacity="0.4"/>`).join('')}</svg>
         <div class="topbar">
           <button id="p1" class="btn ${this.currentPerson==='person1'?'active':''}">${this._config.person1.name}</button>
           <button id="p2" class="btn ${this.currentPerson==='person2'?'active':''}">${this._config.person2.name}</button>
         </div>
         ${(person.sensors || []).map((s, i) => `
-          <div class="sensor" id="sensor-${i}" style="left:${s.x}%; top:${s.y}%;">
-            <div class="icon-pulse">${s.icon}</div>
+          <div class="sensor" id="sensor-${i}" style="left:${s.x}%; top:${s.y}%; --icon-color:${s.color}">
+            <div class="icon-box pulse">
+              ${s.icon.includes(':') ? `<ha-icon icon="${s.icon}"></ha-icon>` : s.icon}
+            </div>
             <div class="label" style="color:${s.color}">${s.name}</div>
             <div id="value-${i}" class="val">--</div>
           </div>
@@ -94,11 +89,10 @@ class HealthDashboardCard extends HTMLElement {
       const el = this.shadowRoot.getElementById(`sensor-${i}`);
       if (!el) return;
       el.onmousedown = (e) => {
-        e.preventDefault();
         const rect = card.getBoundingClientRect();
         const move = (ev) => {
-          s.x = Math.round(Math.max(5, Math.min(95, ((ev.clientX - rect.left) / rect.width) * 100)));
-          s.y = Math.round(Math.max(5, Math.min(95, ((ev.clientY - rect.top) / rect.height) * 100)));
+          s.x = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
+          s.y = Math.round(((ev.clientY - rect.top) / rect.height) * 100);
           el.style.left = s.x + '%';
           el.style.top = s.y + '%';
           const line = this.shadowRoot.getElementById(`line-${i}`);
@@ -116,76 +110,116 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITEUR V5
+// EDITEUR V6 AVEC RECHERCHE
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this.currentTab = 'person1'; }
-
   set hass(hass) { this._hass = hass; }
-
-  setConfig(config) {
-    this._config = JSON.parse(JSON.stringify(config));
-    this.render();
-  }
+  setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
 
   configChanged() {
     this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
   }
 
   render() {
-    if (!this._config) return;
+    if (!this._config || !this._hass) return;
     const person = this._config[this.currentTab];
-    const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
 
     this.innerHTML = `
       <style>
-        .edit-row { margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #ddd; }
-        select, input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
-        .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
-        .tab { flex: 1; padding: 8px; cursor: pointer; border: 1px solid #ccc; background: #eee; text-align: center; }
-        .tab.active { background: #4ecca3; color: white; border-color: #4ecca3; }
-        .btn-del { background: #ff4444; color: white; border: none; padding: 5px; cursor: pointer; width: 100%; border-radius: 4px; }
-        .btn-add { background: #4ecca3; color: white; border: none; padding: 10px; cursor: pointer; width: 100%; border-radius: 4px; font-weight: bold; }
+        .editor-container { font-family: sans-serif; padding: 10px; }
+        .tabs { display: flex; margin-bottom: 15px; background: #eee; border-radius: 8px; overflow: hidden; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border: none; }
+        .tab.active { background: #00d2ff; color: white; font-weight: bold; }
+        .sensor-block { border: 1px solid #ccc; padding: 12px; border-radius: 8px; margin-bottom: 15px; background: #fdfdfd; }
+        .search-container { position: relative; }
+        .results { position: absolute; width: 100%; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 100; display: none; }
+        .results div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 12px; }
+        .results div:hover { background: #f0f0f0; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-add { background: #4caf50; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-del { background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px; }
       </style>
-      <div class="tabs">
-        <div class="tab ${this.currentTab==='person1'?'active':''}" onclick="this.getRootNode().host.switchTab('person1')">Personne 1</div>
-        <div class="tab ${this.currentTab==='person2'?'active':''}" onclick="this.getRootNode().host.switchTab('person2')">Personne 2</div>
-      </div>
-      <div>
+      <div class="editor-container">
+        <div class="tabs">
+          <div class="tab ${this.currentTab==='person1'?'active':''}" data-tab="person1">Homme</div>
+          <div class="tab ${this.currentTab==='person2'?'active':''}" data-tab="person2">Femme</div>
+        </div>
+        
         <label>Nom :</label>
-        <input type="text" value="${person.name}" oninput="this.getRootNode().host.updatePerson('name', this.value)">
+        <input type="text" id="main-name" value="${person.name}">
+        <hr>
+        
+        <div id="sensors-list">
+          ${(person.sensors || []).map((s, i) => `
+            <div class="sensor-block">
+              <strong>Capteur #${i+1}</strong>
+              <div class="search-container">
+                <input type="text" class="search-input" data-idx="${i}" placeholder="Chercher un sensor..." value="${s.entity}">
+                <div class="results" id="results-${i}"></div>
+              </div>
+              <input type="text" class="s-name" data-idx="${i}" placeholder="Nom (ex: Tension)" value="${s.name}">
+              <input type="text" class="s-icon" data-idx="${i}" placeholder="Icon (ex: mdi:heart ou ❤️)" value="${s.icon}">
+              <input type="color" class="s-color" data-idx="${i}" value="${s.color}">
+              <button class="btn-del" data-idx="${i}">🗑️ Supprimer</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-add">➕ Ajouter un capteur</button>
       </div>
-      <hr>
-      <div id="sensors-list">
-        ${(person.sensors || []).map((s, i) => `
-          <div class="edit-row">
-            <strong>Capteur ${i+1}</strong>
-            <select onchange="this.getRootNode().host.updateSensor(${i}, 'entity', this.value)">
-              <option value="">-- Choisir un Sensor --</option>
-              ${entities.map(e => `<option value="${e}" ${s.entity===e?'selected':''}>${e}</option>`).join('')}
-            </select>
-            <input type="text" placeholder="Nom affiché" value="${s.name}" oninput="this.getRootNode().host.updateSensor(${i}, 'name', this.value)">
-            <input type="text" placeholder="Icône (Emoji)" value="${s.icon}" oninput="this.getRootNode().host.updateSensor(${i}, 'icon', this.value)">
-            <input type="color" value="${s.color}" onchange="this.getRootNode().host.updateSensor(${i}, 'color', this.value)">
-            <button class="btn-del" onclick="this.getRootNode().host.removeSensor(${i})">Supprimer</button>
-          </div>
-        `).join('')}
-      </div>
-      <button class="btn-add" onclick="this.getRootNode().host.addSensor()">➕ Ajouter un capteur</button>
     `;
+
+    this._attachEvents();
   }
 
-  switchTab(t) { this.currentTab = t; this.render(); }
-  updatePerson(key, val) { this._config[this.currentTab][key] = val; this.configChanged(); }
-  updateSensor(i, key, val) { this._config[this.currentTab].sensors[i][key] = val; this.configChanged(); }
-  addSensor() { 
-    this._config[this.currentTab].sensors.push({ entity: '', name: 'Nouveau', icon: '❤️', color: '#4ecca3', x: 50, y: 50 }); 
-    this.render(); this.configChanged(); 
+  _attachEvents() {
+    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this.currentTab = t.dataset.tab; this.render(); });
+    this.querySelector('#main-name').oninput = (e) => { this._config[this.currentTab].name = e.target.value; this.configChanged(); };
+    
+    const person = this._config[this.currentTab];
+
+    // Logique de recherche prédictive
+    this.querySelectorAll('.search-input').forEach(input => {
+      input.oninput = (e) => {
+        const val = e.target.value.toLowerCase();
+        const idx = e.target.dataset.idx;
+        const resultsDiv = this.querySelector(`#results-${idx}`);
+        
+        if (val.length < 2) { resultsDiv.style.display = 'none'; return; }
+        
+        const matches = Object.keys(this._hass.states)
+          .filter(ent => ent.includes(val))
+          .slice(0, 10);
+        
+        resultsDiv.innerHTML = matches.map(m => `<div data-val="${m}">${m}</div>`).join('');
+        resultsDiv.style.display = 'block';
+        
+        resultsDiv.querySelectorAll('div').forEach(div => {
+          div.onclick = () => {
+            person.sensors[idx].entity = div.dataset.val;
+            input.value = div.dataset.val;
+            resultsDiv.style.display = 'none';
+            this.configChanged();
+          };
+        });
+      };
+    });
+
+    this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].name = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-icon').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].icon = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-color').forEach(el => el.onchange = (e) => { person.sensors[el.dataset.idx].color = e.target.value; this.configChanged(); });
+    this.querySelector('.btn-add').onclick = () => {
+      person.sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', color: '#00d2ff', x: 50, y: 50 });
+      this.render(); this.configChanged();
+    };
+    this.querySelectorAll('.btn-del').forEach(btn => btn.onclick = () => {
+      person.sensors.splice(btn.dataset.idx, 1);
+      this.render(); this.configChanged();
+    });
   }
-  removeSensor(i) { this._config[this.currentTab].sensors.splice(i, 1); this.render(); this.configChanged(); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V5", description: "Placement précis et sélecteur de sensors corrigé." });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V6", description: "Recherche prédictive et icônes MDI." });
