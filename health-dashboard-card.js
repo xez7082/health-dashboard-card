@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V4 (LIGNES & ANIMATIONS)
+// HEALTH DASHBOARD CARD – VERSION V5 (FIXED EDITOR & SENSORS)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -12,13 +12,15 @@ class HealthDashboardCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      person1: { name: 'Homme', gender: 'male', image: '', sensors: [{ entity: 'sensor.heart_rate', name: 'Pouls', icon: '❤️', x: 50, y: 25, color: '#f44336' }] },
-      person2: { name: 'Femme', gender: 'female', image: '', sensors: [{ entity: 'sensor.sleep_score', name: 'Sommeil', icon: '🌙', x: 70, y: 15, color: '#9c27b0' }] },
+      person1: { name: 'Homme', gender: 'male', image: '', sensors: [] },
+      person2: { name: 'Femme', gender: 'female', image: '', sensors: [] },
     };
   }
 
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
+    if (!this._config.person1.sensors) this._config.person1.sensors = [];
+    if (!this._config.person2.sensors) this._config.person2.sensors = [];
     this.render();
   }
 
@@ -49,48 +51,32 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .card { position: relative; width: 100%; height: 600px; overflow: hidden; border-radius: 16px; 
-                background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); font-family: 'Segoe UI', sans-serif; }
-        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.4; z-index: 1; }
-        
-        /* SVG pour les lignes de connexion */
+        .card { position: relative; width: 100%; height: 600px; background: #1a1a2e; border-radius: 16px; overflow: hidden; font-family: sans-serif; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.4; pointer-events: none; }
         svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-        line { stroke-width: 1.5; stroke-dasharray: 4; opacity: 0.6; }
-
         .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 10; }
-        .btn { border: none; padding: 10px 20px; border-radius: 30px; cursor: pointer; color: white; background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); transition: 0.3s; }
-        .btn.active { background: #4ecca3; box-shadow: 0 0 15px #4ecca3; }
-
-        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 10px; border-radius: 15px; 
-                  min-width: 100px; text-align: center; cursor: grab; z-index: 5; backdrop-filter: blur(8px);
-                  box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); transition: transform 0.2s; }
-        .sensor:active { transform: translate(-50%, -50%) scale(1.1); cursor: grabbing; }
-        
-        .icon-pulse { display: inline-block; animation: pulse 2s infinite ease-in-out; font-size: 24px; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-        
-        .val { font-size: 18px; font-weight: bold; display: block; margin-top: 4px; }
-        .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .btn { border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; transition: 0.3s; }
+        .btn.active { background: #4ecca3; box-shadow: 0 0 10px #4ecca3; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); padding: 8px; border-radius: 12px; min-width: 80px; 
+                  text-align: center; cursor: grab; z-index: 5; background: rgba(255,255,255,0.05); 
+                  backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .icon-pulse { animation: pulse 2s infinite ease-in-out; display: inline-block; font-size: 20px; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        .label { font-size: 9px; text-transform: uppercase; font-weight: bold; margin: 4px 0; }
+        .val { font-size: 14px; font-weight: bold; color: white; }
       </style>
-      
       <div class="card">
         <div class="bg"></div>
-        <svg id="lines-svg">
-          ${(person.sensors || []).map((s, i) => `
-            <line id="line-${i}" x1="50%" y1="50%" x2="${s.x}%" y2="${s.y}%" stroke="${s.color || '#4ecca3'}" />
-          `).join('')}
-        </svg>
-
+        <svg>${(person.sensors || []).map((s, i) => `<line id="line-${i}" x1="50%" y1="50%" x2="${s.x}%" y2="${s.y}%" stroke="${s.color}" stroke-width="1" stroke-dasharray="3" opacity="0.5"/>`).join('')}</svg>
         <div class="topbar">
           <button id="p1" class="btn ${this.currentPerson==='person1'?'active':''}">${this._config.person1.name}</button>
           <button id="p2" class="btn ${this.currentPerson==='person2'?'active':''}">${this._config.person2.name}</button>
         </div>
-
         ${(person.sensors || []).map((s, i) => `
-          <div class="sensor" id="sensor-${i}" style="left:${s.x}%; top:${s.y}%; background: ${this.hexToRgba(s.color || '#4ecca3', 0.2)};">
-            <div class="icon-pulse">${s.icon || '❤️'}</div>
+          <div class="sensor" id="sensor-${i}" style="left:${s.x}%; top:${s.y}%;">
+            <div class="icon-pulse">${s.icon}</div>
             <div class="label" style="color:${s.color}">${s.name}</div>
-            <div class="val" id="value-${i}" style="color:white">--</div>
+            <div id="value-${i}" class="val">--</div>
           </div>
         `).join('')}
       </div>
@@ -99,12 +85,6 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.getElementById('p1').onclick = () => { this.currentPerson = 'person1'; this.render(); };
     this.shadowRoot.getElementById('p2').onclick = () => { this.currentPerson = 'person2'; this.render(); };
     this.enableDrag();
-    this.updateSensors();
-  }
-
-  hexToRgba(hex, alpha) {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
   enableDrag() {
@@ -112,17 +92,17 @@ class HealthDashboardCard extends HTMLElement {
     const sensors = this._config[this.currentPerson].sensors || [];
     sensors.forEach((s, i) => {
       const el = this.shadowRoot.getElementById(`sensor-${i}`);
-      const line = this.shadowRoot.getElementById(`line-${i}`);
       if (!el) return;
       el.onmousedown = (e) => {
+        e.preventDefault();
         const rect = card.getBoundingClientRect();
         const move = (ev) => {
-          s.x = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
-          s.y = Math.round(((ev.clientY - rect.top) / rect.height) * 100);
+          s.x = Math.round(Math.max(5, Math.min(95, ((ev.clientX - rect.left) / rect.width) * 100)));
+          s.y = Math.round(Math.max(5, Math.min(95, ((ev.clientY - rect.top) / rect.height) * 100)));
           el.style.left = s.x + '%';
           el.style.top = s.y + '%';
-          line.setAttribute('x2', s.x + '%');
-          line.setAttribute('y2', s.y + '%');
+          const line = this.shadowRoot.getElementById(`line-${i}`);
+          if (line) { line.setAttribute('x2', s.x + '%'); line.setAttribute('y2', s.y + '%'); }
         };
         const up = () => {
           window.removeEventListener('mousemove', move);
@@ -136,46 +116,76 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITEUR V4
+// EDITEUR V5
 class HealthDashboardCardEditor extends HTMLElement {
+  constructor() { super(); this.currentTab = 'person1'; }
+
+  set hass(hass) { this._hass = hass; }
+
   setConfig(config) {
-    this._config = config;
+    this._config = JSON.parse(JSON.stringify(config));
     this.render();
   }
 
-  render() {
-    this.innerHTML = `
-      <div style="padding: 20px;">
-        <p>Utilisez l'interface de la carte pour glisser-déposer les capteurs sur le corps.</p>
-        <p>Paramétrez ici les noms, entités et icônes (Emoji supportés).</p>
-        <hr>
-        <div id="editor-content"></div>
-        <button id="add-s" style="width:100%; padding:10px; margin-top:10px; background:#4ecca3; border:none; color:white; border-radius:5px;">➕ Ajouter un capteur</button>
-      </div>
-    `;
-    this.renderSensors();
+  configChanged() {
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
   }
 
-  renderSensors() {
-    const person = this._config.person1; // Exemple simplifié sur person1
-    const container = this.querySelector('#editor-content');
-    container.innerHTML = (person.sensors || []).map((s, i) => `
-      <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:8px;">
-        <input type="text" placeholder="Entité (sensor.xxx)" value="${s.entity}" oninput="this.updateConf(${i}, 'entity', this.value)">
-        <input type="text" placeholder="Nom" value="${s.name}" oninput="this.updateConf(${i}, 'name', this.value)">
-        <input type="text" placeholder="Icône (ex: ❤️)" value="${s.icon}" oninput="this.updateConf(${i}, 'icon', this.value)">
-        <input type="color" value="${s.color}" onchange="this.updateConf(${i}, 'color', this.value)">
+  render() {
+    if (!this._config) return;
+    const person = this._config[this.currentTab];
+    const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
+
+    this.innerHTML = `
+      <style>
+        .edit-row { margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #ddd; }
+        select, input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab { flex: 1; padding: 8px; cursor: pointer; border: 1px solid #ccc; background: #eee; text-align: center; }
+        .tab.active { background: #4ecca3; color: white; border-color: #4ecca3; }
+        .btn-del { background: #ff4444; color: white; border: none; padding: 5px; cursor: pointer; width: 100%; border-radius: 4px; }
+        .btn-add { background: #4ecca3; color: white; border: none; padding: 10px; cursor: pointer; width: 100%; border-radius: 4px; font-weight: bold; }
+      </style>
+      <div class="tabs">
+        <div class="tab ${this.currentTab==='person1'?'active':''}" onclick="this.getRootNode().host.switchTab('person1')">Personne 1</div>
+        <div class="tab ${this.currentTab==='person2'?'active':''}" onclick="this.getRootNode().host.switchTab('person2')">Personne 2</div>
       </div>
-    `).join('');
+      <div>
+        <label>Nom :</label>
+        <input type="text" value="${person.name}" oninput="this.getRootNode().host.updatePerson('name', this.value)">
+      </div>
+      <hr>
+      <div id="sensors-list">
+        ${(person.sensors || []).map((s, i) => `
+          <div class="edit-row">
+            <strong>Capteur ${i+1}</strong>
+            <select onchange="this.getRootNode().host.updateSensor(${i}, 'entity', this.value)">
+              <option value="">-- Choisir un Sensor --</option>
+              ${entities.map(e => `<option value="${e}" ${s.entity===e?'selected':''}>${e}</option>`).join('')}
+            </select>
+            <input type="text" placeholder="Nom affiché" value="${s.name}" oninput="this.getRootNode().host.updateSensor(${i}, 'name', this.value)">
+            <input type="text" placeholder="Icône (Emoji)" value="${s.icon}" oninput="this.getRootNode().host.updateSensor(${i}, 'icon', this.value)">
+            <input type="color" value="${s.color}" onchange="this.getRootNode().host.updateSensor(${i}, 'color', this.value)">
+            <button class="btn-del" onclick="this.getRootNode().host.removeSensor(${i})">Supprimer</button>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-add" onclick="this.getRootNode().host.addSensor()">➕ Ajouter un capteur</button>
+    `;
   }
+
+  switchTab(t) { this.currentTab = t; this.render(); }
+  updatePerson(key, val) { this._config[this.currentTab][key] = val; this.configChanged(); }
+  updateSensor(i, key, val) { this._config[this.currentTab].sensors[i][key] = val; this.configChanged(); }
+  addSensor() { 
+    this._config[this.currentTab].sensors.push({ entity: '', name: 'Nouveau', icon: '❤️', color: '#4ecca3', x: 50, y: 50 }); 
+    this.render(); this.configChanged(); 
+  }
+  removeSensor(i) { this._config[this.currentTab].sensors.splice(i, 1); this.render(); this.configChanged(); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "health-dashboard-card",
-  name: "Health Card V4 (Animated)",
-  description: "Dashboard santé avec lignes de connexion et animations."
-});
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V5", description: "Placement précis et sélecteur de sensors corrigé." });
