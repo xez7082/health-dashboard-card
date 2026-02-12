@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V29 (IMC TEXT & LABEL POSITIONING)
+// HEALTH DASHBOARD CARD – VERSION V31 (DARK EDITOR & FULL CONTROL)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -14,9 +14,10 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config.b_height) this._config.b_height = 65;
     if (!this._config.imc_width) this._config.imc_width = 160;
     if (!this._config.imc_height) this._config.imc_height = 60;
-    if (!this._config.imc_text_size) this._config.imc_text_size = 10;
-    if (!this._config.imc_label_pos) this._config.imc_label_pos = 5; // Position du titre (bottom px)
-    if (!this._config.imc_val_pos) this._config.imc_val_pos = 25; // Position de la flèche/valeur (top %)
+    if (!this._config.imc_title_size) this._config.imc_title_size = 10;
+    if (!this._config.imc_val_size) this._config.imc_val_size = 11;
+    if (!this._config.imc_title_pos) this._config.imc_title_pos = 45; // Plus haut par défaut
+    if (!this._config.imc_val_pos) this._config.imc_val_pos = 25;
     this.render();
   }
 
@@ -57,7 +58,6 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
     const personKey = this._config.current_view;
     const person = this._config[personKey] || { sensors: [] };
-    
     const imageUrl = person.image || (personKey === 'person2' 
       ? 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_female.png' 
       : 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_male.png');
@@ -70,27 +70,21 @@ class HealthDashboardCard extends HTMLElement {
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; cursor: pointer; background: rgba(0,0,0,0.5); color: white; font-size: 11px; font-weight: bold; }
         .btn.active { background: #38bdf8; border-color: #38bdf8; }
         
-        .sensor { position: absolute; transform: translate(-50%, -50%); width: ${this._config.b_width}px; height: ${this._config.b_height}px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.2); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; overflow: hidden; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); width: ${this._config.b_width}px; height: ${this._config.b_height}px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.2); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; overflow: visible; }
+        .sensor.imc-type { width: ${this._config.imc_width}px; height: ${this._config.imc_height}px; background: #1e293b url("/local/images/33.png") center/cover no-repeat; border: 1px solid #fff; }
         
-        .sensor.imc-type { 
-          width: ${this._config.imc_width}px; 
-          height: ${this._config.imc_height}px; 
-          background: #1e293b url("/local/images/33.png") center/cover no-repeat; 
-          border: 1px solid #fff; 
-        }
-        
-        .gauge-wrap { position: relative; width: 100%; height: 100%; }
+        .gauge-wrap { position: relative; width: 100%; height: 100%; overflow: visible; }
         .pointer { position: absolute; top: ${this._config.imc_val_pos}%; width: 20px; height: 20px; transition: left 1s ease; }
         .pointer::after { 
           content: attr(data-imc); display: block; width: 40px; color: white; font-weight: bold; 
-          font-size: ${this._config.imc_text_size}px; text-shadow: 1px 1px 2px #000; 
+          font-size: ${this._config.imc_val_size}px; text-shadow: 1px 1px 2px #000; 
           background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M7,10L12,15L17,10H7Z' stroke='black' stroke-width='0.5'/></svg>") no-repeat center bottom; 
-          background-size: ${this._config.imc_text_size * 1.5}px; padding-bottom: 10px; transform: translateX(-25%); 
+          background-size: ${this._config.imc_val_size * 1.4}px; padding-bottom: 10px; transform: translateX(-25%); 
         }
         
         .corp-label { 
-          position: absolute; bottom: ${this._config.imc_label_pos}px; width: 100%; 
-          font-size: ${this._config.imc_text_size}px; text-align: center; color: white; 
+          position: absolute; bottom: ${this._config.imc_title_pos}px; width: 100%; 
+          font-size: ${this._config.imc_title_size}px; text-align: center; color: white; 
           font-weight: bold; text-shadow: 1px 1px 2px #000; text-transform: uppercase; 
         }
         
@@ -122,7 +116,7 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// EDITOR V29
+// EDITOR V31 (DARK MODE & FULL CONTROLS)
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -130,70 +124,72 @@ class HealthDashboardCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     const tab = this._config.current_view || 'person1';
     const person = this._config[tab] || { sensors: [] };
+
     this.innerHTML = `
       <style>
-        .ed-wrap { padding: 12px; font-family: sans-serif; }
-        .section { background: #f0f4f8; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #d1d5db; }
-        .s-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: white; }
-        input[type="range"] { width: 100%; margin: 5px 0; }
-        label { font-size: 10px; font-weight: bold; color: #444; text-transform: uppercase; display: block; margin-top: 5px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        h4 { margin: 0 0 10px 0; font-size: 11px; color: #1e293b; border-bottom: 1px solid #38bdf8; padding-bottom: 5px; }
+        .ed-wrap { padding: 15px; font-family: sans-serif; background: #111827; color: #e5e7eb; border-radius: 10px; }
+        .section { background: #1f2937; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #374151; }
+        .tabs-editor { display: flex; gap: 5px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 8px; border-radius: 5px; border: none; background: #374151; color: white; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .tab-btn.active { background: #0284c7; }
+        label { font-size: 10px; font-weight: bold; color: #9ca3af; display: block; margin-top: 8px; text-transform: uppercase; }
+        input { background: #374151; color: white; border: 1px solid #4b5563; border-radius: 4px; padding: 5px; width: 100%; box-sizing: border-box; }
+        input[type="range"] { width: 100%; accent-color: #0284c7; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        h4 { margin: 0 0 10px 0; font-size: 12px; color: #38bdf8; border-bottom: 1px solid #374151; padding-bottom: 5px; }
+        .sensor-item { background: #111827; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #0284c7; }
       </style>
       <div class="ed-wrap">
-        <div class="section">
-          <h4>⚖️ RÉGLAGES JAUGE IMC (33.png)</h4>
-          <div class="grid">
-            <div><label>Largeur</label><input type="number" id="iw" value="${this._config.imc_width}"></div>
-            <div><label>Hauteur</label><input type="number" id="ih" value="${this._config.imc_height}"></div>
-          </div>
-          <label>Taille du texte : ${this._config.imc_text_size}px</label>
-          <input type="range" id="its" min="8" max="20" value="${this._config.imc_text_size}">
-          
-          <label>Position verticale Titre (Bas)</label>
-          <input type="range" id="ilp" min="-10" max="50" value="${this._config.imc_label_pos}">
-          
-          <label>Position verticale Curseur/Valeur (Haut)</label>
-          <input type="range" id="ivp" min="0" max="80" value="${this._config.imc_val_pos}">
+        <div class="tabs-editor">
+          <button class="tab-btn ${tab==='person1'?'active':''}" data-t="person1">EDITER HOMME</button>
+          <button class="tab-btn ${tab==='person2'?'active':''}" data-t="person2">EDITER FEMME</button>
         </div>
 
         <div class="section">
-          <h4>📏 BULLES STANDARDS</h4>
+          <h4>⚖️ JAUGE CORPULENCE (33.png)</h4>
           <div class="grid">
-            <input type="number" id="bw" value="${this._config.b_width}">
-            <input type="number" id="bh" value="${this._config.b_height}">
+            <div><label>Largeur Jauge</label><input type="number" id="iw" value="${this._config.imc_width}"></div>
+            <div><label>Hauteur Jauge</label><input type="number" id="ih" value="${this._config.imc_height}"></div>
           </div>
+          <label>Position Verticale Titre : ${this._config.imc_title_pos}px</label>
+          <input type="range" id="itp" min="-20" max="100" value="${this._config.imc_title_pos}">
+          <label>Taille Texte Titre : ${this._config.imc_title_size}px</label>
+          <input type="range" id="its" min="7" max="25" value="${this._config.imc_title_size}">
+          <label>Position Flèche/Valeur : ${this._config.imc_val_pos}%</label>
+          <input type="range" id="ivp" min="0" max="100" value="${this._config.imc_val_pos}">
         </div>
 
-        <div id="list">
-          ${(person.sensors || []).map((s, i) => `
-            <div class="s-item">
-              <input type="text" class="ent" data-idx="${i}" value="${s.entity}">
-              <input type="text" class="lab" data-idx="${i}" value="${s.name || ''}">
-              <div class="grid">
-                <input type="number" class="ix" data-idx="${i}" value="${s.x}">
-                <input type="number" class="iy" data-idx="${i}" value="${s.y}">
+        <div class="section">
+          <h4>➕ LISTE DES CAPTEURS</h4>
+          <div id="list">
+            ${(person.sensors || []).map((s, i) => `
+              <div class="sensor-item">
+                <input type="text" class="ent" data-idx="${i}" value="${s.entity}" placeholder="Entité">
+                <input type="text" class="lab" data-idx="${i}" value="${s.name || ''}" placeholder="Titre">
+                <div class="grid">
+                  <div><label>X%</label><input type="number" class="ix" data-idx="${i}" value="${s.x}"></div>
+                  <div><label>Y%</label><input type="number" class="iy" data-idx="${i}" value="${s.y}"></div>
+                </div>
+                <button class="del" data-idx="${i}" style="width:100%; background:#7f1d1d; color:white; border:none; border-radius:4px; margin-top:5px; cursor:pointer; font-size:10px; padding:3px;">SUPPRIMER</button>
               </div>
-              <button class="del" data-idx="${i}" style="width:100%; margin-top:5px; background:#ffcfcf; border:none; padding:4px;">Supprimer</button>
-            </div>
-          `).join('')}
+            `).join('')}
+          </div>
+          <button id="add" style="width:100%; margin-top:10px; padding:8px; background:#065f46; color:white; border:none; border-radius:5px; cursor:pointer;">+ AJOUTER UN CAPTEUR</button>
         </div>
-        <button id="add" style="width:100%; padding:10px; background:#10b981; color:white; border:none; border-radius:5px;">➕ AJOUTER</button>
       </div>`;
     this._setup();
   }
   _setup() {
+    this.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => { this._config.current_view = b.dataset.t; this._fire(); this.render(); });
+    this.querySelector('#itp').oninput = (e) => { this._config.imc_title_pos = e.target.value; this._fire(); };
+    this.querySelector('#its').oninput = (e) => { this._config.imc_title_size = e.target.value; this._fire(); };
+    this.querySelector('#ivp').oninput = (e) => { this._config.imc_val_pos = e.target.value; this._fire(); };
     this.querySelector('#iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
     this.querySelector('#ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
-    this.querySelector('#its').oninput = (e) => { this._config.imc_text_size = e.target.value; this._fire(); };
-    this.querySelector('#ilp').oninput = (e) => { this._config.imc_label_pos = e.target.value; this._fire(); };
-    this.querySelector('#ivp').oninput = (e) => { this._config.imc_val_pos = e.target.value; this._fire(); };
-    this.querySelector('#bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
-    this.querySelector('#bh').onchange = (e) => { this._config.b_height = e.target.value; this._fire(); };
     this.querySelector('#add').onclick = () => { 
       const t = this._config.current_view || 'person1';
       if(!this._config[t]) this._config[t] = {sensors:[]};
-      this._config[t].sensors.push({entity:'', name:'Nouveau', x:50, y:50}); 
+      this._config[t].sensors.push({entity:'', name:'Titre', x:50, y:50}); 
       this._fire(); this.render();
     };
     this.querySelectorAll('.ent').forEach(inp => inp.onchange = (e) => { this._config[this._config.current_view].sensors[inp.dataset.idx].entity = e.target.value; this._fire(); });
@@ -207,4 +203,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V29" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V31" });
