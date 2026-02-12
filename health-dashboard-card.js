@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V22 (SIZE CONTROL)
+// HEALTH DASHBOARD CARD – VERSION V23 (W/H CONTROL & ICONS FIXED)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -10,7 +10,8 @@ class HealthDashboardCard extends HTMLElement {
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
     if (!this._config.current_view) this._config.current_view = 'person1';
-    if (!this._config.bubble_size) this._config.bubble_size = 85; // Taille par défaut
+    if (!this._config.b_width) this._config.b_width = 85;
+    if (!this._config.b_height) this._config.b_height = 65;
     this.render();
   }
 
@@ -37,7 +38,8 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
     const personKey = this._config.current_view;
     const person = this._config[personKey] || { sensors: [] };
-    const bSize = this._config.bubble_size || 85;
+    const bW = this._config.b_width || 85;
+    const bH = this._config.b_height || 65;
     
     const imageUrl = person.image || (personKey === 'person2' 
       ? 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_female.png' 
@@ -46,20 +48,19 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         .main-container { position: relative; width: 100%; height: ${this._config.card_height || 500}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; border: 1px solid #334155; }
-        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center ${this._config.img_offset || 50}% / cover no-repeat; opacity: 0.5; transition: background 0.4s; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center ${this._config.img_offset || 50}% / cover no-repeat; opacity: 0.5; }
         svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
         .topbar { position: absolute; top: 12px; width: 100%; display: flex; justify-content: center; gap: 8px; z-index: 10; }
-        .btn { border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; font-size: 10px; font-weight: bold; transition: 0.2s; }
+        .btn { border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; background: rgba(255,255,255,0.1); color: white; font-size: 10px; font-weight: bold; }
         .btn.active { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
         
         .sensor { 
           position: absolute; 
           transform: translate(-50%, -50%); 
-          width: ${bSize}px; 
-          height: auto;
-          min-height: ${bSize * 0.7}px;
-          padding: 5px; 
-          border-radius: 10px; 
+          width: ${bW}px; 
+          height: ${bH}px;
+          padding: 4px; 
+          border-radius: 8px; 
           text-align: center; 
           z-index: 5; 
           background: rgba(15, 23, 42, 0.9); 
@@ -68,10 +69,11 @@ class HealthDashboardCard extends HTMLElement {
           flex-direction: column;
           justify-content: center;
           align-items: center;
+          overflow: hidden;
         }
-        .icon-box { font-size: ${bSize * 0.22}px; color: #38bdf8; line-height: 1; }
-        .label { font-size: ${bSize * 0.1}px; text-transform: uppercase; margin-top: 2px; color: #cbd5e1; font-weight: bold; }
-        .val { font-size: ${bSize * 0.14}px; font-weight: 800; }
+        .icon-box { font-size: ${Math.min(bW, bH) * 0.35}px; color: #38bdf8; line-height: 1; margin-bottom: 2px; }
+        .label { font-size: ${Math.min(bW, bH) * 0.15}px; text-transform: uppercase; color: #cbd5e1; white-space: nowrap; }
+        .val { font-size: ${Math.min(bW, bH) * 0.22}px; font-weight: 800; color: #fff; }
       </style>
       <div class="main-container">
         <div class="bg"></div>
@@ -100,12 +102,13 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-// EDITOR V22
+// EDITOR V23
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
-    if (!this._config.bubble_size) this._config.bubble_size = 85;
+    if (!this._config.b_width) this._config.b_width = 85;
+    if (!this._config.b_height) this._config.b_height = 65;
     this.render();
   }
 
@@ -116,49 +119,57 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        .ed-wrap { padding: 12px; font-family: sans-serif; }
-        .config-row { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cbd5e1; }
+        .ed-wrap { padding: 12px; font-family: sans-serif; color: var(--primary-text-color); }
+        .config-row { background: rgba(128,128,128,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 12px; cursor: pointer; background: #cbd5e1; text-align:center; border-radius: 6px; font-weight: bold; }
+        .tab { flex: 1; padding: 12px; cursor: pointer; background: #e2e8f0; text-align:center; border-radius: 6px; font-weight: bold; color: #333; }
         .tab.active { background: #38bdf8; color: white; }
-        .sensor-item { border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 12px; border-radius: 8px; background: white; }
-        input[type="range"] { width: 100%; margin: 10px 0; }
+        .sensor-item { border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 12px; border-radius: 8px; background: var(--card-background-color); }
+        input[type="range"] { width: 100%; margin: 5px 0 15px 0; }
         input[type="text"], input[type="number"] { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        label { font-size: 12px; font-weight: bold; color: #475569; }
-        .search-results { background: white; border: 1px solid #38bdf8; max-height: 120px; overflow-y: auto; display: none; }
+        label { font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .search-results { background: white; border: 1px solid #38bdf8; max-height: 120px; overflow-y: auto; display: none; color: #333; }
         .search-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 12px; }
       </style>
       <div class="ed-wrap">
         <div class="config-row">
-          <label>📏 Taille des bulles : ${this._config.bubble_size}px</label>
-          <input type="range" id="bubble-size" min="40" max="120" value="${this._config.bubble_size}">
+          <label>↔️ Largeur Bulles : ${this._config.b_width}px</label>
+          <input type="range" id="b-width" min="40" max="150" value="${this._config.b_width}">
           
-          <label>↕️ Hauteur Carte (px)</label>
-          <input type="number" id="card-h" value="${this._config.card_height || 550}">
+          <label>↕️ Hauteur Bulles : ${this._config.b_height}px</label>
+          <input type="range" id="b-height" min="30" max="120" value="${this._config.b_height}">
+          
+          <label>📺 Hauteur Carte : ${this._config.card_height || 500}px</label>
+          <input type="range" id="card-h" min="300" max="800" value="${this._config.card_height || 500}">
         </div>
 
         <div class="tabs">
-          <div class="tab ${currentTab==='person1'?'active':''}" data-t="person1">HOMME</div>
-          <div class="tab ${currentTab==='person2'?'active':''}" data-t="person2">FEMME</div>
+          <div class="tab ${currentTab==='person1'?'active':''}" data-t="person1">♂ HOMME</div>
+          <div class="tab ${currentTab==='person2'?'active':''}" data-t="person2">♀ FEMME</div>
         </div>
 
         <div id="sensors-list">
           ${(person.sensors || []).map((s, i) => `
             <div class="sensor-item">
               <label>Capteur</label>
-              <input type="text" class="in-search" data-idx="${i}" value="${s.entity}">
+              <input type="text" class="in-search" data-idx="${i}" value="${s.entity}" placeholder="sensor.xxx">
               <div class="search-results" id="res-${i}"></div>
+              
               <label>Nom</label>
               <input type="text" class="in-lab" data-idx="${i}" value="${s.name || ''}">
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:5px;">
+              
+              <label>Icône (ex: mdi:heart)</label>
+              <input type="text" class="in-ico" data-idx="${i}" value="${s.icon || 'mdi:pulse'}">
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div><label>X %</label><input type="number" class="in-x" data-idx="${i}" value="${s.x}"></div>
                 <div><label>Y %</label><input type="number" class="in-y" data-idx="${i}" value="${s.y}"></div>
               </div>
-              <button class="btn-del" data-idx="${i}" style="width:100%; margin-top:8px; background:#fee2e2; border:none; padding:5px; border-radius:4px; color:#b91c1c; cursor:pointer;">Supprimer</button>
+              <button class="btn-del" data-idx="${i}" style="width:100%; margin-top:10px; background:#fca5a5; border:none; padding:6px; border-radius:4px; color:#7f1d1d; cursor:pointer;">Supprimer</button>
             </div>
           `).join('')}
         </div>
-        <button id="add-sensor" style="width:100%; padding:12px; background:#10b981; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">➕ AJOUTER CAPTEUR</button>
+        <button id="add-sensor" style="width:100%; padding:15px; background:#10b981; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ AJOUTER CAPTEUR</button>
       </div>
     `;
 
@@ -166,12 +177,9 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   _setupEvents() {
-    this.querySelector('#bubble-size').oninput = (e) => { 
-      this._config.bubble_size = parseInt(e.target.value); 
-      this._fire(); 
-    };
-    
-    this.querySelector('#card-h').onchange = (e) => { this._config.card_height = parseInt(e.target.value); this._fire(); };
+    this.querySelector('#b-width').oninput = (e) => { this._config.b_width = parseInt(e.target.value); this._fire(); };
+    this.querySelector('#b-height').oninput = (e) => { this._config.b_height = parseInt(e.target.value); this._fire(); };
+    this.querySelector('#card-h').oninput = (e) => { this._config.card_height = parseInt(e.target.value); this._fire(); };
 
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { 
       this._config.current_view = t.dataset.t;
@@ -193,6 +201,7 @@ class HealthDashboardCardEditor extends HTMLElement {
           resDiv.querySelectorAll('.search-item').forEach(item => {
             item.onclick = () => {
               this._config[tab].sensors[idx].entity = item.dataset.eid;
+              if(!this._config[tab].sensors[idx].name) this._config[tab].sensors[idx].name = item.dataset.eid.split('.')[1];
               resDiv.style.display = 'none';
               this._fire();
             };
@@ -202,11 +211,13 @@ class HealthDashboardCardEditor extends HTMLElement {
     });
 
     this.querySelectorAll('.in-lab').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].name = e.target.value; this._fire(); }; });
+    this.querySelectorAll('.in-ico').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].icon = e.target.value; this._fire(); }; });
     this.querySelectorAll('.in-x').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].x = parseInt(e.target.value); this._fire(); }; });
     this.querySelectorAll('.in-y').forEach(inp => { inp.onchange = (e) => { this._config[tab].sensors[inp.dataset.idx].y = parseInt(e.target.value); this._fire(); }; });
     
     this.querySelector('#add-sensor').onclick = () => {
       if(!this._config[tab]) this._config[tab] = { sensors: [] };
+      if(!this._config[tab].sensors) this._config[tab].sensors = [];
       this._config[tab].sensors.push({ entity: '', name: 'Nouveau', icon: 'mdi:pulse', x: 50, y: 50 });
       this._fire();
     };
@@ -225,4 +236,4 @@ customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V22", description: "Réglage taille des bulles inclus." });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V23", description: "Contrôle W/H et Icônes." });
