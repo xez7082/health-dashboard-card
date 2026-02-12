@@ -159,7 +159,10 @@ class HealthDashboardCardEditor extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
-    this.tab = "person1";
+
+    // garder l'onglet actif
+    if (!this.tab) this.tab = "person1";
+
     this.render();
   }
 
