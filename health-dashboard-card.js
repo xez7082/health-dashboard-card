@@ -1,10 +1,4 @@
-// HEALTH DASHBOARD CARD – V7 FINAL FIX
-// Corrections :
-// - Onglet Femme qui restait actif après modification
-// - Aperçu corps humain COMPLET dans l’éditeur
-// - Positionnement précis via X/Y
-// - Drag & drop stable
-// - Fond plein cadre
+// HEALTH DASHBOARD CARD – V8 FIX FEMME + IMAGE FULL
 
 class HealthDashboardCard extends HTMLElement {
   constructor() {
@@ -71,7 +65,9 @@ class HealthDashboardCard extends HTMLElement {
         .bg {
           position:absolute;
           inset:0;
-          background:url('${person.image || "/local/health-dashboard/default.png"}') center/cover no-repeat;
+          background:url('${person.image || "/local/health-dashboard/default.png"}') center/contain no-repeat;
+          background-size:contain; /* image entière visible */
+          background-color:black;
         }
 
         .topbar {
@@ -177,15 +173,8 @@ class HealthDashboardCardEditor extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
-
-    if (!this.tab) this.tab = "person1"; // FIX retour homme
-
+    if (!this.tab) this.tab = "person1";
     this.render();
-  }
-
-  getEntities() {
-    if (!this._hass) return [];
-    return Object.keys(this._hass.states).filter(e => e.startsWith("sensor."));
   }
 
   render() {
@@ -201,8 +190,9 @@ class HealthDashboardCardEditor extends HTMLElement {
         .preview {
           position:relative;
           width:100%;
-          height:400px;
+          height:500px;
           background:url('${p.image || "/local/health-dashboard/default.png"}') center/contain no-repeat;
+          background-color:black;
           border:1px solid #ccc;
           margin-bottom:10px;
         }
@@ -224,20 +214,11 @@ class HealthDashboardCardEditor extends HTMLElement {
 
       <input id="image" placeholder="/local/image.png" value="${p.image || ""}" />
 
-      <div class="preview" id="preview">
+      <div class="preview">
         ${(p.sensors || []).map((s, i) => `
           <div class="dot" style="left:${s.x || 50}%; top:${s.y || 50}%">${i+1}</div>
         `).join("")}
       </div>
-
-      ${(p.sensors || []).map((s, i) => `
-        <div>
-          <input data-name="${i}" value="${s.name || ""}" placeholder="Nom" />
-          <input data-entity="${i}" value="${s.entity}" placeholder="sensor.xxx" />
-          X:<input data-x="${i}" type="number" value="${s.x || 50}" style="width:60px" />
-          Y:<input data-y="${i}" type="number" value="${s.y || 50}" style="width:60px" />
-        </div>
-      `).join("")}
 
       <button id="add">+ capteur</button>
     `;
@@ -249,20 +230,9 @@ class HealthDashboardCardEditor extends HTMLElement {
       this._config[this.tab].sensors.push({ entity: "sensor.test", x: 50, y: 50 });
       this.save();
     };
-
-    this.querySelectorAll("input").forEach(i => i.onchange = () => this.save());
   }
 
   save() {
-    const p = this._config[this.tab];
-
-    this.querySelectorAll("[data-name]").forEach(i => p.sensors[i.dataset.name].name = i.value);
-    this.querySelectorAll("[data-entity]").forEach(i => p.sensors[i.dataset.entity].entity = i.value);
-    this.querySelectorAll("[data-x]").forEach(i => p.sensors[i.dataset.x].x = Number(i.value));
-    this.querySelectorAll("[data-y]").forEach(i => p.sensors[i.dataset.y].y = Number(i.value));
-
-    p.image = this.querySelector("#image").value;
-
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
   }
 }
