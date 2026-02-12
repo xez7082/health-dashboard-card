@@ -1,5 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION V3 CORRIGÉE
-
+// HEALTH DASHBOARD CARD – VERSION V3.1 OPTIMISÉE
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -18,29 +17,23 @@ class HealthDashboardCard extends HTMLElement {
       person1: { 
         name: 'Homme', 
         gender: 'male', 
-        image: '/local/health-dashboard/male-silhouette.png', 
-        sensors: [
-          { entity: 'sensor.time', name: 'Heure', icon: '⏰', x: 70, y: 20, color: '#2196f3' }
-        ] 
+        image: '', 
+        sensors: [{ entity: 'sensor.time', name: 'Pouls', icon: '❤️', x: 50, y: 20, color: '#f44336' }] 
       },
       person2: { 
         name: 'Femme', 
         gender: 'female', 
-        image: '/local/health-dashboard/female-silhouette.png', 
-        sensors: [
-          { entity: 'sensor.date', name: 'Date', icon: '📅', x: 70, y: 30, color: '#e91e63' }
-        ] 
+        image: '', 
+        sensors: [{ entity: 'sensor.date', name: 'Sommeil', icon: '🌙', x: 50, y: 30, color: '#9c27b0' }] 
       },
     };
   }
 
   setConfig(config) {
     if (!config.person1 || !config.person2) {
-      throw new Error('Configuration invalide : person1 et person2 requis');
+      throw new Error('Configuration requise : person1 et person2');
     }
-    if (!config.person1.sensors) config.person1.sensors = [];
-    if (!config.person2.sensors) config.person2.sensors = [];
-    this._config = config;
+    this._config = JSON.parse(JSON.stringify(config)); // Deep copy
     this.render();
   }
 
@@ -49,214 +42,209 @@ class HealthDashboardCard extends HTMLElement {
     this.updateSensors();
   }
 
-  getCardSize() { return 7; }
-
   updateSensors() {
     if (!this._hass || !this._config) return;
-    const person = this._config[this.currentPerson];
-    if (!person?.sensors) return;
-
-    person.sensors.forEach((s, i) => {
+    const sensors = this._config[this.currentPerson].sensors || [];
+    sensors.forEach((s, i) => {
       const el = this.shadowRoot.getElementById(`value-${i}`);
-      if (!el) return;
-      const state = this._hass.states[s.entity];
-      el.textContent = state ? `${state.state} ${state.attributes.unit_of_measurement || ''}`.trim() : 'N/A';
+      if (el) {
+        const stateObj = this._hass.states[s.entity];
+        if (stateObj) {
+          const val = stateObj.state;
+          const unit = stateObj.attributes.unit_of_measurement || '';
+          el.textContent = `${val} ${unit}`.trim();
+        } else {
+          el.textContent = 'Non trouvé';
+        }
+      }
     });
   }
 
   render() {
     if (!this._config) return;
     const person = this._config[this.currentPerson];
-    const defaultImage = person.gender === 'female' 
-      ? '/local/health-dashboard/female-silhouette.png'
-      : '/local/health-dashboard/male-silhouette.png';
-    const imageUrl = person.image || defaultImage;
+    const defaultImg = person.gender === 'female' 
+      ? 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_female.png' // Fallback si local absent
+      : 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_male.png';
+    const imageUrl = person.image || defaultImg;
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        .card { position: relative; width: 100%; height: 650px; overflow: hidden; border-radius: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .bg { position: absolute; inset: 0; background-image: url('${imageUrl}'); background-position: center center;
-              background-size: contain; background-repeat: no-repeat; opacity: 0.4; pointer-events: none; }
-        .topbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 12px; z-index: 10; }
-        .btn-person { border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; color: white;
-                     font-weight: bold; font-size: 14px; transition: all 0.3s ease;
-                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .btn-person:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
-        .male { background: linear-gradient(135deg, #2196f3, #1976d2); }
-        .female { background: linear-gradient(135deg, #e91e63, #c2185b); }
-        .active { outline: 3px solid white; outline-offset: 2px; }
-        .person-name { position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-                       font-size: 32px; font-weight: bold; color: rgba(255,255,255,0.95);
-                       text-shadow: 2px 2px 8px rgba(0,0,0,0.5); z-index: 5; }
-        .sensor { position: absolute; transform: translate(-50%, -50%); background: white;
-                  border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                  cursor: move; transition: all 0.3s ease; min-width: 120px; text-align: center; z-index: 8; }
-        .sensor:hover { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
-        .sensor-icon { font-size: 28px; margin-bottom: 4px; }
-        .sensor-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .sensor-value { font-size: 18px; font-weight: bold; color: white; margin-top: 4px; }
+        :host { display: block; --main-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { position: relative; width: 100%; height: 600px; overflow: hidden; border-radius: 12px; background: var(--main-gradient); font-family: sans-serif; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center center / contain no-repeat; opacity: 0.5; pointer-events: none; }
+        .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 10; }
+        .btn-person { border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; color: white; font-weight: bold; transition: 0.3s; background: rgba(0,0,0,0.3); }
+        .btn-person.active { background: white; color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .person-name { position: absolute; top: 65px; width: 100%; text-align: center; font-size: 28px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 10px; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); min-width: 90px; text-align: center; cursor: grab; z-index: 5; }
+        .sensor:active { cursor: grabbing; }
+        .sensor-icon { font-size: 24px; }
+        .sensor-name { font-size: 10px; text-transform: uppercase; opacity: 0.9; }
+        .sensor-value { font-size: 16px; font-weight: bold; }
       </style>
       <div class="card">
         <div class="bg"></div>
         <div class="topbar">
-          <button id="p1" class="btn-person male ${this.currentPerson==='person1'?'active':''}">${this._config.person1.name}</button>
-          <button id="p2" class="btn-person female ${this.currentPerson==='person2'?'active':''}">${this._config.person2.name}</button>
+          <button id="p1" class="btn-person ${this.currentPerson==='person1'?'active':''}">${this._config.person1.name}</button>
+          <button id="p2" class="btn-person ${this.currentPerson==='person2'?'active':''}">${this._config.person2.name}</button>
         </div>
         <div class="person-name">${person.name}</div>
-        ${(person.sensors||[]).map((s,i)=>`
-          <div class="sensor" id="sensor-${i}" style="left:${s.x||50}%;top:${s.y||50}%;background:${s.color||'#2196f3'};">
-            <div class="sensor-icon">${s.icon||'📊'}</div>
-            <div class="sensor-name" style="color:${this.getContrastColor(s.color||'#2196f3')};">${s.name||s.entity}</div>
+        ${(person.sensors || []).map((s, i) => `
+          <div class="sensor" id="sensor-${i}" style="left:${s.x}%; top:${s.y}%; background:${s.color || '#2196f3'}; color:${this.getContrastColor(s.color)}">
+            <div class="sensor-icon">${s.icon || '📊'}</div>
+            <div class="sensor-name">${s.name}</div>
             <div class="sensor-value" id="value-${i}">--</div>
-          </div>`).join('')}
+          </div>
+        `).join('')}
       </div>
     `;
 
-    this.shadowRoot.getElementById('p1').onclick = ()=>{ this.currentPerson='person1'; this.render(); };
-    this.shadowRoot.getElementById('p2').onclick = ()=>{ this.currentPerson='person2'; this.render(); };
-
+    this.shadowRoot.getElementById('p1').onclick = () => { this.currentPerson = 'person1'; this.render(); };
+    this.shadowRoot.getElementById('p2').onclick = () => { this.currentPerson = 'person2'; this.render(); };
     this.enableDrag();
     this.updateSensors();
   }
 
-  getContrastColor(hex){
-    const h=hex.replace('#','');
-    const r=parseInt(h.substr(0,2),16);
-    const g=parseInt(h.substr(2,2),16);
-    const b=parseInt(h.substr(4,2),16);
-    const br=(r*299+g*587+b*114)/1000;
-    return br>155?'#333':'#FFF';
+  getContrastColor(hex = '#2196f3') {
+    const r = parseInt(hex.substr(1, 2), 16);
+    const g = parseInt(hex.substr(3, 2), 16);
+    const b = parseInt(hex.substr(5, 2), 16);
+    return ((r * 299 + g * 587 + b * 114) / 1000) > 128 ? '#000' : '#fff';
   }
 
-  enableDrag(){
-    const person=this._config[this.currentPerson];
-    person.sensors?.forEach((s,i)=>{
-      const el=this.shadowRoot.getElementById(`sensor-${i}`);
-      if(!el) return;
-      el.onmousedown=(e)=>{
-        e.preventDefault(); el.style.cursor='grabbing';
-        const move=(ev)=>{
-          const rect=this.shadowRoot.querySelector('.card').getBoundingClientRect();
-          const x=((ev.clientX-rect.left)/rect.width)*100;
-          const y=((ev.clientY-rect.top)/rect.height)*100;
-          s.x=Math.max(5,Math.min(95,x)); s.y=Math.max(5,Math.min(95,y));
-          el.style.left=s.x+'%'; el.style.top=s.y+'%';
+  enableDrag() {
+    const card = this.shadowRoot.querySelector('.card');
+    const sensors = this._config[this.currentPerson].sensors || [];
+    sensors.forEach((s, i) => {
+      const el = this.shadowRoot.getElementById(`sensor-${i}`);
+      if (!el) return;
+      el.onmousedown = (e) => {
+        const rect = card.getBoundingClientRect();
+        const move = (ev) => {
+          let x = ((ev.clientX - rect.left) / rect.width) * 100;
+          let y = ((ev.clientY - rect.top) / rect.height) * 100;
+          s.x = Math.round(Math.max(5, Math.min(95, x)));
+          s.y = Math.round(Math.max(5, Math.min(95, y)));
+          el.style.left = s.x + '%';
+          el.style.top = s.y + '%';
         };
-        const up=()=>{
-          el.style.cursor='move';
-          window.removeEventListener('mousemove',move);
-          window.removeEventListener('mouseup',up);
-          this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:this._config},bubbles:true,composed:true}));
+        const up = () => {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+          this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
         };
-        window.addEventListener('mousemove',move);
-        window.addEventListener('mouseup',up);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
       };
     });
   }
 }
 
-// ÉDITEUR V3 CORRIGÉ
+// ÉDITEUR V3.1
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor(){ super(); this._config=null; this._hass=null; this.currentTab='person1'; }
-  set hass(h){ this._hass=h; }
+  constructor() {
+    super();
+    this.currentTab = 'person1';
+  }
 
-  setConfig(config){
-    this._config={
-      person1: config.person1||{name:'Homme',gender:'male',image:'',sensors:[]},
-      person2: config.person2||{name:'Femme',gender:'female',image:'',sensors:[]}
-    };
+  setConfig(config) {
+    this._config = JSON.parse(JSON.stringify(config));
     this.render();
   }
 
-  configChanged(){
-    this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:this._config},bubbles:true,composed:true}));
+  configChanged() {
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
   }
 
-  render(){
-    if(!this._config) return;
-    const person=this._config[this.currentTab];
-    const defaultImage=person.gender==='female'?'/local/health-dashboard/female-silhouette.png':'/local/health-dashboard/male-silhouette.png';
-    const imageUrl=person.image||defaultImage;
+  render() {
+    if (!this._config) return;
+    const person = this._config[this.currentTab];
 
-    this.innerHTML=`
+    this.innerHTML = `
       <style>
-        .editor{padding:16px;}.tabs{display:flex;gap:8px;margin-bottom:16px;}
-        .tab-btn{padding:10px 20px;border:none;background:#f5f5f5;cursor:pointer;border-radius:8px 8px 0 0;font-weight:500;}
-        .tab-btn.active{background:#667eea;color:white;}
-        .section{background:#f9f9f9;border-radius:8px;padding:16px;margin-bottom:16px;}
-        .field{margin-bottom:12px;}
-        .field input,.field select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;}
-        .sensor-list{margin-top:12px;}
-        .sensor-item{background:white;border:2px solid #ddd;border-radius:8px;padding:16px;margin-bottom:12px;}
-        .sensor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-        .btn-remove{background:#ff5252;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;}
-        .btn-add{width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;margin-top:8px;}
+        .ed-container { font-family: sans-serif; color: var(--primary-text-color); }
+        .tabs { display: flex; margin-bottom: 15px; border-bottom: 1px solid #ccc; }
+        .tab { padding: 10px; cursor: pointer; border: none; background: none; color: var(--secondary-text-color); }
+        .tab.active { color: var(--primary-color); border-bottom: 2px solid var(--primary-color); font-weight: bold; }
+        .sec { background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .row { display: flex; align-items: center; margin-bottom: 8px; gap: 10px; }
+        label { flex: 1; font-size: 14px; }
+        input, select { flex: 2; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: var(--card-background-color); color: var(--primary-text-color); }
+        .sensor-card { border: 1px solid #ccc; padding: 10px; margin-top: 10px; border-radius: 5px; background: var(--card-background-color); }
+        .btn-add { width: 100%; padding: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-del { background: #f44336; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
       </style>
-      <div class="editor">
+      <div class="ed-container">
         <div class="tabs">
-          <button class="tab-btn ${this.currentTab==='person1'?'active':''}" data-tab="person1">👤 ${this._config.person1.name}</button>
-          <button class="tab-btn ${this.currentTab==='person2'?'active':''}" data-tab="person2">👤 ${this._config.person2.name}</button>
+          <button class="tab ${this.currentTab==='person1'?'active':''}" id="t1">Personne 1</button>
+          <button class="tab ${this.currentTab==='person2'?'active':''}" id="t2">Personne 2</button>
         </div>
-        <div class="section">
-          <div class="field"><label>Prénom</label><input type="text" class="input-name" value="${person.name||''}"></div>
-          <div class="field"><label>Genre</label><select class="select-gender"><option value="male" ${person.gender==='male'?'selected':''}>Homme</option><option value="female" ${person.gender==='female'?'selected':''}>Femme</option></select></div>
-          <div class="field"><label>Image de fond</label><input type="text" class="input-image" value="${person.image||''}" placeholder="/local/health-dashboard/silhouette.png"></div>
-        </div>
-        <div class="section">
-          <div class="sensor-list">
-            ${this.renderSensors(person.sensors||[])}
+        <div class="sec">
+          <div class="row"><label>Nom</label><input type="text" id="p-name" value="${person.name}"></div>
+          <div class="row"><label>Genre</label>
+            <select id="p-gender">
+              <option value="male" ${person.gender==='male'?'selected':''}>Homme</option>
+              <option value="female" ${person.gender==='female'?'selected':''}>Femme</option>
+            </select>
           </div>
-          <button class="btn-add">➕ Ajouter un capteur</button>
+          <div class="row"><label>Image (URL)</label><input type="text" id="p-image" value="${person.image}" placeholder="/local/img.png"></div>
         </div>
+        <div id="sensors-zone">
+          ${(person.sensors || []).map((s, i) => `
+            <div class="sensor-card">
+              <div class="row"><strong>Capteur ${i+1}</strong> <button class="btn-del" data-idx="${i}">Supprimer</button></div>
+              <div class="row"><label>Entité</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}"></div>
+              <div class="row"><label>Nom</label><input type="text" class="s-nam" data-idx="${i}" value="${s.name}"></div>
+              <div class="row"><label>Icône</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon}"></div>
+              <div class="row"><label>Couleur</label><input type="color" class="s-col" data-idx="${i}" value="${s.color}"></div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-add">➕ Ajouter un capteur</button>
       </div>
     `;
 
-    this.attachListeners();
+    this._attach();
   }
 
-  renderSensors(sensors){
-    if(!sensors.length) return '<p style="color:#999;font-size:13px;">Aucun capteur configuré</p>';
-    return sensors.map((s,i)=>`
-      <div class="sensor-item" data-index="${i}">
-        <div class="sensor-header"><span>Capteur ${i+1}</span><button class="btn-remove" data-index="${i}">🗑️ Supprimer</button></div>
-        <div class="field"><label>Entité</label><input type="text" class="sensor-entity" data-index="${i}" value="${s.entity||''}"></div>
-        <div class="field"><label>Nom affiché</label><input type="text" class="sensor-name" data-index="${i}" value="${s.name||''}"></div>
-        <div class="field"><label>Icône</label><input type="text" class="sensor-icon" data-index="${i}" value="${s.icon||''}" maxlength="4"></div>
-        <div class="field"><label>Couleur</label><input type="color" class="sensor-color" data-index="${i}" value="${s.color||'#2196f3'}"></div>
-        <div class="field"><label>X (%)</label><input type="number" class="sensor-x" data-index="${i}" value="${s.x||50}" min="5" max="95"></div>
-        <div class="field"><label>Y (%)</label><input type="number" class="sensor-y" data-index="${i}" value="${s.y||50}" min="5" max="95"></div>
-      </div>`).join('');
-  }
+  _attach() {
+    this.querySelector('#t1').onclick = () => { this.currentTab = 'person1'; this.render(); };
+    this.querySelector('#t2').onclick = () => { this.currentTab = 'person2'; this.render(); };
+    
+    const person = this._config[this.currentTab];
 
-  attachListeners(){
-    this.querySelectorAll('.tab-btn').forEach(btn=>btn.onclick=()=>{this.currentTab=btn.dataset.tab;this.render();});
-    const person=this._config[this.currentTab];
+    this.querySelector('#p-name').oninput = (e) => { person.name = e.target.value; this.configChanged(); };
+    this.querySelector('#p-gender').onchange = (e) => { person.gender = e.target.value; this.configChanged(); };
+    this.querySelector('#p-image').oninput = (e) => { person.image = e.target.value; this.configChanged(); };
 
-    const nameInput=this.querySelector('.input-name'); if(nameInput) nameInput.oninput=e=>{person.name=e.target.value;this.configChanged();};
-    const genderSelect=this.querySelector('.select-gender'); if(genderSelect) genderSelect.onchange=e=>{person.gender=e.target.value;this.configChanged(); this.render();};
-    const imageInput=this.querySelector('.input-image'); if(imageInput) imageInput.oninput=e=>{person.image=e.target.value;this.configChanged(); this.render();};
+    this.querySelectorAll('.s-ent').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].entity = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-nam').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].name = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-ico').forEach(el => el.oninput = (e) => { person.sensors[el.dataset.idx].icon = e.target.value; this.configChanged(); });
+    this.querySelectorAll('.s-col').forEach(el => el.onchange = (e) => { person.sensors[el.dataset.idx].color = e.target.value; this.configChanged(); });
 
-    this.querySelector('.btn-add').onclick=()=>{
-      person.sensors.push({entity:'',name:'',icon:'📊',color:'#2196f3',x:50,y:50});
-      this.configChanged(); this.render();
+    this.querySelector('.btn-add').onclick = () => {
+      if(!person.sensors) person.sensors = [];
+      person.sensors.push({ entity: '', name: 'Nouveau', icon: '📊', color: '#2196f3', x: 50, y: 50 });
+      this.render();
+      this.configChanged();
     };
 
-    this.querySelectorAll('.btn-remove').forEach(btn=>btn.onclick=()=>{
-      const index=parseInt(btn.dataset.index); person.sensors.splice(index,1); this.configChanged(); this.render();
+    this.querySelectorAll('.btn-del').forEach(btn => btn.onclick = () => {
+      person.sensors.splice(btn.dataset.idx, 1);
+      this.render();
+      this.configChanged();
     });
-
-    this.querySelectorAll('.sensor-entity').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].entity=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-name').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].name=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-icon').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].icon=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-color').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].color=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-x').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].x=parseFloat(e.target.value);this.configChanged();});
-    this.querySelectorAll('.sensor-y').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].y=parseFloat(e.target.value);this.configChanged();});
   }
 }
 
-customElements.define('health-dashboard-card',HealthDashboardCard);
-customElements.define('health-dashboard-card-editor',HealthDashboardCardEditor);
+customElements.define('health-dashboard-card', HealthDashboardCard);
+customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
-window.customCards=window.customCards||[]
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: "health-dashboard-card",
+  name: "Health Dashboard Card",
+  preview: true,
+  description: "Une carte de santé interactive avec silhouettes"
+});
