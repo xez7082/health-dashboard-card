@@ -1,46 +1,23 @@
-// HEALTH DASHBOARD CARD – VERSION V3 CORRIGÉE
-
+// HEALTH DASHBOARD CARD – VERSION 38 (THE EVERYTHING VERSION)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this._config = null;
-    this._hass = null;
-    this.currentPerson = 'person1';
   }
 
-  static getConfigElement() {
-    return document.createElement('health-dashboard-card-editor');
-  }
-
-  static getStubConfig() {
-    return {
-      person1: { 
-        name: 'Homme', 
-        gender: 'male', 
-        image: '/local/health-dashboard/male-silhouette.png', 
-        sensors: [
-          { entity: 'sensor.time', name: 'Heure', icon: '⏰', x: 70, y: 20, color: '#2196f3' }
-        ] 
-      },
-      person2: { 
-        name: 'Femme', 
-        gender: 'female', 
-        image: '/local/health-dashboard/female-silhouette.png', 
-        sensors: [
-          { entity: 'sensor.date', name: 'Date', icon: '📅', x: 70, y: 30, color: '#e91e63' }
-        ] 
-      },
-    };
-  }
+  static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
-    if (!config.person1 || !config.person2) {
-      throw new Error('Configuration invalide : person1 et person2 requis');
-    }
-    if (!config.person1.sensors) config.person1.sensors = [];
-    if (!config.person2.sensors) config.person2.sensors = [];
-    this._config = config;
+    this._config = JSON.parse(JSON.stringify(config));
+    if (!this._config.current_view) this._config.current_view = 'person1';
+    if (!this._config.b_width) this._config.b_width = 85;
+    if (!this._config.b_height) this._config.b_height = 65;
+    if (!this._config.imc_width) this._config.imc_width = 160;
+    if (!this._config.imc_height) this._config.imc_height = 60;
+    if (!this._config.imc_title_size) this._config.imc_title_size = 10;
+    if (!this._config.imc_val_size) this._config.imc_val_size = 11;
+    if (!this._config.imc_title_pos) this._config.imc_title_pos = 45;
+    if (!this._config.imc_val_pos) this._config.imc_val_pos = 25;
     this.render();
   }
 
@@ -49,214 +26,202 @@ class HealthDashboardCard extends HTMLElement {
     this.updateSensors();
   }
 
-  getCardSize() { return 7; }
-
   updateSensors() {
-    if (!this._hass || !this._config) return;
-    const person = this._config[this.currentPerson];
-    if (!person?.sensors) return;
-
+    if (!this._hass || !this.shadowRoot) return;
+    const person = this._config[this._config.current_view];
+    if (!person || !person.sensors) return;
+    
     person.sensors.forEach((s, i) => {
-      const el = this.shadowRoot.getElementById(`value-${i}`);
-      if (!el) return;
-      const state = this._hass.states[s.entity];
-      el.textContent = state ? `${state.state} ${state.attributes.unit_of_measurement || ''}`.trim() : 'N/A';
+      const entityId = s.entity ? s.entity.toLowerCase() : '';
+      const isIMC = entityId.includes('corpulence') || entityId.includes('imc');
+      const valEl = this.shadowRoot.getElementById(`value-${i}`);
+      const iconBox = this.shadowRoot.getElementById(`icon-box-${i}`);
+      const stateObj = this._hass.states[s.entity];
+
+      if (isIMC) {
+        const pointer = this.shadowRoot.getElementById(`pointer-${i}`);
+        if (pointer) {
+          const suffix = this._config.current_view === 'person2' ? '_sandra' : '_patrick';
+          const stPoids = this._hass.states['sensor.withings_poids' + suffix];
+          const stTaille = this._hass.states['input_number.taille_en_m' + suffix];
+          if (stPoids && stTaille) {
+            const poids = parseFloat(stPoids.state || 0);
+            const taille = parseFloat(stTaille.state || 1.75);
+            const imc = poids > 0 ? (poids / (taille * taille)).toFixed(1) : 0;
+            let pos = ((imc - 10) * 2.5) + 5;
+            pos = Math.max(5, Math.min(95, pos));
+            pointer.style.left = `${pos}%`;
+            pointer.setAttribute('data-imc', imc > 0 ? imc : '--');
+          }
+        }
+      } else if (valEl && stateObj) {
+        let valText = stateObj.state;
+        let unit = stateObj.attributes.unit_of_measurement || '';
+        if (entityId.includes('hydration')) { unit = '%'; }
+        valEl.textContent = `${valText}${unit}`;
+        
+        let color = "white";
+        if (entityId.includes('difference')) {
+          const valNum = parseFloat(valText);
+          if (valNum < 0) color = "#4ade80"; 
+          else if (valNum > 0) color = "#f87171"; 
+        }
+        valEl.style.color = color;
+        if (iconBox) iconBox.style.color = color === "white" ? "#38bdf8" : color;
+      }
     });
   }
 
   render() {
     if (!this._config) return;
-    const person = this._config[this.currentPerson];
-    const defaultImage = person.gender === 'female' 
-      ? '/local/health-dashboard/female-silhouette.png'
-      : '/local/health-dashboard/male-silhouette.png';
-    const imageUrl = person.image || defaultImage;
+    const personKey = this._config.current_view;
+    const person = this._config[personKey] || { sensors: [] };
+    const imageUrl = person.image || (personKey === 'person2' 
+      ? 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_female.png' 
+      : 'https://raw.githubusercontent.com/home-assistant/frontend/dev/gallery/src/data/person_male.png');
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; }
-        .card { position: relative; width: 100%; height: 650px; overflow: hidden; border-radius: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .bg { position: absolute; inset: 0; background-image: url('${imageUrl}'); background-position: center center;
-              background-size: contain; background-repeat: no-repeat; opacity: 0.4; pointer-events: none; }
-        .topbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 12px; z-index: 10; }
-        .btn-person { border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; color: white;
-                     font-weight: bold; font-size: 14px; transition: all 0.3s ease;
-                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .btn-person:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
-        .male { background: linear-gradient(135deg, #2196f3, #1976d2); }
-        .female { background: linear-gradient(135deg, #e91e63, #c2185b); }
-        .active { outline: 3px solid white; outline-offset: 2px; }
-        .person-name { position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-                       font-size: 32px; font-weight: bold; color: rgba(255,255,255,0.95);
-                       text-shadow: 2px 2px 8px rgba(0,0,0,0.5); z-index: 5; }
-        .sensor { position: absolute; transform: translate(-50%, -50%); background: white;
-                  border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                  cursor: move; transition: all 0.3s ease; min-width: 120px; text-align: center; z-index: 8; }
-        .sensor:hover { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
-        .sensor-icon { font-size: 28px; margin-bottom: 4px; }
-        .sensor-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .sensor-value { font-size: 18px; font-weight: bold; color: white; margin-top: 4px; }
+        .main-container { position: relative; width: 100%; height: ${this._config.card_height || 500}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
+        .bg { position: absolute; inset: 0; background: url('${imageUrl}') center 50% / cover no-repeat; opacity: 0.5; }
+        .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 100; }
+        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; cursor: pointer; background: rgba(0,0,0,0.5); color: white; font-size: 11px; font-weight: bold; }
+        .btn.active { background: #38bdf8; border-color: #38bdf8; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); width: ${this._config.b_width}px; height: ${this._config.b_height}px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.2); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        .sensor.imc-type { width: ${this._config.imc_width}px; height: ${this._config.imc_height}px; background: #1e293b url("/local/images/33.png") center/cover no-repeat; border: 1px solid #fff; overflow: visible; }
+        .gauge-wrap { position: relative; width: 100%; height: 100%; overflow: visible; }
+        .pointer { position: absolute; top: ${this._config.imc_val_pos}%; width: 20px; height: 20px; transition: left 1s ease; }
+        .pointer::after { 
+          content: attr(data-imc); display: block; width: 40px; color: white; font-weight: bold; font-size: ${this._config.imc_val_size}px; text-shadow: 1px 1px 2px #000; 
+          background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M7,10L12,15L17,10H7Z' stroke='black' stroke-width='0.5'/></svg>") no-repeat center bottom; 
+          background-size: ${this._config.imc_val_size * 1.4}px; padding-bottom: 10px; transform: translateX(-25%); 
+        }
+        .corp-label { position: absolute; bottom: ${this._config.imc_title_pos}px; width: 100%; font-size: ${this._config.imc_title_size}px; text-align: center; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000; text-transform: uppercase; }
+        .icon-box { font-size: 1.4em; color: #38bdf8; display: flex; align-items: center; justify-content: center; height: 24px; }
+        .label { font-size: 0.7em; color: #cbd5e1; text-transform: uppercase; text-align: center; }
+        .val { font-size: 0.9em; font-weight: bold; }
+        ha-icon { --mdc-icon-size: 24px; width: 24px; height: 24px; }
       </style>
-      <div class="card">
-        <div class="bg"></div>
+      <div class="main-container">
         <div class="topbar">
-          <button id="p1" class="btn-person male ${this.currentPerson==='person1'?'active':''}">${this._config.person1.name}</button>
-          <button id="p2" class="btn-person female ${this.currentPerson==='person2'?'active':''}">${this._config.person2.name}</button>
+          <button id="bt1" class="btn ${personKey==='person1'?'active':''}">HOMME</button>
+          <button id="bt2" class="btn ${personKey==='person2'?'active':''}">FEMME</button>
         </div>
-        <div class="person-name">${person.name}</div>
-        ${(person.sensors||[]).map((s,i)=>`
-          <div class="sensor" id="sensor-${i}" style="left:${s.x||50}%;top:${s.y||50}%;background:${s.color||'#2196f3'};">
-            <div class="sensor-icon">${s.icon||'📊'}</div>
-            <div class="sensor-name" style="color:${this.getContrastColor(s.color||'#2196f3')};">${s.name||s.entity}</div>
-            <div class="sensor-value" id="value-${i}">--</div>
-          </div>`).join('')}
+        <div class="bg"></div>
+        ${(person.sensors || []).map((s, i) => {
+          const isIMC = s.entity && (s.entity.toLowerCase().includes('corpulence') || s.entity.toLowerCase().includes('imc'));
+          if (isIMC) {
+            return `<div class="sensor imc-type" style="left:${s.x}%; top:${s.y}%"><div class="gauge-wrap"><div id="pointer-${i}" class="pointer" data-imc="--"></div><div class="corp-label">${s.name || 'CORPULENCE'}</div></div></div>`;
+          } else {
+            const stateObj = this._hass ? this._hass.states[s.entity] : null;
+            const icon = s.icon || (stateObj ? (stateObj.attributes.icon || 'mdi:heart-pulse') : 'mdi:heart-pulse');
+            return `
+              <div class="sensor" style="left:${s.x}%; top:${s.y}%">
+                <div class="icon-box" id="icon-box-${i}"><ha-icon icon="${icon}"></ha-icon></div>
+                <div class="label">${s.name || ''}</div>
+                <div id="value-${i}" class="val">--</div>
+              </div>`;
+          }
+        }).join('')}
       </div>
     `;
-
-    this.shadowRoot.getElementById('p1').onclick = ()=>{ this.currentPerson='person1'; this.render(); };
-    this.shadowRoot.getElementById('p2').onclick = ()=>{ this.currentPerson='person2'; this.render(); };
-
-    this.enableDrag();
+    this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.shadowRoot.getElementById('bt2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.updateSensors();
   }
-
-  getContrastColor(hex){
-    const h=hex.replace('#','');
-    const r=parseInt(h.substr(0,2),16);
-    const g=parseInt(h.substr(2,2),16);
-    const b=parseInt(h.substr(4,2),16);
-    const br=(r*299+g*587+b*114)/1000;
-    return br>155?'#333':'#FFF';
-  }
-
-  enableDrag(){
-    const person=this._config[this.currentPerson];
-    person.sensors?.forEach((s,i)=>{
-      const el=this.shadowRoot.getElementById(`sensor-${i}`);
-      if(!el) return;
-      el.onmousedown=(e)=>{
-        e.preventDefault(); el.style.cursor='grabbing';
-        const move=(ev)=>{
-          const rect=this.shadowRoot.querySelector('.card').getBoundingClientRect();
-          const x=((ev.clientX-rect.left)/rect.width)*100;
-          const y=((ev.clientY-rect.top)/rect.height)*100;
-          s.x=Math.max(5,Math.min(95,x)); s.y=Math.max(5,Math.min(95,y));
-          el.style.left=s.x+'%'; el.style.top=s.y+'%';
-        };
-        const up=()=>{
-          el.style.cursor='move';
-          window.removeEventListener('mousemove',move);
-          window.removeEventListener('mouseup',up);
-          this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:this._config},bubbles:true,composed:true}));
-        };
-        window.addEventListener('mousemove',move);
-        window.addEventListener('mouseup',up);
-      };
-    });
-  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// ÉDITEUR V3 CORRIGÉ
+// EDITOR V38
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor(){ super(); this._config=null; this._hass=null; this.currentTab='person1'; }
-  set hass(h){ this._hass=h; }
-
-  setConfig(config){
-    this._config={
-      person1: config.person1||{name:'Homme',gender:'male',image:'',sensors:[]},
-      person2: config.person2||{name:'Femme',gender:'female',image:'',sensors:[]}
-    };
-    this.render();
-  }
-
-  configChanged(){
-    this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:this._config},bubbles:true,composed:true}));
-  }
-
-  render(){
-    if(!this._config) return;
-    const person=this._config[this.currentTab];
-    const defaultImage=person.gender==='female'?'/local/health-dashboard/female-silhouette.png':'/local/health-dashboard/male-silhouette.png';
-    const imageUrl=person.image||defaultImage;
-
-    this.innerHTML=`
+  set hass(hass) { this._hass = hass; }
+  setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
+  render() {
+    if (!this._config || !this._hass) return;
+    const tab = this._config.current_view || 'person1';
+    const person = this._config[tab] || { sensors: [] };
+    this.innerHTML = `
       <style>
-        .editor{padding:16px;}.tabs{display:flex;gap:8px;margin-bottom:16px;}
-        .tab-btn{padding:10px 20px;border:none;background:#f5f5f5;cursor:pointer;border-radius:8px 8px 0 0;font-weight:500;}
-        .tab-btn.active{background:#667eea;color:white;}
-        .section{background:#f9f9f9;border-radius:8px;padding:16px;margin-bottom:16px;}
-        .field{margin-bottom:12px;}
-        .field input,.field select{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;}
-        .sensor-list{margin-top:12px;}
-        .sensor-item{background:white;border:2px solid #ddd;border-radius:8px;padding:16px;margin-bottom:12px;}
-        .sensor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-        .btn-remove{background:#ff5252;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;}
-        .btn-add{width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;margin-top:8px;}
+        .ed-wrap { padding: 15px; background: #111827; color: #e5e7eb; font-family: sans-serif; border-radius: 10px; }
+        .section { background: #1f2937; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #374151; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; border-radius: 6px; border: none; background: #374151; color: white; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: #0284c7; }
+        label { font-size: 10px; color: #9ca3af; text-transform: uppercase; font-weight: bold; display: block; margin-top: 8px; }
+        input { background: #374151; color: white; border: 1px solid #4b5563; border-radius: 4px; padding: 6px; width: 100%; box-sizing: border-box; }
+        input[type="range"] { accent-color: #38bdf8; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        h4 { margin: 0 0 10px 0; font-size: 11px; color: #38bdf8; text-transform: uppercase; border-bottom: 1px solid #374151; padding-bottom: 4px; }
+        .s-item { background: #111827; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #38bdf8; }
       </style>
-      <div class="editor">
+      <div class="ed-wrap">
         <div class="tabs">
-          <button class="tab-btn ${this.currentTab==='person1'?'active':''}" data-tab="person1">👤 ${this._config.person1.name}</button>
-          <button class="tab-btn ${this.currentTab==='person2'?'active':''}" data-tab="person2">👤 ${this._config.person2.name}</button>
+          <button class="tab-btn ${tab==='person1'?'active':''}" id="t1">HOMME</button>
+          <button class="tab-btn ${tab==='person2'?'active':''}" id="t2">FEMME</button>
         </div>
+
         <div class="section">
-          <div class="field"><label>Prénom</label><input type="text" class="input-name" value="${person.name||''}"></div>
-          <div class="field"><label>Genre</label><select class="select-gender"><option value="male" ${person.gender==='male'?'selected':''}>Homme</option><option value="female" ${person.gender==='female'?'selected':''}>Femme</option></select></div>
-          <div class="field"><label>Image de fond</label><input type="text" class="input-image" value="${person.image||''}" placeholder="/local/health-dashboard/silhouette.png"></div>
-        </div>
-        <div class="section">
-          <div class="sensor-list">
-            ${this.renderSensors(person.sensors||[])}
+          <h4>⚖️ JAUGE CORPULENCE (IMC)</h4>
+          <label>Position Titre (Verticale) : ${this._config.imc_title_pos}px</label>
+          <input type="range" id="itp" min="-20" max="150" value="${this._config.imc_title_pos}">
+          <label>Taille Texte Titre : ${this._config.imc_title_size}px</label>
+          <input type="range" id="its" min="7" max="25" value="${this._config.imc_title_size}">
+          <div class="grid">
+            <div><label>Largeur Jauge</label><input type="number" id="iw" value="${this._config.imc_width}"></div>
+            <div><label>Hauteur Jauge</label><input type="number" id="ih" value="${this._config.imc_height}"></div>
           </div>
-          <button class="btn-add">➕ Ajouter un capteur</button>
+          <label>Position Flèche (Y) : ${this._config.imc_val_pos}%</label>
+          <input type="range" id="ivp" min="0" max="100" value="${this._config.imc_val_pos}">
         </div>
-      </div>
-    `;
 
-    this.attachListeners();
+        <div class="section">
+          <h4>📐 BULLES STANDARD</h4>
+          <div class="grid">
+            <div><label>Largeur</label><input type="number" id="bw" value="${this._config.b_width}"></div>
+            <div><label>Hauteur</label><input type="number" id="bh" value="${this._config.b_height}"></div>
+          </div>
+        </div>
+
+        <div id="list">
+          ${person.sensors.map((s, i) => `
+            <div class="s-item">
+              <label>Entité</label><input type="text" class="ent" data-idx="${i}" value="${s.entity}">
+              <label>Icône MDI</label><input type="text" class="ico" data-idx="${i}" value="${s.icon || ''}">
+              <label>Titre</label><input type="text" class="lab" data-idx="${i}" value="${s.name || ''}">
+              <div class="grid">
+                <div><label>X %</label><input type="number" class="ix" data-idx="${i}" value="${s.x}"></div>
+                <div><label>Y %</label><input type="number" class="iy" data-idx="${i}" value="${s.y}"></div>
+              </div>
+              <button class="del" data-idx="${i}" style="width:100%; background:#7f1d1d; color:white; border:none; padding:6px; margin-top:8px; border-radius:4px;">SUPPRIMER</button>
+            </div>
+          `).join('')}
+        </div>
+        <button id="add" style="width:100%; margin-top:15px; padding:12px; background:#065f46; color:white; border:none; border-radius:6px; font-weight:bold;">+ AJOUTER CAPTEUR</button>
+      </div>`;
+    this._setup();
   }
-
-  renderSensors(sensors){
-    if(!sensors.length) return '<p style="color:#999;font-size:13px;">Aucun capteur configuré</p>';
-    return sensors.map((s,i)=>`
-      <div class="sensor-item" data-index="${i}">
-        <div class="sensor-header"><span>Capteur ${i+1}</span><button class="btn-remove" data-index="${i}">🗑️ Supprimer</button></div>
-        <div class="field"><label>Entité</label><input type="text" class="sensor-entity" data-index="${i}" value="${s.entity||''}"></div>
-        <div class="field"><label>Nom affiché</label><input type="text" class="sensor-name" data-index="${i}" value="${s.name||''}"></div>
-        <div class="field"><label>Icône</label><input type="text" class="sensor-icon" data-index="${i}" value="${s.icon||''}" maxlength="4"></div>
-        <div class="field"><label>Couleur</label><input type="color" class="sensor-color" data-index="${i}" value="${s.color||'#2196f3'}"></div>
-        <div class="field"><label>X (%)</label><input type="number" class="sensor-x" data-index="${i}" value="${s.x||50}" min="5" max="95"></div>
-        <div class="field"><label>Y (%)</label><input type="number" class="sensor-y" data-index="${i}" value="${s.y||50}" min="5" max="95"></div>
-      </div>`).join('');
+  _setup() {
+    this.querySelector('#t1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#t2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    this.querySelector('#itp').oninput = (e) => { this._config.imc_title_pos = e.target.value; this._fire(); };
+    this.querySelector('#its').oninput = (e) => { this._config.imc_title_size = e.target.value; this._fire(); };
+    this.querySelector('#ivp').oninput = (e) => { this._config.imc_val_pos = e.target.value; this._fire(); };
+    this.querySelector('#iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
+    this.querySelector('#ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
+    this.querySelector('#bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
+    this.querySelector('#bh').onchange = (e) => { this._config.b_height = e.target.value; this._fire(); };
+    this.querySelector('#add').onclick = () => { this._config[this._config.current_view].sensors.push({entity:'', name:'Titre', x:50, y:50, icon:''}); this._fire(); this.render(); };
+    this.querySelectorAll('.ent').forEach(inp => inp.onchange = (e) => { this._config[this._config.current_view].sensors[inp.dataset.idx].entity = e.target.value; this._fire(); });
+    this.querySelectorAll('.ico').forEach(inp => inp.onchange = (e) => { this._config[this._config.current_view].sensors[inp.dataset.idx].icon = e.target.value; this._fire(); });
+    this.querySelectorAll('.lab').forEach(i => i.onchange = (e) => { this._config[this._config.current_view].sensors[i.dataset.idx].name = e.target.value; this._fire(); });
+    this.querySelectorAll('.ix').forEach(i => i.onchange = (e) => { this._config[this._config.current_view].sensors[i.dataset.idx].x = e.target.value; this._fire(); });
+    this.querySelectorAll('.iy').forEach(i => i.onchange = (e) => { this._config[this._config.current_view].sensors[i.dataset.idx].y = e.target.value; this._fire(); });
+    this.querySelectorAll('.del').forEach(b => b.onclick = () => { this._config[this._config.current_view].sensors.splice(b.dataset.idx, 1); this._fire(); this.render(); });
   }
-
-  attachListeners(){
-    this.querySelectorAll('.tab-btn').forEach(btn=>btn.onclick=()=>{this.currentTab=btn.dataset.tab;this.render();});
-    const person=this._config[this.currentTab];
-
-    const nameInput=this.querySelector('.input-name'); if(nameInput) nameInput.oninput=e=>{person.name=e.target.value;this.configChanged();};
-    const genderSelect=this.querySelector('.select-gender'); if(genderSelect) genderSelect.onchange=e=>{person.gender=e.target.value;this.configChanged(); this.render();};
-    const imageInput=this.querySelector('.input-image'); if(imageInput) imageInput.oninput=e=>{person.image=e.target.value;this.configChanged(); this.render();};
-
-    this.querySelector('.btn-add').onclick=()=>{
-      person.sensors.push({entity:'',name:'',icon:'📊',color:'#2196f3',x:50,y:50});
-      this.configChanged(); this.render();
-    };
-
-    this.querySelectorAll('.btn-remove').forEach(btn=>btn.onclick=()=>{
-      const index=parseInt(btn.dataset.index); person.sensors.splice(index,1); this.configChanged(); this.render();
-    });
-
-    this.querySelectorAll('.sensor-entity').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].entity=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-name').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].name=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-icon').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].icon=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-color').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].color=e.target.value;this.configChanged();});
-    this.querySelectorAll('.sensor-x').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].x=parseFloat(e.target.value);this.configChanged();});
-    this.querySelectorAll('.sensor-y').forEach(input=>input.oninput=e=>{const i=parseInt(e.target.dataset.index);person.sensors[i].y=parseFloat(e.target.value);this.configChanged();});
-  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-customElements.define('health-dashboard-card',HealthDashboardCard);
-customElements.define('health-dashboard-card-editor',HealthDashboardCardEditor);
-
-window.customCards=window.customCards||[]
+customElements.define('health-dashboard-card', HealthDashboardCard);
+customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
+window.customCards = window.customCards || [];
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V38" });
