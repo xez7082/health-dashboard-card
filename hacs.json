@@ -1,7 +1,9 @@
 {
   "name": "Health Dashboard Card",
   "render_readme": true,
+  "type": "lovelace",
+  "content_type": "js",
   "filename": "health-dashboard-card.js",
-  "content_in_root": true,
-  "homeassistant": "2023.1.0"
+  "country": "FR",
+  "author": "xez7082"
 }
