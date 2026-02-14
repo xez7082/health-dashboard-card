@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 57 (ENTITY PICKER FIX)
+// HEALTH DASHBOARD CARD – VERSION 58 (PICKER REPAIR)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -104,13 +104,20 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    // On repasse le hass aux pickers s'ils existent déjà
+    const pickers = this.querySelectorAll('ha-entity-picker');
+    pickers.forEach(p => p.hass = hass);
+  }
+  
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
     this.render();
   }
+
   render() {
-    if (!this._config || !this._hass) return;
+    if (!this._config) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
     
@@ -124,9 +131,9 @@ class HealthDashboardCardEditor extends HTMLElement {
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin: 4px 0 10px 0; box-sizing: border-box; }
         label { color: #38bdf8; font-size: 11px; font-weight: bold; display: block; }
         .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        ha-entity-picker { display: block; margin: 5px 0 10px 0; --paper-input-container-focus-color: #38bdf8; }
-        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; z-index: 2; }
+        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; z-index: 10; }
+        ha-entity-picker { color: black !important; }
       </style>
       <div class="ed-box">
         <div class="tab-menu">
@@ -146,47 +153,45 @@ class HealthDashboardCardEditor extends HTMLElement {
 
         <div class="section">
             <h4 style="margin:0 0 10px 0; color:#38bdf8;">⚙️ CAPTEURS</h4>
-            <div id="sensors-list"></div>
+            <div id="sensors-container"></div>
             <button class="add-btn" id="add-sensor">➕ AJOUTER UN CAPTEUR</button>
         </div>
       </div>
     `;
 
-    // Rendu dynamique des capteurs pour injecter les pickers
-    const list = this.querySelector('#sensors-list');
+    const container = this.querySelector('#sensors-container');
     p.sensors.forEach((s, i) => {
-        const card = document.createElement('div');
-        card.className = 's-card';
-        card.innerHTML = `
+        const sDiv = document.createElement('div');
+        sDiv.className = 's-card';
+        sDiv.innerHTML = `
             <button class="del-btn" data-idx="${i}">X</button>
-            <label>NOM DU CAPTEUR</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
-            <label>CHOISIR L'ENTITÉ</label>
-            <ha-entity-picker id="picker-${i}" .hass="${this._hass}" .value="${s.entity}" .index="${i}"></ha-entity-picker>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-                <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
+            <label>NOM DU CAPTEUR</label>
+            <input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+            <label>SÉLECTIONNER L'ENTITÉ</label>
+            <ha-entity-picker .hass="${this._hass}" .value="${s.entity}" data-idx="${i}"></ha-entity-picker>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:8px;">
+                <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || ''}"></div>
                 <div><label>X%</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
                 <div><label>Y%</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
             </div>
         `;
-        list.appendChild(card);
+        container.appendChild(sDiv);
 
-        // Event pour le picker
-        const picker = card.querySelector('ha-entity-picker');
-        picker.addEventListener('value-changed', (e) => {
-            this._config[pKey].sensors[i].entity = e.detail.value;
+        // Listener spécifique pour le picker
+        const picker = sDiv.querySelector('ha-entity-picker');
+        picker.addEventListener('value-changed', (ev) => {
+            const idx = picker.getAttribute('data-idx');
+            this._config[pKey].sensors[idx].entity = ev.detail.value;
             this._fire();
         });
     });
 
-    // Listeners généraux
+    // Listeners pour les autres champs
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
     this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
-    this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
-    this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
-    this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
-
+    
     this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
     this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
     this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
@@ -204,10 +209,13 @@ class HealthDashboardCardEditor extends HTMLElement {
         this.render();
     });
   }
-  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
+
+  _fire() {
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+  }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V57" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V58" });
