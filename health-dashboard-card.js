@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 60 (INTELLIGENT ENTITY SELECTOR)
+// HEALTH DASHBOARD CARD – VERSION 61 (STABLE SELECTOR)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -103,15 +103,13 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
-  set hass(hass) { this._hass = hass; this.render(); }
+  set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
 
   render() {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
-    
-    // On génère la liste des entités disponibles
     const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
 
     this.innerHTML = `
@@ -121,38 +119,29 @@ class HealthDashboardCardEditor extends HTMLElement {
         .t-btn { flex: 1; padding: 12px; border: 2px solid #444; background: #222; color: #888; cursor: pointer; font-weight: bold; border-radius: 8px; }
         .t-btn.active { border-color: #38bdf8; background: #38bdf8; color: white; }
         .section { background: #252525; border: 1px solid #444; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin: 4px 0 10px 0; box-sizing: border-box; }
+        input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin: 4px 0 10px 0; box-sizing: border-box; }
         label { color: #38bdf8; font-size: 11px; font-weight: bold; display: block; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
       </style>
       <div class="ed-box">
         <div class="tab-menu">
-            <button class="t-btn ${pKey==='person1'?'active':''}" id="t-p1">MODIFIER PATRICK</button>
-            <button class="t-btn ${pKey==='person2'?'active':''}" id="t-p2">MODIFIER SANDRA</button>
+            <button class="t-btn ${pKey==='person1'?'active':''}" id="t-p1">PATRICK</button>
+            <button class="t-btn ${pKey==='person2'?'active':''}" id="t-p2">SANDRA</button>
         </div>
 
-        <datalist id="hass-entities">
+        <datalist id="list-entities">
             ${entities.map(e => `<option value="${e}">${this._hass.states[e].attributes.friendly_name || e}</option>`).join('')}
         </datalist>
 
         <div class="section">
-            <label>NOM DU PROFIL</label><input type="text" id="inp-name" value="${p.name}">
-            <label>URL IMAGE DE FOND</label><input type="text" id="inp-img" value="${p.image || ''}">
-            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <label>NOM</label><input type="text" id="inp-name" value="${p.name}">
+            <label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px;">
                 <div><label>DÉPART</label><input type="number" id="inp-start" value="${p.start}"></div>
                 <div><label>CONFORT</label><input type="number" id="inp-goal" value="${p.goal}"></div>
                 <div><label>IDÉAL</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h4 style="margin:0 0 10px 0; color:#38bdf8;">📏 DIMENSIONS</h4>
-            <div class="grid">
-              <div><label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}"></div>
-              <div><label>Largeur Bulles</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
             </div>
         </div>
 
@@ -162,43 +151,53 @@ class HealthDashboardCardEditor extends HTMLElement {
             ${p.sensors.map((s, i) => `
               <div class="s-card">
                 <button class="del-btn" data-idx="${i}">X</button>
-                <label>NOM DU CAPTEUR</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
-                <label>ENTITÉ (Cliquez pour la liste)</label>
-                <input type="text" class="s-ent" list="hass-entities" data-idx="${i}" value="${s.entity}" placeholder="Rechercher un capteur...">
-                <div class="grid">
-                    <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
+                <label>NOM</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+                <label>ENTITÉ</label>
+                <input type="text" class="s-ent" list="list-entities" data-idx="${i}" value="${s.entity}" placeholder="Chercher...">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-top:5px;">
+                    <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || ''}"></div>
                     <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
                     <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
                 </div>
               </div>
             `).join('')}
             </div>
-            <button class="add-btn" id="add-sensor">➕ AJOUTER UN CAPTEUR</button>
+            <button class="add-btn" id="add-sensor">➕ AJOUTER</button>
         </div>
       </div>
     `;
 
-    // Listeners identiques
-    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); };
-    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); };
-    this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
-    this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
-    this.querySelector('#inp-ch').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
-    
-    this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+    // Gestion du délai (Debounce) pour éviter que ça clignote
+    const save = () => {
+        if (this._timer) clearTimeout(this._timer);
+        this._timer = setTimeout(() => this._fire(), 500); 
+    };
+
+    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    this.querySelector('#inp-name').oninput = (e) => { this._config[pKey].name = e.target.value; save(); };
+    this.querySelector('#inp-img').oninput = (e) => { this._config[pKey].image = e.target.value; save(); };
+    this.querySelector('#inp-start').oninput = (e) => { this._config[pKey].start = e.target.value; save(); };
+    this.querySelector('#inp-goal').oninput = (e) => { this._config[pKey].goal = e.target.value; save(); };
+    this.querySelector('#inp-ideal').oninput = (e) => { this._config[pKey].ideal = e.target.value; save(); };
+
+    this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; save(); });
+    this.querySelectorAll('.s-ent').forEach(el => {
+        el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; save(); };
+        // On empêche le rafraîchissement au clic pour laisser la liste ouverte
+        el.onclick = (e) => e.stopPropagation(); 
+    });
+    this.querySelectorAll('.s-icon').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; save(); });
+    this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; save(); });
+    this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; save(); });
 
     this.querySelector('#add-sensor').onclick = () => {
         this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 });
-        this._fire();
+        this._fire(); this.render();
     };
     this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => {
         this._config[pKey].sensors.splice(e.target.dataset.idx, 1);
-        this._fire();
+        this._fire(); this.render();
     });
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -207,4 +206,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V60" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V61" });
