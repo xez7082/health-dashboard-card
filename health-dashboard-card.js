@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 56 (ADD SENSOR BUTTON)
+// HEALTH DASHBOARD CARD – VERSION 57 (ENTITY PICKER FIX)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -104,13 +104,16 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
+  set hass(hass) { this._hass = hass; }
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
     this.render();
   }
   render() {
+    if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
+    
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
@@ -120,10 +123,10 @@ class HealthDashboardCardEditor extends HTMLElement {
         .section { background: #252525; border: 1px solid #444; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin: 4px 0 10px 0; box-sizing: border-box; }
         label { color: #38bdf8; font-size: 11px; font-weight: bold; display: block; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .s-card { background: #111; padding: 8px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
+        .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
+        ha-entity-picker { display: block; margin: 5px 0 10px 0; --paper-input-container-focus-color: #38bdf8; }
+        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; z-index: 2; }
       </style>
       <div class="ed-box">
         <div class="tab-menu">
@@ -134,7 +137,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div class="section">
             <label>NOM DU PROFIL</label><input type="text" id="inp-name" value="${p.name}">
             <label>URL IMAGE DE FOND</label><input type="text" id="inp-img" value="${p.image || ''}">
-            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
                 <div><label>DÉPART</label><input type="number" id="inp-start" value="${p.start}"></div>
                 <div><label>CONFORT</label><input type="number" id="inp-goal" value="${p.goal}"></div>
                 <div><label>IDÉAL</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
@@ -143,23 +146,39 @@ class HealthDashboardCardEditor extends HTMLElement {
 
         <div class="section">
             <h4 style="margin:0 0 10px 0; color:#38bdf8;">⚙️ CAPTEURS</h4>
-            ${p.sensors.map((s, i) => `
-              <div class="s-card">
-                <button class="del-btn" data-idx="${i}">X</button>
-                <label>Nom</label><input type="text" class="s-inp" data-idx="${i}" data-f="name" value="${s.name}">
-                <label>Icône</label><input type="text" class="s-inp" data-idx="${i}" data-f="icon" value="${s.icon || 'mdi:heart'}">
-                <label>Entité</label><input type="text" class="s-inp" data-idx="${i}" data-f="entity" value="${s.entity}">
-                <div class="grid">
-                  <div><label>X%</label><input type="number" class="s-inp" data-idx="${i}" data-f="x" value="${s.x}"></div>
-                  <div><label>Y%</label><input type="number" class="s-inp" data-idx="${i}" data-f="y" value="${s.y}"></div>
-                </div>
-              </div>
-            `).join('')}
+            <div id="sensors-list"></div>
             <button class="add-btn" id="add-sensor">➕ AJOUTER UN CAPTEUR</button>
         </div>
       </div>
     `;
 
+    // Rendu dynamique des capteurs pour injecter les pickers
+    const list = this.querySelector('#sensors-list');
+    p.sensors.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = 's-card';
+        card.innerHTML = `
+            <button class="del-btn" data-idx="${i}">X</button>
+            <label>NOM DU CAPTEUR</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+            <label>CHOISIR L'ENTITÉ</label>
+            <ha-entity-picker id="picker-${i}" .hass="${this._hass}" .value="${s.entity}" .index="${i}"></ha-entity-picker>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
+                <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
+                <div><label>X%</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
+                <div><label>Y%</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+            </div>
+        `;
+        list.appendChild(card);
+
+        // Event pour le picker
+        const picker = card.querySelector('ha-entity-picker');
+        picker.addEventListener('value-changed', (e) => {
+            this._config[pKey].sensors[i].entity = e.detail.value;
+            this._fire();
+        });
+    });
+
+    // Listeners généraux
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
@@ -167,6 +186,11 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
     this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
     this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
+
+    this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
 
     this.querySelector('#add-sensor').onclick = () => {
         this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 });
@@ -179,11 +203,6 @@ class HealthDashboardCardEditor extends HTMLElement {
         this._fire();
         this.render();
     });
-
-    this.querySelectorAll('.s-inp').forEach(el => el.onchange = (e) => {
-        this._config[pKey].sensors[el.dataset.idx][el.dataset.f] = e.target.value;
-        this._fire();
-    });
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
@@ -191,4 +210,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V56" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V57" });
