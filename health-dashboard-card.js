@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 55 (STRICT REFRESH)
+// HEALTH DASHBOARD CARD – VERSION 56 (ADD SENSOR BUTTON)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -57,7 +57,7 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         .main-container { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 0}%; background-size: cover; background-repeat: no-repeat; opacity: 0.4; transition: opacity 0.3s; z-index: 1; }
+        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 0}%; background-size: cover; background-repeat: no-repeat; opacity: 0.4; z-index: 1; }
         .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: #38bdf8 !important; border-color: #38bdf8; box-shadow: 0 0 15px #38bdf8; }
@@ -115,13 +115,15 @@ class HealthDashboardCardEditor extends HTMLElement {
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
         .tab-menu { display: flex; gap: 8px; margin-bottom: 20px; }
-        .t-btn { flex: 1; padding: 12px; border: 2px solid #444; background: #222; color: #888; cursor: pointer; font-weight: bold; border-radius: 8px; transition: all 0.3s; }
-        .t-btn.active { border-color: #38bdf8; background: #38bdf8; color: white; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .t-btn { flex: 1; padding: 12px; border: 2px solid #444; background: #222; color: #888; cursor: pointer; font-weight: bold; border-radius: 8px; }
+        .t-btn.active { border-color: #38bdf8; background: #38bdf8; color: white; }
         .section { background: #252525; border: 1px solid #444; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin: 4px 0 10px 0; box-sizing: border-box; }
         label { color: #38bdf8; font-size: 11px; font-weight: bold; display: block; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .s-card { background: #111; padding: 8px; margin-bottom: 10px; border-left: 4px solid #38bdf8; }
+        .s-card { background: #111; padding: 8px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
+        .add-btn { width: 100%; padding: 10px; background: #4ade80; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
       </style>
       <div class="ed-box">
         <div class="tab-menu">
@@ -140,27 +142,12 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
 
         <div class="section">
-            <h4 style="margin:0 0 10px 0; color:#38bdf8;">📏 TAILLES & AFFICHAGE</h4>
-            <div class="grid">
-              <div><label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}"></div>
-              <div><label>Décalage Image %</label><input type="number" id="inp-off" value="${this._config.img_offset || 0}"></div>
-            </div>
-            <div class="grid">
-                <div><label>Largeur Bulles</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
-                <div><label>Hauteur Bulles</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
-            </div>
-            <div class="grid">
-                <div><label>Largeur Corpulence</label><input type="number" id="inp-iw" value="${this._config.imc_width || 160}"></div>
-                <div><label>Hauteur Corpulence</label><input type="number" id="inp-ih" value="${this._config.imc_height || 69}"></div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h4 style="margin:0 0 10px 0; color:#38bdf8;">⚙️ CAPTEURS DE ${p.name.toUpperCase()}</h4>
+            <h4 style="margin:0 0 10px 0; color:#38bdf8;">⚙️ CAPTEURS</h4>
             ${p.sensors.map((s, i) => `
               <div class="s-card">
+                <button class="del-btn" data-idx="${i}">X</button>
                 <label>Nom</label><input type="text" class="s-inp" data-idx="${i}" data-f="name" value="${s.name}">
-                <label>Icône</label><input type="text" class="s-inp" data-idx="${i}" data-f="icon" value="${s.icon || ''}">
+                <label>Icône</label><input type="text" class="s-inp" data-idx="${i}" data-f="icon" value="${s.icon || 'mdi:heart'}">
                 <label>Entité</label><input type="text" class="s-inp" data-idx="${i}" data-f="entity" value="${s.entity}">
                 <div class="grid">
                   <div><label>X%</label><input type="number" class="s-inp" data-idx="${i}" data-f="x" value="${s.x}"></div>
@@ -168,33 +155,30 @@ class HealthDashboardCardEditor extends HTMLElement {
                 </div>
               </div>
             `).join('')}
+            <button class="add-btn" id="add-sensor">➕ AJOUTER UN CAPTEUR</button>
         </div>
       </div>
     `;
 
-    this.querySelector('#t-p1').onclick = () => { 
-      this._config.current_view = 'person1'; 
-      this._fire(); 
-      this.render(); 
-    };
-    this.querySelector('#t-p2').onclick = () => { 
-      this._config.current_view = 'person2'; 
-      this._fire(); 
-      this.render(); 
-    };
-    
+    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
     this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
     this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
     this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
     this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
-    
-    this.querySelector('#inp-ch').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-off').onchange = (e) => { this._config.img_offset = e.target.value; this._fire(); };
-    this.querySelector('#inp-bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-bh').onchange = (e) => { this._config.b_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
+
+    this.querySelector('#add-sensor').onclick = () => {
+        this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 });
+        this._fire();
+        this.render();
+    };
+
+    this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => {
+        this._config[pKey].sensors.splice(e.target.dataset.idx, 1);
+        this._fire();
+        this.render();
+    });
 
     this.querySelectorAll('.s-inp').forEach(el => el.onchange = (e) => {
         this._config[pKey].sensors[el.dataset.idx][el.dataset.f] = e.target.value;
@@ -207,4 +191,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V55" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V56" });
