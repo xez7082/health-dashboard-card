@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 65 (RETOUR COMPLET DES RÉGLAGES DE TAILLE)
+// HEALTH DASHBOARD CARD – VERSION 66 (TEMPLATE COMPLIANT & FULL CONFIG)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -34,16 +34,22 @@ class HealthDashboardCard extends HTMLElement {
         const depart = parseFloat(pData.start || 76);
         const ideal = parseFloat(pData.ideal || 58);
         
+        // Calcul position règle
         const range = depart - ideal;
         let pct = ((depart - actuel) / range) * 100;
         progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
-        progPointer.setAttribute('data-val', `${actuel}kg`);
+        
+        // Affichage poids actuel
+        const unitPoids = stPoids.attributes.unit_of_measurement || 'kg';
+        progPointer.setAttribute('data-val', `${actuel} ${unitPoids}`);
 
+        // Affichage différence (Template Sensor)
         if (stDiff) {
             const valDiff = parseFloat(stDiff.state);
-            const color = valDiff <= 0 ? '#4ade80' : '#f87171';
+            const color = valDiff <= 0 ? '#4ade80' : '#f87171'; // Vert si <= 0, Rouge si > 0
             const sign = valDiff > 0 ? '+' : '';
-            progPointer.setAttribute('data-diff', `${sign}${valDiff}kg`);
+            const unitDiff = stDiff.attributes.unit_of_measurement || 'kg';
+            progPointer.setAttribute('data-diff', `${sign}${valDiff} ${unitDiff}`);
             progPointer.style.setProperty('--diff-color', color);
         }
     }
@@ -53,7 +59,8 @@ class HealthDashboardCard extends HTMLElement {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
             const stateObj = this._hass.states[s.entity];
             if (valEl && stateObj) {
-                valEl.textContent = `${stateObj.state}${stateObj.attributes.unit_of_measurement || ''}`;
+                const u = stateObj.attributes.unit_of_measurement || '';
+                valEl.textContent = `${stateObj.state} ${u}`;
             }
         });
     }
@@ -69,15 +76,15 @@ class HealthDashboardCard extends HTMLElement {
         .main-container { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
         .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 0}%; background-size: cover; background-repeat: no-repeat; opacity: 0.4; z-index: 1; pointer-events: none; }
         .topbar { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 100; }
-        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.3s; }
         .btn.active { background: #38bdf8 !important; border-color: #38bdf8; box-shadow: 0 0 15px #38bdf8; }
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 70px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 30px; border: 1px solid rgba(255,255,255,0.2); }
-        .prog-pointer { position: absolute; top: -15px; width: 4px; height: 35px; background: #38bdf8; transition: left 1s ease; border-radius: 2px; }
+        .prog-pointer { position: absolute; top: -15px; width: 4px; height: 35px; background: #38bdf8; transition: left 1s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; }
         .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; }
-        .prog-pointer::before { content: attr(data-diff); position: absolute; top: 38px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 12px; font-weight: bold; }
+        .prog-pointer::before { content: attr(data-diff); position: absolute; top: 38px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 12px; font-weight: bold; transition: color 0.3s; }
         .marker-label { position: absolute; top: 18px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: bold; }
-        .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; }
+        .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); }
         ha-icon { --mdc-icon-size: 24px; color: #38bdf8; margin-bottom: 3px; }
       </style>
       <div class="main-container">
@@ -95,7 +102,7 @@ class HealthDashboardCard extends HTMLElement {
             </div>
         </div>
         ${(pData.sensors || []).map((s, i) => {
-            const isIMC = s.name && s.name.toLowerCase().includes('corpulence');
+            const isIMC = s.name && (s.name.toLowerCase().includes('corpulence') || s.name.toLowerCase().includes('imc'));
             const w = isIMC ? (this._config.imc_width||160) : (this._config.b_width||160);
             const h = isIMC ? (this._config.imc_height||69) : (this._config.b_height||69);
             return `<div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${w}px; height:${h}px;">
@@ -191,9 +198,9 @@ class HealthDashboardCardEditor extends HTMLElement {
       </div>
     `;
 
-    // Événements (toujours onchange pour la stabilité de saisie)
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
     this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
     this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
@@ -226,4 +233,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V65" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V66" });
