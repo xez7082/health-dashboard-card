@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 63 (DIFFÉRENCE DE POIDS + STABILITÉ)
+// HEALTH DASHBOARD CARD – VERSION 64 (CAPTEURS DE DIFFÉRENCE DÉDIÉS)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -25,7 +25,11 @@ class HealthDashboardCard extends HTMLElement {
     if (!pData) return;
 
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
+    
+    // Capteur de poids actuel
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
+    // Capteur de différence dédié
+    const stDiff = this._hass.states['sensor.difference_poids' + suffix];
     
     const progPointer = this.shadowRoot.getElementById('progression-pointer');
     if (stPoids && progPointer) {
@@ -33,19 +37,20 @@ class HealthDashboardCard extends HTMLElement {
         const depart = parseFloat(pData.start || 76);
         const ideal = parseFloat(pData.ideal || 58);
         
-        // Calcul du pourcentage sur la règle
+        // Position sur la règle
         const range = depart - ideal;
         let pct = ((depart - actuel) / range) * 100;
         progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
-        
-        // Calcul de la différence (Delta)
-        const diff = (actuel - depart).toFixed(1);
-        const color = diff <= 0 ? '#4ade80' : '#f87171'; // Vert si perte ou égal, Rouge si prise
-        const sign = diff > 0 ? '+' : '';
-        
         progPointer.setAttribute('data-val', `${actuel}kg`);
-        progPointer.setAttribute('data-diff', `${sign}${diff}kg`);
-        progPointer.style.setProperty('--diff-color', color);
+
+        // Gestion de la différence via le capteur dédié
+        if (stDiff) {
+            const valDiff = parseFloat(stDiff.state);
+            const color = valDiff <= 0 ? '#4ade80' : '#f87171';
+            const sign = valDiff > 0 ? '+' : '';
+            progPointer.setAttribute('data-diff', `${sign}${valDiff}kg`);
+            progPointer.style.setProperty('--diff-color', color);
+        }
     }
 
     if (pData.sensors) {
@@ -163,10 +168,6 @@ class HealthDashboardCardEditor extends HTMLElement {
               <div><label>Haut. Carte</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}"></div>
               <div><label>Larg. Bulles</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
             </div>
-            <div class="grid">
-              <div><label>Larg. IMC</label><input type="number" id="inp-iw" value="${this._config.imc_width || 160}"></div>
-              <div><label>Haut. IMC</label><input type="number" id="inp-ih" value="${this._config.imc_height || 69}"></div>
-            </div>
         </div>
 
         <div class="section">
@@ -193,17 +194,13 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
-    
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
     this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
     this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
     this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
     this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
-    
     this.querySelector('#inp-ch').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
     this.querySelector('#inp-bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
 
     this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
     this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
@@ -226,4 +223,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V63" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V64" });
