@@ -1,5 +1,15 @@
 # 🥗 Health Dashboard Card (V66)
 
+# Health Dashboard Card
+
+[![HACS](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge)](https://github.com/hacs/integration)
+![Version](https://img.shields.io/github/v/release/xez7082/health-dashboard-card?include_prereleases&style=for-the-badge)
+[![License](https://img.shields.io/github/license/xez7082/health-dashboard-card?style=for-the-badge)](LICENSE)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=for-the-badge)](https://github.com/xez7082/health-dashboard-card/graphs/commit-activity)
+[![BuyMeACoffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange.svg?style=for-the-badge&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/xez7082)
+
+---
+
 Une carte Home Assistant personnalisée, élégante et interactive pour le suivi de la santé et des objectifs de poids, inspirée du design "Apple Health".
 
 ---
