@@ -1,7 +1,5 @@
 # 🥗 Health Dashboard Card (V66)
 
-# Health Dashboard Card
-
 [![HACS](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge)](https://github.com/hacs/integration)
 ![Version](https://img.shields.io/github/v/release/xez7082/health-dashboard-card?include_prereleases&style=for-the-badge)
 [![License](https://img.shields.io/github/license/xez7082/health-dashboard-card?style=for-the-badge)](LICENSE)
