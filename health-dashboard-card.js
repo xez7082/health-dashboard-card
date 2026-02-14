@@ -1,4 +1,4 @@
-// HEALTH DASHBOARD CARD – VERSION 62 (STABLE & COMPLETE)
+// HEALTH DASHBOARD CARD – VERSION 63 (DIFFÉRENCE DE POIDS + STABILITÉ)
 class HealthDashboardCard extends HTMLElement {
   constructor() {
     super();
@@ -32,10 +32,20 @@ class HealthDashboardCard extends HTMLElement {
         const actuel = parseFloat(stPoids.state);
         const depart = parseFloat(pData.start || 76);
         const ideal = parseFloat(pData.ideal || 58);
+        
+        // Calcul du pourcentage sur la règle
         const range = depart - ideal;
         let pct = ((depart - actuel) / range) * 100;
         progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        
+        // Calcul de la différence (Delta)
+        const diff = (actuel - depart).toFixed(1);
+        const color = diff <= 0 ? '#4ade80' : '#f87171'; // Vert si perte ou égal, Rouge si prise
+        const sign = diff > 0 ? '+' : '';
+        
         progPointer.setAttribute('data-val', `${actuel}kg`);
+        progPointer.setAttribute('data-diff', `${sign}${diff}kg`);
+        progPointer.style.setProperty('--diff-color', color);
     }
 
     if (pData.sensors) {
@@ -64,7 +74,8 @@ class HealthDashboardCard extends HTMLElement {
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 70px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 30px; border: 1px solid rgba(255,255,255,0.2); }
         .prog-pointer { position: absolute; top: -15px; width: 4px; height: 35px; background: #38bdf8; transition: left 1s ease; border-radius: 2px; }
-        .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .prog-pointer::before { content: attr(data-diff); position: absolute; top: 38px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 12px; font-weight: bold; }
         .marker-label { position: absolute; top: 18px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: bold; }
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; }
         ha-icon { --mdc-icon-size: 24px; color: #38bdf8; margin-bottom: 3px; }
@@ -80,7 +91,7 @@ class HealthDashboardCard extends HTMLElement {
                 <div class="marker-label" style="left: 0; color: #f87171;">DEPART<br>${pData.start}kg</div>
                 <div class="marker-label" style="left: 65%; color: #fbbf24;">CONFORT<br>${pData.goal}kg</div>
                 <div class="marker-label" style="left: 100%; color: #4ade80;">IDEAL<br>${pData.ideal}kg</div>
-                <div id="progression-pointer" class="prog-pointer" data-val="--"></div>
+                <div id="progression-pointer" class="prog-pointer" data-val="--" data-diff=""></div>
             </div>
         </div>
         ${(pData.sensors || []).map((s, i) => {
@@ -153,8 +164,8 @@ class HealthDashboardCardEditor extends HTMLElement {
               <div><label>Larg. Bulles</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
             </div>
             <div class="grid">
-              <div><label>Larg. Corpulence</label><input type="number" id="inp-iw" value="${this._config.imc_width || 160}"></div>
-              <div><label>Haut. Corpulence</label><input type="number" id="inp-ih" value="${this._config.imc_height || 69}"></div>
+              <div><label>Larg. IMC</label><input type="number" id="inp-iw" value="${this._config.imc_width || 160}"></div>
+              <div><label>Haut. IMC</label><input type="number" id="inp-ih" value="${this._config.imc_height || 69}"></div>
             </div>
         </div>
 
@@ -165,7 +176,7 @@ class HealthDashboardCardEditor extends HTMLElement {
               <div class="s-card">
                 <button class="del-btn" data-idx="${i}">X</button>
                 <label>NOM</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
-                <label>ENTITÉ (Liste active)</label>
+                <label>ENTITÉ</label>
                 <input type="text" class="s-ent" list="list-entities" data-idx="${i}" value="${s.entity}" placeholder="Chercher...">
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-top:5px;">
                     <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || ''}"></div>
@@ -175,12 +186,11 @@ class HealthDashboardCardEditor extends HTMLElement {
               </div>
             `).join('')}
             </div>
-            <button class="add-btn" id="add-sensor">➕ AJOUTER UN CAPTEUR</button>
+            <button class="add-btn" id="add-sensor">➕ AJOUTER</button>
         </div>
       </div>
     `;
 
-    // EVENEMENTS : On utilise .onchange pour que l'enregistrement se fasse quand on quitte la case
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     
@@ -216,4 +226,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V62" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V63" });
