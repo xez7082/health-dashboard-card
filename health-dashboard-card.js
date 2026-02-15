@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – VERSION 67.5 (RESTAURATION COMPLÈTE)
- * Restaure : Tous les capteurs du YAML, Positions X/Y, Tailles IMC, Unités automatiques.
+ * HEALTH DASHBOARD CARD – VERSION 67.6 (SENSOR FIX)
+ * Correction du rendu des capteurs et compatibilité YAML accrue.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -27,7 +27,10 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._hass || !this.shadowRoot) return;
     const view = this._config.current_view;
     const pData = this._config[view];
-    if (!pData || !pData.sensors) return;
+    if (!pData) return;
+
+    // Récupération des capteurs (supporte 'sensors' ou 'entities')
+    const sensors = pData.sensors || pData.entities || [];
 
     const suffix = (view === 'person2') ? '_sandra' : '_patrick';
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
@@ -52,12 +55,12 @@ class HealthDashboardCard extends HTMLElement {
         }
     }
 
-    // 2. Boucle sur TOUS les capteurs présents dans le YAML
-    pData.sensors.forEach((s, i) => {
+    // 2. Mise à jour des valeurs des bulles
+    sensors.forEach((s, i) => {
         const valEl = this.shadowRoot.getElementById(`value-${i}`);
         const stateObj = this._hass.states[s.entity];
         if (valEl && stateObj) {
-            const isHydra = s.name.toLowerCase().includes('hydratation');
+            const isHydra = s.name && s.name.toLowerCase().includes('hydratation');
             const unit = isHydra ? '%' : (stateObj.attributes.unit_of_measurement || '');
             valEl.textContent = `${stateObj.state}${unit}`;
         }
@@ -67,13 +70,14 @@ class HealthDashboardCard extends HTMLElement {
   render() {
     if (!this._config) return;
     const view = this._config.current_view;
-    const pData = this._config[view] || { sensors: [] };
+    const pData = this._config[view] || {};
+    const sensors = pData.sensors || pData.entities || [];
     const accentColor = pData.accent_color || '#38bdf8';
 
     this.shadowRoot.innerHTML = `
       <style>
         .main-container { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 20px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 0}%; background-size: cover; opacity: 0.45; z-index: 1; transition: background-image 0.6s ease; background-image: url('${pData.image || ''}'); }
+        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 0}%; background-size: cover; opacity: 0.45; z-index: 1; background-image: url('${pData.image || ''}'); transition: background-image 0.5s; }
         .topbar { position: absolute; top: 25px; width: 100%; display: flex; justify-content: center; gap: 15px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 12px 24px; border-radius: 30px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; font-weight: bold; backdrop-filter: blur(8px); }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 20px ${accentColor}66; }
@@ -98,14 +102,14 @@ class HealthDashboardCard extends HTMLElement {
                 <div id="progression-pointer" class="prog-pointer" data-val="--" data-diff=""></div>
             </div>
         </div>
-        ${(pData.sensors || []).map((s, i) => {
-            const isIMC = s.name.toLowerCase().includes('imc') || s.name.toLowerCase().includes('corpulence');
+        ${sensors.map((s, i) => {
+            const isIMC = s.name && (s.name.toLowerCase().includes('imc') || s.name.toLowerCase().includes('corpulence'));
             const w = isIMC ? (this._config.imc_width||170) : (this._config.b_width||155);
             const h = isIMC ? (this._config.imc_height||85) : (this._config.b_height||80);
             return `
             <div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${w}px; height:${h}px;">
               <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
-              <div style="font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase; text-align:center;">${s.name}</div>
+              <div style="font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase; text-align:center;">${s.name || ''}</div>
               <div id="value-${i}" style="font-weight:900; font-size:16px;">--</div>
             </div>`;
         }).join('')}
@@ -128,18 +132,15 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.innerHTML = `
       <div style="padding: 15px; background: #1c1c1e; color: white; border-radius: 12px; font-family: sans-serif;">
         <h3 style="color: #38bdf8; margin: 0 0 10px 0;">⚙️ Configuration</h3>
-        <label style="font-size:11px; color:#8e8e93;">PROFIL À ÉDITER</label>
-        <select id="ed-view-select" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin: 8px 0 15px 0;">
+        <select id="ed-view-select" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin-bottom: 15px;">
           <option value="person1" ${pKey === 'person1' ? 'selected' : ''}>Profil 1</option>
           <option value="person2" ${pKey === 'person2' ? 'selected' : ''}>Profil 2</option>
         </select>
         <div style="background: #2c2c2e; padding: 12px; border-radius: 8px;">
           <label style="font-size:11px; color:#8e8e93;">NOM</label>
-          <input type="text" id="ed-name" value="${p.name || ''}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin: 8px 0 12px 0;">
-          <label style="font-size:11px; color:#8e8e93;">COULEUR D'ACCENT</label>
-          <input type="color" id="ed-accent" value="${p.accent_color || '#38bdf8'}" style="width:100%; height:35px; border:none; margin: 8px 0 12px 0; cursor:pointer; background:transparent;">
+          <input type="text" id="ed-name" value="${p.name || ''}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin-bottom: 10px;">
           <label style="font-size:11px; color:#8e8e93;">IMAGE FOND (URL)</label>
-          <input type="text" id="ed-img" value="${p.image || ''}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin: 8px 0 12px 0;">
+          <input type="text" id="ed-img" value="${p.image || ''}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border:none; border-radius:6px; margin-bottom: 10px;">
           <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label style="font-size:11px; color:#8e8e93;">DÉPART</label><input type="number" id="ed-start" value="${p.start || 0}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border-radius:6px;"></div>
             <div style="flex:1;"><label style="font-size:11px; color:#8e8e93;">IDÉAL</label><input type="number" id="ed-ideal" value="${p.ideal || 0}" style="width:100%; padding:10px; background:#3a3a3c; color:white; border-radius:6px;"></div>
@@ -152,7 +153,6 @@ class HealthDashboardCardEditor extends HTMLElement {
         newConf.current_view = e.target.value;
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConf }, bubbles: true, composed: true }));
     });
-    this.querySelector('#ed-accent').addEventListener('change', (e) => this._update('accent_color', e.target.value));
     this.querySelector('#ed-name').addEventListener('change', (e) => this._update('name', e.target.value));
     this.querySelector('#ed-img').addEventListener('change', (e) => this._update('image', e.target.value));
     this.querySelector('#ed-start').addEventListener('change', (e) => this._update('start', e.target.value));
@@ -170,4 +170,4 @@ customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V67.5", preview: true });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V67.6", preview: true });
