@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V71.0 (MASTER EDITOR)
- * Contrôle absolu : Capteurs, IMC, Bulles, Règle et Dimensions.
+ * HEALTH DASHBOARD CARD – V71.5
+ * Ajout des labels Poids Idéal et Départ sur la barre + Éditeur complet.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -69,10 +69,17 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; top: 25px; width: 100%; display: flex; justify-content: center; gap: 15px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 12px 24px; border-radius: 30px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; font-weight: bold; backdrop-filter: blur(8px); transition: 0.3s; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 20px ${accentColor}66; }
-        .rule-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 88%; height: 60px; z-index: 30; background: rgba(15, 23, 42, 0.7); border-radius: 16px; padding: 10px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .rule-track { position: relative; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 25px; }
-        .prog-pointer { position: absolute; top: -12px; width: 4px; height: 30px; background: ${accentColor}; border-radius: 2px; }
-        .prog-pointer::after { content: attr(data-val); position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: ${accentColor}; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; color: #000; white-space: nowrap; }
+        
+        .rule-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 88%; height: 75px; z-index: 30; background: rgba(15, 23, 42, 0.75); border-radius: 16px; padding: 12px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 30px; }
+        
+        .limit-label { position: absolute; top: 18px; font-size: 10px; font-weight: bold; line-height: 1.1; }
+        .start-label { left: 0; color: #f87171; }
+        .ideal-label { right: 0; color: #4ade80; text-align: right; }
+
+        .prog-pointer { position: absolute; top: -14px; width: 4px; height: 36px; background: ${accentColor}; border-radius: 2px; transition: left 1s ease; }
+        .prog-pointer::after { content: attr(data-val); position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: ${accentColor}; padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; color: #000; white-space: nowrap; }
+
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 16px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(12px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         ha-icon { --mdc-icon-size: 24px; color: ${accentColor}; }
         .val-text { font-weight: 900; font-size: 15px; }
@@ -84,13 +91,15 @@ class HealthDashboardCard extends HTMLElement {
           <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2?.name || 'Sandra'}</button>
         </div>
         <div class="bg-img"></div>
+        
         <div class="rule-container">
             <div class="rule-track">
-                <div style="position:absolute; left:0; top:12px; font-size:9px; color:#f87171;">DÉPART ${this._num(pData.start)}kg</div>
-                <div style="position:absolute; right:0; top:12px; font-size:9px; color:#4ade80; text-align:right;">IDÉAL ${this._num(pData.ideal)}kg</div>
-                <div id="progression-pointer" class="prog-pointer" data-val="--" data-diff=""></div>
+                <div class="limit-label start-label">DÉPART<br>${this._num(pData.start)} kg</div>
+                <div class="limit-label ideal-label">IDÉAL<br>${this._num(pData.ideal)} kg</div>
+                <div id="progression-pointer" class="prog-pointer" data-val="--"></div>
             </div>
         </div>
+
         ${(pData.sensors || []).map((s, i) => {
             const isIMC = s.name && (s.name.toUpperCase() === 'IMC' || s.name.toUpperCase() === 'CORPULENCE');
             const w = isIMC ? this._num(this._config.imc_width, 250) : this._num(this._config.b_width, 160);
@@ -111,7 +120,6 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// --- ÉDITEUR MASTER V71 ---
 class HealthDashboardCardEditor extends HTMLElement {
   setConfig(config) { 
     this._config = config; 
@@ -130,13 +138,12 @@ class HealthDashboardCardEditor extends HTMLElement {
       <style>
         .master-ed { font-family: sans-serif; color: #e1e1e1; }
         .card-box { background: #2c2c2e; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #38bdf8; }
-        .title { font-weight: bold; font-size: 11px; color: #38bdf8; text-transform: uppercase; margin-bottom: 10px; display:flex; justify-content:space-between; }
+        .title { font-weight: bold; font-size: 11px; color: #38bdf8; text-transform: uppercase; margin-bottom: 10px; }
         label { font-size: 10px; color: #8e8e93; display: block; margin-top: 6px; }
         input, select { width: 100%; padding: 6px; background: #1c1c1e; color: white; border: 1px solid #444; border-radius: 4px; margin-top: 2px; }
         .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
       </style>
       <div class="master-ed">
-        
         <div class="card-box" style="border-left-color: #f13ba6;">
             <div class="title">👤 Profil & Carte</div>
             <div class="row">
@@ -164,10 +171,10 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div class="card-box" style="border-left-color: #4ade80;">
             <div class="title">📏 Tailles des Bulles (px)</div>
             <div class="row">
-                <div><label>Bulle Largeur</label><input type="number" id="ed-bw" value="${this._config.b_width || 160}"></div>
-                <div><label>Bulle Hauteur</label><input type="number" id="ed-bh" value="${this._config.b_height || 69}"></div>
+                <div><label>Standard L</label><input type="number" id="ed-bw" value="${this._config.b_width || 160}"></div>
+                <div><label>Standard H</label><input type="number" id="ed-bh" value="${this._config.b_height || 69}"></div>
             </div>
-            <div class="row" style="margin-top:8px; padding-top:8px; border-top:1px solid #444;">
+            <div class="row">
                 <div><label>IMC Largeur</label><input type="number" id="ed-imcw" value="${this._config.imc_width || 250}"></div>
                 <div><label>IMC Hauteur</label><input type="number" id="ed-imch" value="${this._config.imc_height || 97}"></div>
             </div>
@@ -180,11 +187,9 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div><label>Poids Idéal</label><input type="number" id="ed-ideal" value="${p.ideal || 0}"></div>
             </div>
         </div>
-
       </div>
     `;
 
-    // Events Global
     this.querySelector('#ed-view').onchange = (e) => this._upG('current_view', e.target.value);
     this.querySelector('#ed-h').onchange = (e) => this._upG('card_height', e.target.value);
     this.querySelector('#ed-bw').onchange = (e) => this._upG('b_width', e.target.value);
@@ -194,8 +199,6 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#ed-img').onchange = (e) => this._upL('image', e.target.value);
     this.querySelector('#ed-start').onchange = (e) => this._upL('start', e.target.value);
     this.querySelector('#ed-ideal').onchange = (e) => this._upL('ideal', e.target.value);
-
-    // Events Sensors
     this.querySelector('#sel-sensor').onchange = (e) => { this._selIdx = e.target.value; this.render(); };
     this.querySelector('#s-x').onchange = (e) => this._upS('x', e.target.value);
     this.querySelector('#s-y').onchange = (e) => this._upS('y', e.target.value);
@@ -213,4 +216,4 @@ customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V71", preview: true });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V71.5", preview: true });
