@@ -1,5 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V67.2 (TOTAL REPAIR)
+ * HEALTH DASHBOARD CARD – VERSION 67 FINAL
+ * Features: Sparklines, Accent Colors, Trends, Auto-Hydration %, Full Editor.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -11,6 +12,7 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
+    if (!config) throw new Error("Configuration invalide");
     this._config = JSON.parse(JSON.stringify(config));
     if (!this._config.current_view) this._config.current_view = 'person1';
     this.render();
@@ -21,74 +23,162 @@ class HealthDashboardCard extends HTMLElement {
     this.updateSensors();
   }
 
+  // --- LOGIQUE DE RENDU DES DONNÉES ---
   updateSensors() {
     if (!this._hass || !this.shadowRoot) return;
     const view = this._config.current_view;
     const pData = this._config[view];
     if (!pData) return;
+
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
+    const stDiff = this._hass.states['sensor.difference_poids' + suffix];
+    
+    // Mise à jour de la règle (Poids)
     const progPointer = this.shadowRoot.getElementById('progression-pointer');
     if (stPoids && progPointer) {
-        progPointer.style.left = "50%"; // Simplifié pour test
-        progPointer.setAttribute('data-val', `${stPoids.state} kg`);
+        const actuel = parseFloat(stPoids.state);
+        const depart = parseFloat(pData.start || 76);
+        const ideal = parseFloat(pData.ideal || 58);
+        const range = depart - ideal;
+        let pct = ((depart - actuel) / range) * 100;
+        progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        progPointer.setAttribute('data-val', `${actuel} ${stPoids.attributes.unit_of_measurement || 'kg'}`);
+
+        if (stDiff) {
+            const valDiff = parseFloat(stDiff.state);
+            const color = valDiff <= 0 ? '#4ade80' : '#f87171';
+            progPointer.setAttribute('data-diff', `${valDiff > 0 ? '+' : ''}${valDiff} kg`);
+            progPointer.style.setProperty('--diff-color', color);
+        }
+    }
+
+    // Mise à jour des bulles (Capteurs)
+    if (pData.sensors) {
+        pData.sensors.forEach((s, i) => {
+            const valEl = this.shadowRoot.getElementById(`value-${i}`);
+            const stateObj = this._hass.states[s.entity];
+            if (valEl && stateObj) {
+                // RÈGLE 7 : Forçage du % pour l'hydratation
+                const isHydra = s.name.toLowerCase().includes('hydratation');
+                const unit = isHydra ? '%' : (stateObj.attributes.unit_of_measurement || '');
+                valEl.textContent = `${stateObj.state}${unit}`;
+            }
+        });
     }
   }
 
+  // --- RENDU DE L'INTERFACE ---
   render() {
+    if (!this._config) return;
     const view = this._config.current_view;
     const pData = this._config[view] || { sensors: [] };
     const accentColor = pData.accent_color || '#38bdf8';
 
     this.shadowRoot.innerHTML = `
       <style>
-        .main-container { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 16px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg-img { position: absolute; inset: 0; background-size: cover; opacity: 0.4; background-image: url('${pData.image || ''}'); }
+        .main-container { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 16px; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
+        .bg-img { position: absolute; inset: 0; background-position: center 0%; background-size: cover; opacity: 0.4; z-index: 1; transition: background-image 0.5s ease; background-image: url('${pData.image || ''}'); }
         .topbar { position: absolute; top: 20px; width: 100%; display: flex; justify-content: center; gap: 12px; z-index: 100; }
-        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 25px; background: rgba(0,0,0,0.5); color: white; cursor: pointer; }
-        .btn.active { background: ${accentColor} !important; }
-        .rule-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 85%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
-        .prog-pointer { position: absolute; top: -12px; width: 4px; height: 30px; background: ${accentColor}; }
-        .prog-pointer::after { content: attr(data-val); position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; white-space: nowrap; }
+        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 25px; background: rgba(0,0,0,0.5); color: white; cursor: pointer; font-size: 11px; font-weight: bold; backdrop-filter: blur(5px); transition: 0.3s; }
+        .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 15px ${accentColor}; }
+        
+        .rule-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 85%; height: 80px; z-index: 30; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px; }
+        .rule-track { position: relative; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 35px; }
+        .prog-pointer { position: absolute; top: -12px; width: 4px; height: 30px; background: ${accentColor}; transition: left 1s ease-in-out; border-radius: 2px; }
+        .prog-pointer::after { content: attr(data-val); position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: ${accentColor}; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .prog-pointer::before { content: attr(data-diff); position: absolute; top: 35px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 13px; font-weight: 800; }
+        
+        .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 8px; backdrop-filter: blur(10px); overflow: hidden; }
+        .sparkline-svg { position: absolute; bottom: 0; left: 0; width: 100%; height: 35px; opacity: 0.2; pointer-events: none; }
+        ha-icon { --mdc-icon-size: 24px; color: ${accentColor}; margin-bottom: 2px; }
       </style>
+
       <div class="main-container">
         <div class="topbar">
-          <button id="bt1" class="btn ${view==='person1'?'active':''}">P1</button>
-          <button id="bt2" class="btn ${view==='person2'?'active':''}">P2</button>
+          <button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1?.name || 'Patrick'}</button>
+          <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2?.name || 'Sandra'}</button>
         </div>
         <div class="bg-img"></div>
-        <div class="rule-container"><div id="progression-pointer" class="prog-pointer" data-val="--"></div></div>
+        <div class="rule-container">
+            <div class="rule-track">
+                <div style="position:absolute; left:0; top:15px; font-size:9px; color:#f87171;">DÉPART<br>${pData.start}kg</div>
+                <div style="position:absolute; right:0; top:15px; font-size:9px; color:#4ade80; text-align:right;">IDÉAL<br>${pData.ideal}kg</div>
+                <div id="progression-pointer" class="prog-pointer" data-val="--" data-diff=""></div>
+            </div>
+        </div>
+        ${(pData.sensors || []).map((s, i) => {
+            const isIMC = s.name.toLowerCase().includes('imc') || s.name.toLowerCase().includes('corpulence');
+            const w = isIMC ? (this._config.imc_width||160) : (this._config.b_width||160);
+            const h = isIMC ? (this._config.imc_height||75) : (this._config.b_height||75);
+            return `
+            <div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${w}px; height:${h}px;">
+              <svg class="sparkline-svg" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0,25 Q25,5 50,20 T100,10" fill="none" stroke="${accentColor}" stroke-width="2"/></svg>
+              <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
+              <div style="font-size:10px; color:#94a3b8; z-index:2;">${s.name}</div>
+              <div id="value-${i}" style="font-weight:bold; font-size:14px; z-index:2;">--</div>
+            </div>`;
+        }).join('')}
       </div>
     `;
-    this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); };
-    this.shadowRoot.getElementById('bt2').onclick = () => { this._config.current_view = 'person2'; this._fire(); };
+
+    this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.shadowRoot.getElementById('bt2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    this.updateSensors();
   }
+
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// L'ÉDITEUR - VERSION ULTRA-STABLE
+// --- ÉDITEUR VISUEL COMPLET ---
 class HealthDashboardCardEditor extends HTMLElement {
-  setConfig(config) {
-    this._config = config;
-    this.render();
-  }
+  set hass(hass) { this._hass = hass; }
+  setConfig(config) { this._config = config; this.render(); }
+
   render() {
+    if (!this._config || !this._hass) return;
+    const pKey = this._config.current_view || 'person1';
+    const p = this._config[pKey] || {};
+
     this.innerHTML = `
-      <div style="padding: 20px; color: #333;">
-        <h2 style="color: #03a9f4;">Health Dashboard Editor V67.2</h2>
-        <p>Si vous voyez ce message, l'éditeur fonctionne enfin !</p>
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px;">
-           <label>Nom du profil 1</label><br>
-           <input type="text" id="p1-name" value="${this._config.person1?.name || ''}" style="width:100%;">
+      <div style="padding: 15px; background: #2c3e50; color: white; border-radius: 8px; font-family: sans-serif;">
+        <h3 style="color: #38bdf8; margin: 0 0 15px 0;">Configuration ${pKey === 'person1' ? 'Profil 1' : 'Profil 2'}</h3>
+        
+        <label style="font-size:12px;">Couleur d'accentuation</label>
+        <input type="color" id="ed-accent" value="${p.accent_color || '#38bdf8'}" style="width:100%; height:40px; border:none; margin-bottom:12px; cursor:pointer;">
+
+        <label style="font-size:12px;">Nom</label>
+        <input type="text" id="ed-name" value="${p.name || ''}" style="width:100%; padding:8px; margin-bottom:12px; border-radius:4px; border:none;">
+
+        <label style="font-size:12px;">URL Image de fond</label>
+        <input type="text" id="ed-img" value="${p.image || ''}" style="width:100%; padding:8px; margin-bottom:12px; border-radius:4px; border:none;">
+
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="font-size:12px;">Poids Départ</label>
+            <input type="number" id="ed-start" value="${p.start || 0}" style="width:100%; padding:8px; border-radius:4px; border:none;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px;">Poids Idéal</label>
+            <input type="number" id="ed-ideal" value="${p.ideal || 0}" style="width:100%; padding:8px; border-radius:4px; border:none;">
+          </div>
         </div>
-        <p style="margin-top:10px; font-style:italic;">Utilisez le bouton "Éditeur de code" en bas pour les réglages avancés.</p>
+        <p style="font-size:10px; color:#bdc3c7;">Note : Basculez entre les profils sur la carte pour éditer l'autre personne.</p>
       </div>
     `;
-    this.querySelector('#p1-name').onchange = (e) => {
-        const newConf = JSON.parse(JSON.stringify(this._config));
-        newConf.person1.name = e.target.value;
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConf }, bubbles: true, composed: true }));
-    };
+
+    this.querySelector('#ed-accent').addEventListener('change', (e) => this._update('accent_color', e.target.value));
+    this.querySelector('#ed-name').addEventListener('change', (e) => this._update('name', e.target.value));
+    this.querySelector('#ed-img').addEventListener('change', (e) => this._update('image', e.target.value));
+    this.querySelector('#ed-start').addEventListener('change', (e) => this._update('start', e.target.value));
+    this.querySelector('#ed-ideal').addEventListener('change', (e) => this._update('ideal', e.target.value));
+  }
+
+  _update(field, value) {
+    const pKey = this._config.current_view || 'person1';
+    const newConf = JSON.parse(JSON.stringify(this._config));
+    newConf[pKey][field] = value;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConf }, bubbles: true, composed: true }));
   }
 }
 
@@ -98,6 +188,6 @@ customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor)
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "health-dashboard-card",
-  name: "Health Dashboard V67.2",
+  name: "Health Dashboard V67",
   preview: true
 });
