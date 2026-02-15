@@ -1,9 +1,5 @@
 {
   "name": "Health Dashboard Card",
   "render_readme": true,
-  "type": "lovelace",
-  "content_type": "js",
-  "filename": "health-dashboard-card.js",
-  "version": "67",
-  "zip_release": false
+  "filename": "health-dashboard-card.js"
 }
