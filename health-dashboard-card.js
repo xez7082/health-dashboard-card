@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V78.0 (STEPS GAUGE EDITION)
- * Jauge de pas en haut à droite + Poids/Diff sur une ligne + Tout le reste.
+ * HEALTH DASHBOARD CARD – V79.0 (FREEDOM EDITION)
+ * Boutons déplaçables + Objectif de pas ajustable + Jauge + Poids/Diff.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -33,7 +33,7 @@ class HealthDashboardCard extends HTMLElement {
     const pData = this._config[view];
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
 
-    // 1. Mise à jour Poids et Curseur
+    // 1. Poids et Curseur
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const stDiff = this._hass.states['sensor.difference_poids' + suffix];
     const progPointer = this.shadowRoot.getElementById('progression-pointer');
@@ -50,33 +50,33 @@ class HealthDashboardCard extends HTMLElement {
         if (labelEl) labelEl.innerHTML = `${actuel} kg${diffHtml}`;
     }
 
-    // 2. Mise à jour Jauge de Pas (Angle Haut Droite)
+    // 2. Jauge de Pas
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     const circle = this.shadowRoot.getElementById('gauge-path');
     const stepVal = this.shadowRoot.getElementById('step-value');
     if (stSteps && circle && stepVal) {
         const steps = this._num(stSteps.state);
-        const goal = 10000;
+        const goal = this._num(pData.step_goal, 10000);
         const pct = Math.min(100, (steps / goal) * 100);
-        const dash = (pct * 125.6) / 100; // 125.6 = Circonférence (2 * PI * 20)
+        const dash = (pct * 125.6) / 100;
         circle.style.strokeDasharray = `${dash}, 125.6`;
         stepVal.textContent = steps >= 1000 ? (steps/1000).toFixed(1) + 'k' : steps;
     }
 
-    // 3. Sparklines et Bulles
+    // 3. Bulles
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
             const stateObj = this._hass.states[s.entity];
             if (valEl && stateObj) {
                 valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
-                this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#f43f5e', s.name || '');
+                this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#f43f5e');
             }
         });
     }
   }
 
-  async _renderTrends(entity, i, color, sensorName) {
+  async _renderTrends(entity, i, color) {
     try {
       const now = new Date();
       const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
@@ -100,18 +100,19 @@ class HealthDashboardCard extends HTMLElement {
       <style>
         .main-container { position: relative; width: 100%; height: ${this._num(this._config.card_height, 600)}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
         .bg-img { position: absolute; inset: 0; background-position: center ${this._num(this._config.img_offset)}%; background-size: cover; opacity: 0.4; z-index: 1; pointer-events: none; background-image: url('${pData.image || ''}'); }
-        .topbar { position: absolute; top: 15px; left: 20px; display: flex; gap: 10px; z-index: 100; }
+        
+        /* BOUTONS POSITIONNABLES */
+        .topbar { position: absolute; left: ${this._num(this._config.btn_x, 5)}%; top: ${this._num(this._config.btn_y, 3)}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 15px ${accentColor}; }
         
-        /* JAUGE PAS HAUT DROITE */
         .steps-gauge { position: absolute; top: 10px; right: 15px; width: 80px; height: 80px; z-index: 100; background: rgba(0,0,0,0.4); border-radius: 50%; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
         .steps-gauge svg { transform: rotate(-90deg); width: 70px; height: 70px; }
         .steps-gauge .bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 4; }
         .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray 1s ease; }
         .steps-data { position: absolute; text-align: center; display: flex; flex-direction: column; }
-        .steps-data .val { font-size: 14px; font-weight: 900; color: white; }
-        .steps-data .unit { font-size: 8px; color: ${accentColor}; text-transform: uppercase; font-weight: bold; }
+        .steps-data .val { font-size: 14px; font-weight: 900; }
+        .steps-data .unit { font-size: 8px; color: ${accentColor}; font-weight: bold; }
 
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171 0%, #fbbf24 65%, #4ade80 100%); border-radius: 5px; margin-top: 30px; }
@@ -165,7 +166,6 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// L'éditeur reste le même pour la gestion des capteurs
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -193,7 +193,10 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
         <div class="section">
             <label>NOM DU PROFIL</label><input type="text" id="inp-name" value="${p.name}">
-            <label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                <div><label>OBJECTIF PAS</label><input type="number" id="inp-sgoal" value="${p.step_goal || 10000}"></div>
+                <div><label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}"></div>
+            </div>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px;">
                 <div><label>DÉPART</label><input type="number" id="inp-start" value="${p.start}"></div>
                 <div><label>CONFORT</label><input type="number" id="inp-goal" value="${p.goal}"></div>
@@ -201,12 +204,18 @@ class HealthDashboardCardEditor extends HTMLElement {
             </div>
         </div>
         <div class="section">
-            <label>HAUTEUR CARTE</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}">
+            <label>POSITION DES BOUTONS</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div><label>X %</label><input type="number" id="inp-bx" value="${this._config.btn_x || 5}"></div>
+                <div><label>Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
+            </div>
+        </div>
+        <div class="section">
+            <label>DIMENSIONS CARTE</label>
+            <input type="number" id="inp-ch" value="${this._config.card_height || 600}">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               <div><label>LARG. STD</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
               <div><label>HAUT. STD</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
-              <div><label>LARG. IMC</label><input type="number" id="inp-iw" value="${this._config.imc_width || 250}"></div>
-              <div><label>HAUT. IMC</label><input type="number" id="inp-ih" value="${this._config.imc_height || 97}"></div>
             </div>
         </div>
         <div class="section">
@@ -232,15 +241,16 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
+    this.querySelector('#inp-sgoal').onchange = (e) => { this._config[pKey].step_goal = e.target.value; this._fire(); };
     this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
     this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
     this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
     this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
+    this.querySelector('#inp-bx').onchange = (e) => { this._config.btn_x = e.target.value; this._fire(); };
+    this.querySelector('#inp-by').onchange = (e) => { this._config.btn_y = e.target.value; this._fire(); };
     this.querySelector('#inp-ch').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
     this.querySelector('#inp-bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
     this.querySelector('#inp-bh').onchange = (e) => { this._config.b_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
     this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
     this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
     this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
@@ -261,4 +271,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V78" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79" });
