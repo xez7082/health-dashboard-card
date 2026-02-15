@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V74.0 (SPARKLINES EDITION)
- * Gestion dynamique + Marqueurs V66 + Mini-graphiques de tendance.
+ * HEALTH DASHBOARD CARD – V75.0 (TREND ARROWS EDITION)
+ * Sparklines + Flèches de tendance intelligentes + Gestion complète.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -27,38 +27,48 @@ class HealthDashboardCard extends HTMLElement {
     return isNaN(n) ? defaultVal : n;
   }
 
-  // Génère un petit graphique SVG à partir de l'historique
-  async _renderSparkline(entity, elementId, color) {
+  async _renderTrends(entity, i, color, sensorName) {
     if (!this._hass || !entity) return;
     try {
-      // On récupère l'historique des dernières 24h
       const now = new Date();
       const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      const history = await this._hass.callApi('GET', `history/period/${yesterday.toISOString()}?filter_entity_id=${entity}&end_time=${now.toISOString()}`);
+      const history = await this._hass.callApi('GET', `history/period/${yesterday.toISOString()}?filter_entity_id=${entity}`);
 
       if (!history || !history[0] || history[0].length < 2) return;
 
       const points = history[0].map(entry => parseFloat(entry.state)).filter(val => !isNaN(val));
+      const current = points[points.length - 1];
+      const previous = points[points.length - 2];
+
+      // 1. Dessiner la Sparkline
       const min = Math.min(...points);
       const max = Math.max(...points);
       const range = max - min === 0 ? 1 : max - min;
-      const width = 100;
-      const height = 30;
-
-      const coords = points.map((p, i) => {
-        const x = (i / (points.length - 1)) * width;
-        const y = height - ((p - min) / range) * height;
-        return `${x},${y}`;
-      }).join(' ');
-
-      const container = this.shadowRoot.getElementById(elementId);
-      if (container) {
-        container.innerHTML = `
-          <svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none" style="opacity: 0.3;">
-            <polyline fill="none" stroke="${color}" stroke-width="2" points="${coords}" stroke-linejoin="round" stroke-linecap="round" />
-          </svg>`;
+      const coords = points.map((p, idx) => `${(idx / (points.length - 1)) * 100},${30 - ((p - min) / range) * 30}`).join(' ');
+      
+      const sparkEl = this.shadowRoot.getElementById(`spark-${i}`);
+      if (sparkEl) {
+        sparkEl.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none" style="opacity:0.25;"><polyline fill="none" stroke="${color}" stroke-width="2" points="${coords}" /></svg>`;
       }
-    } catch (e) { console.error("Sparkline error", e); }
+
+      // 2. Calculer la flèche de tendance
+      const trendEl = this.shadowRoot.getElementById(`trend-${i}`);
+      if (trendEl && current !== undefined && previous !== undefined) {
+        let icon = 'mdi:minus';
+        let iconColor = '#94a3b8';
+
+        if (current > previous) {
+          icon = 'mdi:arrow-up-bold';
+          // Rouge si c'est du poids/gras, Vert si c'est autre chose (pas, muscles...)
+          iconColor = (sensorName.toLowerCase().includes('poids') || sensorName.toLowerCase().includes('gras')) ? '#f87171' : '#4ade80';
+        } else if (current < previous) {
+          icon = 'mdi:arrow-down-bold';
+          iconColor = (sensorName.toLowerCase().includes('poids') || sensorName.toLowerCase().includes('gras')) ? '#4ade80' : '#f87171';
+        }
+
+        trendEl.innerHTML = `<ha-icon icon="${icon}" style="--mdc-icon-size:14px; color:${iconColor};"></ha-icon>`;
+      }
+    } catch (e) { console.error(e); }
   }
 
   updateSensors() {
@@ -77,15 +87,13 @@ class HealthDashboardCard extends HTMLElement {
         const depart = this._num(pData.start);
         const ideal = this._num(pData.ideal);
         const range = depart - ideal;
-        let pct = range !== 0 ? ((depart - actuel) / range) * 100 : 0;
-        progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        progPointer.style.left = `${Math.max(0, Math.min(100, (range !== 0 ? ((depart - actuel) / range) * 100 : 0)))}%`;
         progPointer.setAttribute('data-val', `${actuel} kg`);
 
         if (stDiff) {
             const valDiff = this._num(stDiff.state);
-            const color = valDiff <= 0 ? '#4ade80' : '#f87171'; 
             progPointer.setAttribute('data-diff', `${valDiff > 0 ? '+' : ''}${valDiff} kg`);
-            progPointer.style.setProperty('--diff-color', color);
+            progPointer.style.setProperty('--diff-color', valDiff <= 0 ? '#4ade80' : '#f87171');
         }
     }
 
@@ -95,7 +103,7 @@ class HealthDashboardCard extends HTMLElement {
             const stateObj = this._hass.states[s.entity];
             if (valEl && stateObj) {
                 valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
-                this._renderSparkline(s.entity, `spark-${i}`, view === 'person1' ? '#38bdf8' : '#e91e63');
+                this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#e91e63', s.name || '');
             }
         });
     }
@@ -116,14 +124,15 @@ class HealthDashboardCard extends HTMLElement {
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 15px ${accentColor}; }
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 30px; border: 1px solid rgba(255,255,255,0.2); }
-        .marker-label { position: absolute; top: 18px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: bold; line-height: 1.2; }
-        .prog-pointer { position: absolute; top: -15px; width: 4px; height: 35px; background: ${accentColor}; transition: left 1s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; }
-        .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: ${accentColor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; color: #000; }
+        .marker-label { position: absolute; top: 18px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: bold; }
+        .prog-pointer { position: absolute; top: -15px; width: 4px; height: 35px; background: ${accentColor}; transition: left 1s ease; border-radius: 2px; }
+        .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: ${accentColor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #000; }
         .prog-pointer::before { content: attr(data-diff); position: absolute; top: 38px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 12px; font-weight: bold; }
         
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); overflow: hidden; }
-        .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 30px; pointer-events: none; z-index: -1; }
-        ha-icon { --mdc-icon-size: 24px; color: ${accentColor}; margin-bottom: 2px; }
+        .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 30px; z-index: -1; }
+        .trend-icon { position: absolute; top: 5px; right: 5px; }
+        ha-icon { --mdc-icon-size: 22px; color: ${accentColor}; }
       </style>
       <div class="main-container">
         <div class="topbar">
@@ -141,14 +150,13 @@ class HealthDashboardCard extends HTMLElement {
         </div>
         ${(pData.sensors || []).map((s, i) => {
             const isIMC = s.name && (s.name.toLowerCase().includes('corpulence') || s.name.toLowerCase().includes('imc'));
-            const w = isIMC ? this._num(this._config.imc_width, 250) : this._num(this._config.b_width, 160);
-            const h = isIMC ? this._num(this._config.imc_height, 97) : this._num(this._config.b_height, 69);
             return `
-            <div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${w}px; height:${h}px;">
+            <div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${isIMC ? this._num(this._config.imc_width, 250) : this._num(this._config.b_width, 160)}px; height:${isIMC ? this._num(this._config.imc_height, 97) : this._num(this._config.b_height, 69)}px;">
               <div id="spark-${i}" class="sparkline-container"></div>
+              <div id="trend-${i}" class="trend-icon"></div>
               <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
-              <div style="font-size:10px; color:#cbd5e1; z-index:2;">${s.name}</div>
-              <div id="value-${i}" style="font-weight:bold; z-index:2;">--</div>
+              <div style="font-size:10px; color:#cbd5e1; font-weight:bold;">${s.name}</div>
+              <div id="value-${i}" style="font-weight:900; font-size:1.1em;">--</div>
             </div>`;
         }).join('')}
       </div>
@@ -160,7 +168,6 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// L'éditeur reste le même (Version 73) car il gère déjà tout parfaitement
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -169,7 +176,6 @@ class HealthDashboardCardEditor extends HTMLElement {
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
     const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
-
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
@@ -200,8 +206,8 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div class="section">
             <label>HAUTEUR CARTE</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div><label>LARG. STANDARD</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
-              <div><label>HAUT. STANDARD</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
+              <div><label>LARG. STD</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
+              <div><label>HAUT. STD</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
               <div><label>LARG. IMC</label><input type="number" id="inp-iw" value="${this._config.imc_width || 250}"></div>
               <div><label>HAUT. IMC</label><input type="number" id="inp-ih" value="${this._config.imc_height || 97}"></div>
             </div>
@@ -258,4 +264,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V74" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V75" });
