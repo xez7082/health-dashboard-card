@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V76.0 (GRADIENT BAR EDITION)
- * Barre colorée (Rouge -> Orange -> Vert) + Sparklines + Flèches + Editeur.
+ * HEALTH DASHBOARD CARD – V77.0 (STREAMLINE EDITION)
+ * Poids et Différence sur une seule ligne + Barre colorée + Sparklines.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -82,13 +82,19 @@ class HealthDashboardCard extends HTMLElement {
         const ideal = this._num(pData.ideal);
         const range = depart - ideal;
         progPointer.style.left = `${Math.max(0, Math.min(100, (range !== 0 ? ((depart - actuel) / range) * 100 : 0)))}%`;
-        progPointer.setAttribute('data-val', `${actuel} kg`);
 
+        let labelPoids = `${actuel} kg`;
+        let diffHtml = '';
         if (stDiff) {
             const valDiff = this._num(stDiff.state);
-            progPointer.setAttribute('data-diff', `${valDiff > 0 ? '+' : ''}${valDiff} kg`);
-            progPointer.style.setProperty('--diff-color', valDiff <= 0 ? '#4ade80' : '#f87171');
+            const color = valDiff <= 0 ? '#4ade80' : '#f87171';
+            const sign = valDiff > 0 ? '+' : '';
+            // On crée un petit span coloré pour la différence
+            diffHtml = ` <span style="color:${color}; margin-left:4px;">(${sign}${valDiff} kg)</span>`;
         }
+        // On injecte le HTML pour avoir les deux sur la même ligne
+        const labelEl = this.shadowRoot.getElementById('pointer-label');
+        if (labelEl) labelEl.innerHTML = labelPoids + diffHtml;
     }
 
     if (pData.sensors) {
@@ -97,7 +103,7 @@ class HealthDashboardCard extends HTMLElement {
             const stateObj = this._hass.states[s.entity];
             if (valEl && stateObj) {
                 valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
-                this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#e91e63', s.name || '');
+                this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#f43f5e', s.name || '');
             }
         });
     }
@@ -118,7 +124,6 @@ class HealthDashboardCard extends HTMLElement {
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 15px ${accentColor}; }
         
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
-        /* BARRE COLOREE ICI */
         .rule-track { 
           position: relative; 
           width: 100%; 
@@ -130,9 +135,25 @@ class HealthDashboardCard extends HTMLElement {
         }
         
         .marker-label { position: absolute; top: 20px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: 900; text-shadow: 1px 1px 2px black; }
-        .prog-pointer { position: absolute; top: -12px; width: 4px; height: 34px; background: white; transition: left 1s ease; border-radius: 2px; box-shadow: 0 0 8px rgba(0,0,0,0.8); z-index: 10; }
-        .prog-pointer::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #000; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .prog-pointer::before { content: attr(data-diff); position: absolute; top: 38px; left: 50%; transform: translateX(-50%); color: var(--diff-color); font-size: 12px; font-weight: 900; text-shadow: 1px 1px 2px black; }
+        .prog-pointer { position: absolute; top: -12px; width: 3px; height: 34px; background: white; transition: left 1s ease; border-radius: 2px; box-shadow: 0 0 8px rgba(0,0,0,0.8); z-index: 10; }
+        
+        /* Bulle d'info sur une seule ligne */
+        .pointer-info { 
+            position: absolute; 
+            top: -26px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: white; 
+            padding: 3px 8px; 
+            border-radius: 6px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            color: #000; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5); 
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
         
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); overflow: hidden; }
         .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 30px; z-index: -1; }
@@ -150,7 +171,9 @@ class HealthDashboardCard extends HTMLElement {
                 <div class="marker-label" style="left: 0; color: #f87171;">DÉPART<br>${pData.start}kg</div>
                 <div class="marker-label" style="left: 65%; color: #fbbf24;">CONFORT<br>${pData.goal}kg</div>
                 <div class="marker-label" style="left: 100%; color: #4ade80;">IDÉAL<br>${pData.ideal}kg</div>
-                <div id="progression-pointer" class="prog-pointer" data-val="--" data-diff=""></div>
+                <div id="progression-pointer" class="prog-pointer">
+                    <div id="pointer-label" class="pointer-info">--</div>
+                </div>
             </div>
         </div>
         ${(pData.sensors || []).map((s, i) => {
@@ -173,7 +196,6 @@ class HealthDashboardCard extends HTMLElement {
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
-// L'éditeur reste identique
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -181,7 +203,6 @@ class HealthDashboardCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
-    const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
@@ -270,4 +291,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V76" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V77" });
