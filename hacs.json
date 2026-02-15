@@ -4,6 +4,6 @@
   "type": "lovelace",
   "content_type": "js",
   "filename": "health-dashboard-card.js",
-  "country": "FR",
-  "author": "xez7082"
+  "version": "67",
+  "zip_release": false
 }
