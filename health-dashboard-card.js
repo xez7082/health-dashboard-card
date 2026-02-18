@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V79.6 (STABLE EDITOR)
+ * HEALTH DASHBOARD CARD – V79.7 (TABBED EDITOR)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -11,14 +11,11 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
-    // Deep copy et initialisation sécurisée
     this._config = JSON.parse(JSON.stringify(config || {}));
-    
-    // Initialisation des données par défaut si manquantes
-    if (!this._config.person1) this._config.person1 = { name: "Patrick", sensors: [], start: 80, goal: 75, ideal: 70, image: "", step_goal: 10000 };
-    if (!this._config.person2) this._config.person2 = { name: "Sandra", sensors: [], start: 80, goal: 75, ideal: 70, image: "", step_goal: 10000 };
+    const base = { name: "Utilisateur", sensors: [], start: 80, goal: 75, ideal: 70, image: "", step_goal: 10000 };
+    if (!this._config.person1) this._config.person1 = { ...base, name: "Patrick" };
+    if (!this._config.person2) this._config.person2 = { ...base, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
-    
     this.render();
   }
 
@@ -34,13 +31,12 @@ class HealthDashboardCard extends HTMLElement {
 
   updateSensors() {
     if (!this._hass || !this.shadowRoot || !this._config) return;
-    const view = this._config.current_view || 'person1';
+    const view = this._config.current_view;
     const pData = this._config[view];
-    if (!pData) return;
-
+    if(!pData) return;
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
 
-    // 1. POIDS
+    // Poids
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const progPointer = this.shadowRoot.getElementById('progression-pointer');
     if (stPoids && progPointer) {
@@ -52,7 +48,7 @@ class HealthDashboardCard extends HTMLElement {
         if (labelEl) labelEl.textContent = `${actuel} kg`;
     }
 
-    // 2. PAS
+    // Pas
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     const circle = this.shadowRoot.getElementById('gauge-path');
     const stepVal = this.shadowRoot.getElementById('step-value');
@@ -64,7 +60,7 @@ class HealthDashboardCard extends HTMLElement {
         stepVal.textContent = steps >= 1000 ? (steps/1000).toFixed(1) + 'k' : steps;
     }
 
-    // 3. CAPTEURS
+    // Sensors Dynamiques
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
@@ -77,9 +73,8 @@ class HealthDashboardCard extends HTMLElement {
   }
 
   render() {
-    if (!this._config) return;
-    const view = this._config.current_view || 'person1';
-    const pData = this._config[view] || { sensors: [], name: "" };
+    const view = this._config.current_view;
+    const pData = this._config[view] || { sensors: [] };
     const accentColor = view === 'person1' ? '#38bdf8' : '#f43f5e';
 
     this.shadowRoot.innerHTML = `
@@ -112,12 +107,16 @@ class HealthDashboardCard extends HTMLElement {
         <div class="rule-container">
             <div class="rule-track"><div id="progression-pointer" class="prog-pointer"><div id="pointer-label" class="pointer-info">--</div></div></div>
         </div>
-        ${(pData.sensors || []).map((s, i) => `
-            <div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${this._config.b_width || 160}px; height:${this._config.b_height || 69}px;">
+        ${(pData.sensors || []).map((s, i) => {
+            const isIMC = s.name?.toLowerCase().includes('imc');
+            const w = isIMC ? this._num(this._config.imc_width, 250) : this._num(this._config.b_width, 160);
+            const h = isIMC ? this._num(this._config.imc_height, 97) : this._num(this._config.b_height, 69);
+            return `<div class="sensor" style="left:${s.x}%; top:${s.y}%; width:${w}px; height:${h}px;">
               <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
               <div style="font-size:10px; color:#cbd5e1; font-weight:bold;">${s.name}</div>
               <div id="value-${i}" style="font-weight:900; font-size:1.1em;">--</div>
-            </div>`).join('')}
+            </div>`;
+        }).join('')}
       </div>
     `;
     this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
@@ -127,11 +126,15 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this._activeTab = 'profile';
+  }
+
   set hass(hass) { this._hass = hass; }
   
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config || {}));
-    // Sécurité : Si les objets n'existent pas, on les crée pour l'éditeur
     if (!this._config.person1) this._config.person1 = { name: "Patrick", sensors: [] };
     if (!this._config.person2) this._config.person2 = { name: "Sandra", sensors: [] };
     this.render();
@@ -140,85 +143,176 @@ class HealthDashboardCardEditor extends HTMLElement {
   render() {
     if (!this._hass) return;
     const pKey = this._config.current_view || 'person1';
-    const p = this._config[pKey] || { name: "", sensors: [] };
+    const p = this._config[pKey];
     const allEntities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
 
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
-        .section { background: #252525; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #444; }
-        label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; }
-        input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 15px; border-bottom: 1px solid #444; }
+        .tab { padding: 8px 12px; cursor: pointer; background: #252525; border: none; color: #888; border-radius: 4px 4px 0 0; font-size: 11px; font-weight: bold; }
+        .tab.active { background: #38bdf8; color: black; }
+        .section { background: #252525; padding: 10px; border-radius: 0 0 5px 5px; border: 1px solid #444; border-top: none; }
+        label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 10px; text-transform: uppercase; }
+        input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin-top: 4px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; border: none; color: white; cursor: pointer; padding: 2px 6px; }
-        .res-box { background: #333; border: 1px solid #38bdf8; max-height: 100px; overflow-y: auto; display: none; position: absolute; width: 90%; z-index: 100; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; border: none; color: white; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+        .res-box { background: #333; border: 1px solid #38bdf8; max-height: 100px; overflow-y: auto; display: none; position: absolute; width: 95%; z-index: 100; box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
         .res-item { padding: 8px; cursor: pointer; font-size: 11px; }
         .res-item:hover { background: #38bdf8; color: black; }
       </style>
       <div class="ed-box">
-        <div style="display:flex; gap:8px; margin-bottom:15px;">
-            <button style="flex:1; padding:10px; background:${pKey==='person1'?'#38bdf8':'#444'}; border:none; color:white; font-weight:bold; cursor:pointer;" id="t-p1">PATRICK</button>
-            <button style="flex:1; padding:10px; background:${pKey==='person2'?'#38bdf8':'#444'}; border:none; color:white; font-weight:bold; cursor:pointer;" id="t-p2">SANDRA</button>
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <button style="flex:1; padding:8px; background:${pKey==='person1'?'#38bdf8':'#444'}; border:none; color:white; font-weight:bold; cursor:pointer;" id="t-p1">PATRICK</button>
+            <button style="flex:1; padding:8px; background:${pKey==='person2'?'#38bdf8':'#444'}; border:none; color:white; font-weight:bold; cursor:pointer;" id="t-p2">SANDRA</button>
         </div>
-        <div class="section">
-            <label>NOM</label><input type="text" id="inp-name" value="${p.name || ''}">
-            <label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}">
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px;">
-                <div><label>DÉPART</label><input type="number" id="inp-start" value="${p.start || 80}"></div>
-                <div><label>CONFORT</label><input type="number" id="inp-goal" value="${p.goal || 75}"></div>
-                <div><label>IDÉAL</label><input type="number" id="inp-ideal" value="${p.ideal || 70}"></div>
-            </div>
+
+        <div class="tabs">
+            <button class="tab ${this._activeTab === 'profile' ? 'active' : ''}" id="tab-profile">👤 PROFIL</button>
+            <button class="tab ${this._activeTab === 'sensors' ? 'active' : ''}" id="tab-sensors">📊 CAPTEURS</button>
+            <button class="tab ${this._activeTab === 'design' ? 'active' : ''}" id="tab-design">⚙️ DESIGN</button>
         </div>
+
         <div class="section">
-            <label>CAPTEURS</label>
-            <div id="sensors-container">
-            ${(p.sensors || []).map((s, i) => `
-              <div class="s-card">
-                <button class="del-btn" data-idx="${i}">X</button>
-                <label>NOM AFFICHÉ</label><input type="text" class="s-name" data-idx="${i}" value="${s.name || ''}">
-                <label>RECHERCHE ENTITÉ</label><input type="text" class="search-in" data-idx="${i}" value="${s.entity || ''}">
-                <div class="res-box" id="res-${i}"></div>
-              </div>
-            `).join('')}
-            </div>
-            <button style="width:100%; padding:10px; background:#4ade80; border:none; color:white; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
+            ${this._activeTab === 'profile' ? `
+                <label>NOM D'AFFICHAGE</label><input type="text" id="inp-name" value="${p.name}">
+                <label>URL IMAGE DE FOND</label><input type="text" id="inp-img" value="${p.image || ''}">
+                <div class="grid">
+                    <div><label>POIDS DÉPART</label><input type="number" id="inp-start" value="${p.start}"></div>
+                    <div><label>OBJECTIF PAS</label><input type="number" id="inp-sgoal" value="${p.step_goal || 10000}"></div>
+                </div>
+                <div class="grid">
+                    <div><label>POIDS CONFORT</label><input type="number" id="inp-goal" value="${p.goal}"></div>
+                    <div><label>POIDS IDÉAL</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
+                </div>
+            ` : ''}
+
+            ${this._activeTab === 'sensors' ? `
+                <div id="sensors-container">
+                ${(p.sensors || []).map((s, i) => `
+                  <div class="s-card">
+                    <button class="del-btn" data-idx="${i}">X</button>
+                    <label>NOM DU CAPTEUR</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+                    <label>RECHERCHER L'ENTITÉ</label>
+                    <input type="text" class="search-in" data-idx="${i}" value="${s.entity}" placeholder="Ex: poids...">
+                    <div class="res-box" id="res-${i}"></div>
+                    <div class="grid">
+                        <div><label>POS X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
+                        <div><label>POS Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+                    </div>
+                  </div>
+                `).join('')}
+                </div>
+                <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
+            ` : ''}
+
+            ${this._activeTab === 'design' ? `
+                <div class="grid">
+                    <div><label>HAUTEUR CARTE</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}"></div>
+                    <div><label>IMAGE OFFSET %</label><input type="number" id="inp-off" value="${this._config.img_offset || 50}"></div>
+                </div>
+                <div class="grid">
+                    <div><label>BOUTONS X %</label><input type="number" id="inp-bx" value="${this._config.btn_x || 5}"></div>
+                    <div><label>BOUTONS Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
+                </div>
+                <label>DIMENSIONS CARTES (SENSORS)</label>
+                <div class="grid">
+                    <div><label>LARGEUR</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
+                    <div><label>HAUTEUR</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
+                </div>
+                <label>DIMENSIONS CARTE IMC</label>
+                <div class="grid">
+                    <div><label>LARGEUR</label><input type="number" id="inp-iw" value="${this._config.imc_width || 250}"></div>
+                    <div><label>HAUTEUR</label><input type="number" id="inp-ih" value="${this._config.imc_height || 97}"></div>
+                </div>
+            ` : ''}
         </div>
       </div>
     `;
 
-    // Logic de recherche sécurisée
-    this.querySelectorAll('.search-in').forEach(input => {
-        input.oninput = (e) => {
-            const val = e.target.value.toLowerCase();
-            const idx = e.target.dataset.idx;
-            const box = this.querySelector(`#res-${idx}`);
-            if (val.length < 2) { box.style.display = 'none'; return; }
-            const hits = allEntities.filter(en => en.toLowerCase().includes(val)).slice(0, 10);
-            box.style.display = hits.length ? 'block' : 'none';
-            box.innerHTML = hits.map(h => `<div class="res-item" data-en="${h}">${h}</div>`).join('');
-            box.querySelectorAll('.res-item').forEach(item => {
-                item.onclick = () => {
-                    this._config[pKey].sensors[idx].entity = item.dataset.en;
-                    this._fire(); this.render();
-                };
-            });
-        };
-    });
+    this._attachEvents(pKey, allEntities);
+  }
 
+  _attachEvents(pKey, allEntities) {
+    // Tabs
+    this.querySelector('#tab-profile').onclick = () => { this._activeTab = 'profile'; this.render(); };
+    this.querySelector('#tab-sensors').onclick = () => { this._activeTab = 'sensors'; this.render(); };
+    this.querySelector('#tab-design').onclick = () => { this._activeTab = 'design'; this.render(); };
+
+    // Person
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
-    this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
-    this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
-    this.querySelector('#add-s').onclick = () => {
-        if(!this._config[pKey].sensors) this._config[pKey].sensors = [];
-        this._config[pKey].sensors.push({ name: "Nouveau", entity: "", x: 50, y: 50 });
-        this._fire(); this.render();
+
+    // Inputs (Profile)
+    const setVal = (id, path, isRoot = false) => {
+        const el = this.querySelector(id);
+        if(el) el.onchange = (e) => { 
+            if(isRoot) this._config[path] = e.target.value;
+            else this._config[pKey][path] = e.target.value;
+            this._fire(); 
+        };
     };
+
+    if(this._activeTab === 'profile'){
+        setVal('#inp-name', 'name');
+        setVal('#inp-img', 'image');
+        setVal('#inp-start', 'start');
+        setVal('#inp-sgoal', 'step_goal');
+        setVal('#inp-goal', 'goal');
+        setVal('#inp-ideal', 'ideal');
+    }
+
+    if(this._activeTab === 'design'){
+        setVal('#inp-ch', 'card_height', true);
+        setVal('#inp-off', 'img_offset', true);
+        setVal('#inp-bx', 'btn_x', true);
+        setVal('#inp-by', 'btn_y', true);
+        setVal('#inp-bw', 'b_width', true);
+        setVal('#inp-bh', 'b_height', true);
+        setVal('#inp-iw', 'imc_width', true);
+        setVal('#inp-ih', 'imc_height', true);
+    }
+
+    // Sensors
+    if(this._activeTab === 'sensors'){
+        this.querySelectorAll('.search-in').forEach(input => {
+            input.oninput = (e) => {
+                const val = e.target.value.toLowerCase();
+                const idx = e.target.dataset.idx;
+                const box = this.querySelector(`#res-${idx}`);
+                if (val.length < 2) { box.style.display = 'none'; return; }
+                const hits = allEntities.filter(en => en.toLowerCase().includes(val)).slice(0, 10);
+                box.style.display = hits.length ? 'block' : 'none';
+                box.innerHTML = hits.map(h => `<div class="res-item" data-en="${h}">${h}</div>`).join('');
+                box.querySelectorAll('.res-item').forEach(item => {
+                    item.onclick = () => {
+                        this._config[pKey].sensors[idx].entity = item.dataset.en;
+                        this._fire(); this.render();
+                    };
+                });
+            };
+        });
+        this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+        
+        this.querySelector('#add-s').onclick = () => {
+            if(!this._config[pKey].sensors) this._config[pKey].sensors = [];
+            this._config[pKey].sensors.push({ name: "Nouveau", entity: "", x: 50, y: 50 });
+            this._fire(); this.render();
+        };
+        this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => {
+            this._config[pKey].sensors.splice(e.target.dataset.idx, 1);
+            this._fire(); this.render();
+        });
+    }
   }
+
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.6" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.7" });
