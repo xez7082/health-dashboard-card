@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V2.2.4
+ * HEALTH DASHBOARD CARD – V100
  * CORRECTIONS :
  *   1. updateSensors() appelé après render() pour rafraîchir les valeurs immédiatement
  *   2. parseInt() sur tous les indices data-idx pour éviter les erreurs de type string
