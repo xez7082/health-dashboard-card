@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V80.1 (ULTRA-STABLE)
+ * HEALTH DASHBOARD CARD – V80.2 (INTERACTIVE EDITION)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -14,7 +14,6 @@ class HealthDashboardCard extends HTMLElement {
     if (!config) throw new Error("Configuration invalide");
     this._config = JSON.parse(JSON.stringify(config));
     
-    // SÉCURITÉ ABSOLUE : Initialisation des blocs si manquants
     const defaultPerson = { name: "Nouveau", sensors: [], start: 0, goal: 0, ideal: 0, step_goal: 10000 };
     if (!this._config.person1) this._config.person1 = { ...defaultPerson, name: "Patrick" };
     if (!this._config.person2) this._config.person2 = { ...defaultPerson, name: "Sandra" };
@@ -109,7 +108,7 @@ class HealthDashboardCard extends HTMLElement {
   render() {
     if (!this._config) return;
     const view = this._config.current_view;
-    const pData = this._config[view] || { name: "Erreur", sensors: [], start:0, goal:0, ideal:0 };
+    const pData = this._config[view] || { name: "Nouveau", sensors: [], start:0, goal:0, ideal:0 };
     const accentColor = view === 'person1' ? '#38bdf8' : '#f43f5e';
 
     this.shadowRoot.innerHTML = `
@@ -176,23 +175,24 @@ class HealthDashboardCard extends HTMLElement {
 class HealthDashboardCardEditor extends HTMLElement {
   set hass(hass) { this._hass = hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
+  
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
+
   render() {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey] || { name: "Nouveau", sensors: [] };
     this.innerHTML = `
       <style>
-        .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; font-size: 13px; }
+        .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
         .section { background: #252525; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #444; }
         .tab-menu { display: flex; gap: 8px; margin-bottom: 20px; }
-        .t-btn { flex: 1; padding: 10px; background: #222; color: #888; border: 2px solid #444; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .t-btn { flex: 1; padding: 10px; background: #222; color: #888; border: 2px solid #444; border-radius: 8px; cursor: pointer; }
         .t-btn.active { border-color: #38bdf8; color: white; background: #38bdf8; }
-        label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
+        label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; }
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; color: white; border: none; cursor: pointer; }
       </style>
       <div class="ed-box">
         <div class="tab-menu">
@@ -200,30 +200,16 @@ class HealthDashboardCardEditor extends HTMLElement {
             <button class="t-btn ${pKey==='person2'?'active':''}" id="t-p2">${(this._config.person2||{}).name || 'P2'}</button>
         </div>
         <div class="section">
-            <label>NOM & OBJECTIFS</label>
+            <label>NOM DU PROFIL</label>
             <input type="text" id="inp-name" value="${p.name || ''}">
-            <div class="grid-2">
-                <div><label>OBJECTIF PAS</label><input type="number" id="inp-sgoal" value="${p.step_goal || 10000}"></div>
-                <div><label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}"></div>
-            </div>
-            <div class="grid-3">
-                <div><label>DÉPART (KG)</label><input type="number" id="inp-start" value="${p.start || 0}"></div>
-                <div><label>CONFORT (KG)</label><input type="number" id="inp-goal" value="${p.goal || 0}"></div>
-                <div><label>IDÉAL (KG)</label><input type="number" id="inp-ideal" value="${p.ideal || 0}"></div>
-            </div>
-        </div>
-        <div class="section">
-            <label>POSITIONS & DIMENSIONS</label>
-            <div class="grid-2">
-                <div><label>BOUTONS X %</label><input type="number" id="inp-bx" value="${this._config.btn_x || 5}"></div>
-                <div><label>BOUTONS Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
-            </div>
-            <label>HAUTEUR CARTE</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}">
-            <div class="grid-2">
-              <div><label>LARG. STANDARD</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
-              <div><label>HAUT. STANDARD</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
-              <div><label>LARG. IMC/CORP.</label><input type="number" id="inp-iw" value="${this._config.imc_width || 250}"></div>
-              <div><label>HAUT. IMC/CORP.</label><input type="number" id="inp-ih" value="${this._config.imc_height || 97}"></div>
+            <label>OBJECTIF PAS</label>
+            <input type="number" id="inp-sgoal" value="${p.step_goal || 10000}">
+            <label>IMAGE URL</label>
+            <input type="text" id="inp-img" value="${p.image || ''}">
+            <div style="display:flex; gap:5px;">
+              <div><label>DÉPART</label><input type="number" id="inp-start" value="${p.start || 0}"></div>
+              <div><label>CONFORT</label><input type="number" id="inp-goal" value="${p.goal || 0}"></div>
+              <div><label>IDÉAL</label><input type="number" id="inp-ideal" value="${p.ideal || 0}"></div>
             </div>
         </div>
         <div class="section">
@@ -234,10 +220,9 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <button class="del-btn" data-idx="${i}">X</button>
                 <label>NOM</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
                 <label>ENTITÉ</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
-                <div class="grid-3">
-                    <div><label>ICÔNE</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || ''}"></div>
-                    <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
-                    <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+                <div style="display:flex; gap:5px;">
+                  <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
+                  <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
                 </div>
               </div>
             `).join('')}
@@ -246,37 +231,35 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
       </div>
     `;
+
+    // Événements
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
-    this.querySelector('#inp-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
-    this.querySelector('#inp-sgoal').onchange = (e) => { this._config[pKey].step_goal = e.target.value; this._fire(); };
-    this.querySelector('#inp-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
-    this.querySelector('#inp-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
-    this.querySelector('#inp-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
-    this.querySelector('#inp-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
-    this.querySelector('#inp-bx').onchange = (e) => { this._config.btn_x = e.target.value; this._fire(); };
-    this.querySelector('#inp-by').onchange = (e) => { this._config.btn_y = e.target.value; this._fire(); };
-    this.querySelector('#inp-ch').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-bw').onchange = (e) => { this._config.b_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-bh').onchange = (e) => { this._config.b_height = e.target.value; this._fire(); };
-    this.querySelector('#inp-iw').onchange = (e) => { this._config.imc_width = e.target.value; this._fire(); };
-    this.querySelector('#inp-ih').onchange = (e) => { this._config.imc_height = e.target.value; this._fire(); };
-    this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+    this.querySelector('#inp-name').oninput = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
+    this.querySelector('#inp-sgoal').oninput = (e) => { this._config[pKey].step_goal = e.target.value; this._fire(); };
+    this.querySelector('#inp-img').oninput = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
+    this.querySelector('#inp-start').oninput = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
+    this.querySelector('#inp-goal').oninput = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
+    this.querySelector('#inp-ideal').oninput = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
+
+    this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-ent').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+
     this.querySelector('#add-sensor').onclick = () => { 
         if (!this._config[pKey].sensors) this._config[pKey].sensors = [];
         this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 }); 
         this._fire(); this.render(); 
     };
-    this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => { this._config[pKey].sensors.splice(e.target.dataset.idx, 1); this._fire(); this.render(); });
+    this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => { 
+        this._config[pKey].sensors.splice(e.target.dataset.idx, 1); 
+        this._fire(); this.render(); 
+    });
   }
-  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V80.1" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V80.2" });
