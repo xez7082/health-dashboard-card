@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V2.3.0
+ * HEALTH DASHBOARD CARD – V101
  * Améliorations v2.3.0 :
  *   1. Throttling de updateSensors() — 500ms min entre chaque appel
  *   2. Sélecteur d'entités natif HA (ha-entity-picker) dans l'éditeur
@@ -539,12 +539,17 @@ class HealthDashboardCard extends HTMLElement {
 // ─── Éditeur ─────────────────────────────────────────────────────────────────
 
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._activeTab = 'profile'; }
+  constructor() { super(); this._activeTab = 'profile'; this._pickersReady = false; }
 
-  // [4] hass injecté → re-render pour peupler les ha-entity-picker
-  set hass(hass) { this._hass = hass; this.render(); }
+  // CORRECTION 1 : set hass ne doit JAMAIS appeler render().
+  // HA injecte hass des dizaines de fois/sec → boucle de re-rendu qui plante l'éditeur.
+  // On se contente de stocker hass et de mettre à jour .hass sur les pickers existants.
+  set hass(hass) {
+    this._hass = hass;
+    // Mise à jour silencieuse des pickers déjà dans le DOM
+    this.querySelectorAll('ha-entity-picker').forEach(p => { p.hass = hass; });
+  }
 
-  // [1] Config sans guard sur hass : l'éditeur s'affiche toujours
   setConfig(config) { this._config = config; this.render(); }
 
   render() {
@@ -565,8 +570,10 @@ class HealthDashboardCardEditor extends HTMLElement {
         .grid    { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .sub-sec { background:#111; padding:10px; border-radius:8px; margin-bottom:15px; border-left:3px solid #38bdf8; }
         .del-btn { width:100%; margin-top:10px; background:#f87171; border:none; color:white; padding:8px; border-radius:4px; cursor:pointer; }
-        /* [2] ha-entity-picker wrap */
+        /* picker wrap : le fallback input est masqué dès que le picker est injecté */
         .picker-wrap { margin-top:6px; }
+        .picker-wrap ha-entity-picker { display:block; }
+        .picker-wrap ha-entity-picker ~ .fallback-ent { display:none; }
         ha-entity-picker { display:block; }
       </style>
       <div class="ed-box">
@@ -603,8 +610,9 @@ class HealthDashboardCardEditor extends HTMLElement {
           ${this._activeTab === 'health' ? `
             <div class="sub-sec">
               <label>IMC — entité</label>
-              <!-- [2] Placeholder → remplacé par ha-entity-picker en JS -->
-              <div class="picker-wrap" id="picker-imc-entity" data-field="imc_entity" data-value="${p.imc_entity||''}"></div>
+              <div class="picker-wrap" id="picker-imc-entity" data-field="imc_entity" data-value="${p.imc_entity||''}">
+                <input type="text" class="fallback-ent" id="fb-imc" value="${p.imc_entity||''}" placeholder="sensor.mon_imc">
+              </div>
               <div class="grid">
                 <div><label>Nom affiché</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
                 <div><label>Icône MDI</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
@@ -626,7 +634,9 @@ class HealthDashboardCardEditor extends HTMLElement {
 
             <div class="sub-sec">
               <label>CORPULENCE — entité</label>
-              <div class="picker-wrap" id="picker-corp-entity" data-field="corp_entity" data-value="${p.corp_entity||''}"></div>
+              <div class="picker-wrap" id="picker-corp-entity" data-field="corp_entity" data-value="${p.corp_entity||''}">
+                <input type="text" class="fallback-ent" id="fb-corp" value="${p.corp_entity||''}" placeholder="sensor.ma_corpulence">
+              </div>
               <div class="grid">
                 <div><label>Nom affiché</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
                 <div><label>Icône MDI</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
@@ -656,7 +666,9 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div><label>Icône MDI</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon||'mdi:heart'}"></div>
                   </div>
                   <label>Entité</label>
-                  <div class="picker-wrap" id="picker-sensor-${i}" data-field="sensor" data-idx="${i}" data-value="${s.entity||''}"></div>
+                  <div class="picker-wrap" id="picker-sensor-${i}" data-field="sensor" data-idx="${i}" data-value="${s.entity||''}">
+                    <input type="text" class="fallback-ent s-ent" data-idx="${i}" value="${s.entity||''}" placeholder="sensor.mon_capteur">
+                  </div>
                   <div class="grid">
                     <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
                     <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
@@ -688,44 +700,63 @@ class HealthDashboardCardEditor extends HTMLElement {
     `;
 
     this._attachEvents(pKey);
-    this._injectEntityPickers(pKey); // [2] Injecte les ha-entity-picker
+    this._injectEntityPickers(pKey); // async — ne bloque pas le rendu
   }
 
-  // ── [2] Injection des ha-entity-picker ────────────────────────────────────
+  // ── Injection des ha-entity-picker ───────────────────────────────────────
+  // CORRECTION 2 : attendre que ha-entity-picker soit défini avant de le créer.
+  // CORRECTION 3 : try/catch + fallback input texte si le composant plante.
 
-  _injectEntityPickers(pKey) {
-    if (!this._hass) return; // ha-entity-picker nécessite hass
+  async _injectEntityPickers(pKey) {
+    // Attente que le composant natif HA soit disponible (timeout 3s)
+    try {
+      await Promise.race([
+        customElements.whenDefined('ha-entity-picker'),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
+      ]);
+    } catch (_) {
+      // ha-entity-picker indisponible → on garde les champs texte de secours
+      return;
+    }
 
-    // Placeholders dans l'onglet health
-    ['imc-entity', 'corp-entity'].forEach(id => {
-      const wrap = this.querySelector(`#picker-${id}`);
-      if (!wrap) return;
-      const field = wrap.dataset.field;
-      const picker = document.createElement('ha-entity-picker');
-      picker.hass           = this._hass;
-      picker.value          = wrap.dataset.value;
-      picker.label          = ' ';
-      picker.allowCustomEntity = true;
-      picker.addEventListener('value-changed', (e) => {
-        this._config[pKey][field] = e.detail.value;
-        this._fire();
-      });
-      wrap.replaceChildren(picker);
-    });
+    const makePicker = (wrap, onChanged) => {
+      if (!wrap || !this._hass) return;
+      try {
+        const picker = document.createElement('ha-entity-picker');
+        picker.hass             = this._hass;
+        picker.value            = wrap.dataset.value || '';
+        picker.label            = wrap.dataset.label || '';
+        picker.allowCustomEntity = true;
+        picker.addEventListener('value-changed', (e) => onChanged(e.detail.value));
+        // CORRECTION 3 : innerHTML='' + appendChild au lieu de replaceChildren()
+        // (replaceChildren non dispo sur certaines versions de HA / Webkit)
+        wrap.innerHTML = '';
+        wrap.appendChild(picker);
+      } catch (err) {
+        // Fallback silencieux : le champ texte de secours reste visible
+        console.warn('[HealthDashboard] ha-entity-picker error:', err);
+      }
+    };
 
-    // Placeholders capteurs génériques
+    // IMC
+    makePicker(
+      this.querySelector('#picker-imc-entity'),
+      val => { this._config[pKey].imc_entity = val; this._fire(); }
+    );
+    // Corpulence
+    makePicker(
+      this.querySelector('#picker-corp-entity'),
+      val => { this._config[pKey].corp_entity = val; this._fire(); }
+    );
+    // Capteurs génériques
     this.querySelectorAll('[id^="picker-sensor-"]').forEach(wrap => {
-      const idx    = parseInt(wrap.dataset.idx);
-      const picker = document.createElement('ha-entity-picker');
-      picker.hass           = this._hass;
-      picker.value          = wrap.dataset.value;
-      picker.label          = ' ';
-      picker.allowCustomEntity = true;
-      picker.addEventListener('value-changed', (e) => {
-        this._config[pKey].sensors[idx].entity = e.detail.value;
-        this._fire();
+      const idx = parseInt(wrap.dataset.idx);
+      makePicker(wrap, val => {
+        if (this._config[pKey].sensors[idx]) {
+          this._config[pKey].sensors[idx].entity = val;
+          this._fire();
+        }
       });
-      wrap.replaceChildren(picker);
     });
   }
 
@@ -760,6 +791,12 @@ class HealthDashboardCardEditor extends HTMLElement {
     }
 
     if (this._activeTab === 'health') {
+      // Fallback text inputs (actifs si ha-entity-picker absent)
+      const fbImc = this.querySelector('#fb-imc');
+      if (fbImc) fbImc.onchange = (e) => { this._config[pKey].imc_entity = e.target.value; this._fire(); };
+      const fbCorp = this.querySelector('#fb-corp');
+      if (fbCorp) fbCorp.onchange = (e) => { this._config[pKey].corp_entity = e.target.value; this._fire(); };
+
       bind('#inp-imcn',  'imc_name');   bind('#inp-imci',  'imc_icon');
       bind('#inp-imcw',  'imc_w');      bind('#inp-imch',  'imc_h');
       bind('#inp-imcx',  'imc_x');      bind('#inp-imcy',  'imc_y');
@@ -780,6 +817,7 @@ class HealthDashboardCardEditor extends HTMLElement {
       // [BUG 2 FIX] parseInt() sur data-idx
       this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].name   = e.target.value; this._fire(); });
       this.querySelectorAll('.s-ico') .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].icon   = e.target.value; this._fire(); });
+      this.querySelectorAll('.s-ent') .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].entity = e.target.value; this._fire(); });
       this.querySelectorAll('.s-x')   .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].x      = parseFloat(e.target.value); this._fire(); });
       this.querySelectorAll('.s-y')   .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].y      = parseFloat(e.target.value); this._fire(); });
 
@@ -808,4 +846,4 @@ customElements.define('health-dashboard-card',        HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: 'health-dashboard-card', name: 'Health Dashboard V2.3.0' });
+window.customCards.push({ type: 'health-dashboard-card', name: 'Health Dashboard V2.3.1' });
