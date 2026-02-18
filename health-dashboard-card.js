@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.1.3
- * Inclus : Noms et Icônes personnalisables pour IMC et Corpulence.
+ * HEALTH DASHBOARD CARD – V2.1.4
+ * Ajout du réglage des icônes pour les capteurs additionnels.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -186,7 +186,7 @@ class HealthDashboardCardEditor extends HTMLElement {
             ` : ''}
             ${this._activeTab === 'health' ? `
                 <div class="sub-sec">
-                    <label>IMC</label><input type="text" id="inp-imce" placeholder="Entité" value="${p.imc_entity || ''}">
+                    <label>IMC</label><input type="text" id="inp-imce" value="${p.imc_entity || ''}">
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
@@ -198,7 +198,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                     </div>
                 </div>
                 <div class="sub-sec">
-                    <label>CORPULENCE</label><input type="text" id="inp-corpe" placeholder="Entité" value="${p.corp_entity || ''}">
+                    <label>CORPULENCE</label><input type="text" id="inp-corpe" value="${p.corp_entity || ''}">
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
@@ -214,14 +214,20 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div id="sensors-container">
                 ${(p.sensors || []).map((s, i) => `
                   <div class="sub-sec">
-                    <label>Nom</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+                    <div class="grid">
+                        <div><label>Nom</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}"></div>
+                        <div><label>Icône</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
+                    </div>
                     <label>Entité</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
-                    <div class="grid"><div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div><div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div></div>
+                    <div class="grid">
+                        <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
+                        <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+                    </div>
                     <button class="del-btn" data-idx="${i}">Supprimer</button>
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold;" id="add-s">➕ AJOUTER</button>
+                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
             ` : ''}
             ${this._activeTab === 'design' ? `
                 <label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height}">
@@ -264,11 +270,12 @@ class HealthDashboardCardEditor extends HTMLElement {
     
     if(this._activeTab === 'sensors') {
         this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-ico').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
         this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
         this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
         this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
         this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = () => { this._config[pKey].sensors.splice(btn.dataset.idx, 1); this._fire(); this.render(); });
-        this.querySelector('#add-s').onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", x:50, y:50}); this._fire(); this.render(); };
+        this.querySelector('#add-s').onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", x:50, y:50, icon:"mdi:heart"}); this._fire(); this.render(); };
     }
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -277,4 +284,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.1.3" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.1.4" });
