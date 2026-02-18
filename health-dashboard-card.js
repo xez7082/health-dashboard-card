@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.2.2
- * CORRECTIF : "Cannot read properties of undefined (reading 'name')"
+ * HEALTH DASHBOARD CARD – V2.2.3
+ * INITIALISATION AUTOMATIQUE POUR ÉDITEUR VISUEL IMMÉDIAT
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -12,26 +12,27 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
-    this._config = JSON.parse(JSON.stringify(config || {}));
+    // CLONAGE ET INITIALISATION DES VALEURS PAR DÉFAUT SI VIDE
+    const newConfig = JSON.parse(JSON.stringify(config || {}));
     
-    // Initialisation forcée des données pour éviter les erreurs "undefined"
-    const base = { 
-        name: "Prénom", sensors: [], start: 80, comfort: 75, ideal: 70, image: "", step_goal: 10000,
+    const baseProfile = (name) => ({
+        name: name, sensors: [], start: 80, comfort: 75, ideal: 70, image: "", step_goal: 10000,
         imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
         corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
-    };
+    });
 
-    if (!this._config.person1) this._config.person1 = { ...base, name: "Patrick" };
-    if (!this._config.person2) this._config.person2 = { ...base, name: "Sandra" };
-    if (!this._config.current_view) this._config.current_view = 'person1';
+    if (!newConfig.person1) newConfig.person1 = baseProfile("Patrick");
+    if (!newConfig.person2) newConfig.person2 = baseProfile("Sandra");
+    if (!newConfig.current_view) newConfig.current_view = 'person1';
     
-    this._config.card_height = this._config.card_height || 600;
-    this._config.b_width = this._config.b_width || 160;
-    this._config.b_height = this._config.b_height || 69;
-    this._config.btn_x = this._config.btn_x || 5;
-    this._config.btn_y = this._config.btn_y || 3;
-    this._config.img_offset = this._config.img_offset || 50;
-    
+    newConfig.card_height = newConfig.card_height || 600;
+    newConfig.b_width = newConfig.b_width || 160;
+    newConfig.b_height = newConfig.b_height || 69;
+    newConfig.btn_x = newConfig.btn_x || 5;
+    newConfig.btn_y = newConfig.btn_y || 3;
+    newConfig.img_offset = newConfig.img_offset || 50;
+
+    this._config = newConfig;
     this.render();
   }
 
@@ -40,18 +41,14 @@ class HealthDashboardCard extends HTMLElement {
     this.updateSensors();
   }
 
-  _num(val, defaultVal = 0) {
-    const n = parseFloat(val);
-    return isNaN(n) ? defaultVal : n;
-  }
+  _num(val, d = 0) { const n = parseFloat(val); return isNaN(n) ? d : n; }
 
   updateSensors() {
     if (!this._hass || !this.shadowRoot || !this._config) return;
     const view = this._config.current_view;
     const pData = this._config[view];
-    if (!pData) return;
-
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
+
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const stDiff = this._hass.states['sensor.difference_poids' + suffix];
     
@@ -62,56 +59,54 @@ class HealthDashboardCard extends HTMLElement {
         const diffVal = stDiff ? stDiff.state : "0";
         const label = this.shadowRoot.getElementById('pointer-label');
         if(label) {
-            const valFloat = parseFloat(diffVal);
-            const color = valFloat <= 0 ? '#4ade80' : '#f87171';
-            const sign = valFloat > 0 ? '+' : '';
-            label.innerHTML = `${actuel}kg <span style="color:${color}; margin-left:4px; font-size:0.8em;">(${sign}${diffVal})</span>`;
+            const valF = parseFloat(diffVal);
+            label.innerHTML = `${actuel}kg <span style="color:${valF <= 0 ? '#4ade80' : '#f87171'}; margin-left:4px; font-size:0.8em;">(${valF > 0 ? '+' : ''}${diffVal})</span>`;
         }
         const range = depart - ideal;
         const pct = range !== 0 ? ((depart - actuel) / range) * 100 : 0;
-        const pointer = this.shadowRoot.getElementById('progression-pointer');
-        if(pointer) pointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        const ptr = this.shadowRoot.getElementById('progression-pointer');
+        if(ptr) ptr.style.left = `${Math.max(0, Math.min(100, pct))}%`;
 
-        const confortMark = this.shadowRoot.getElementById('mark-comfort');
-        if(confortMark) {
+        const cmf = this.shadowRoot.getElementById('mark-comfort');
+        if(cmf) {
             const pctC = range !== 0 ? ((depart - this._num(pData.comfort)) / range) * 100 : 50;
-            confortMark.style.left = `${Math.max(0, Math.min(100, pctC))}%`;
+            cmf.style.left = `${Math.max(0, Math.min(100, pctC))}%`;
         }
     }
 
-    const setVal = (id, entity) => {
+    const setV = (id, ent) => {
         const el = this.shadowRoot.getElementById(id);
-        if (el && entity && this._hass.states[entity]) {
-            const st = this._hass.states[entity];
-            el.textContent = `${st.state}${st.attributes.unit_of_measurement || ''}`;
+        if (el && ent && this._hass.states[ent]) {
+            const s = this._hass.states[ent];
+            el.textContent = `${s.state}${s.attributes.unit_of_measurement || ''}`;
         }
     };
-    setVal('imc-val', pData.imc_entity);
-    setVal('corp-val', pData.corp_entity);
+    setV('imc-val', pData.imc_entity);
+    setV('corp-val', pData.corp_entity);
 
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     if (stSteps) {
         const pctS = Math.min(100, (this._num(stSteps.state) / this._num(pData.step_goal, 10000)) * 100);
         const path = this.shadowRoot.getElementById('gauge-path');
         if(path) path.style.strokeDasharray = `${(pctS * 125.6) / 100}, 125.6`;
-        const valPas = this.shadowRoot.getElementById('step-value');
-        if(valPas) valPas.textContent = stSteps.state;
+        const vP = this.shadowRoot.getElementById('step-value');
+        if(vP) vP.textContent = stSteps.state;
     }
 
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
-            const valEl = this.shadowRoot.getElementById(`value-${i}`);
+            const vE = this.shadowRoot.getElementById(`value-${i}`);
             const st = this._hass.states[s.entity];
-            if (valEl && st) valEl.textContent = `${st.state}${st.attributes.unit_of_measurement || ''}`;
+            if (vE && st) vE.textContent = `${st.state}${st.attributes.unit_of_measurement || ''}`;
         });
     }
   }
 
   render() {
+    if (!this._config) return;
     const view = this._config.current_view;
     const pData = this._config[view];
-    if (!pData) return;
-    const accentColor = view === 'person1' ? '#38bdf8' : '#f43f5e';
+    const accent = view === 'person1' ? '#38bdf8' : '#f43f5e';
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -119,20 +114,20 @@ class HealthDashboardCard extends HTMLElement {
         .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset}%; background-size: cover; opacity: 0.4; z-index: 1; pointer-events: none; background-image: url('${pData.image}'); }
         .topbar { position: absolute; left: ${this._config.btn_x}%; top: ${this._config.btn_y}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 18px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
+        .btn.active { background: ${accent} !important; border-color: ${accent}; }
         .sensor-card { position: absolute; transform: translate(-50%, -50%); border-radius: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 4px; backdrop-filter: blur(8px); }
-        ha-icon { --mdc-icon-size: 26px; color: ${accentColor}; margin-bottom: 2px; }
+        ha-icon { --mdc-icon-size: 26px; color: ${accent}; margin-bottom: 2px; }
         .rule-container { position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%); width: 90%; height: 80px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 40px; }
         .rule-fill { position: absolute; height: 100%; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); border-radius: 4px; width: 100%; opacity: 0.7; }
         .prog-pointer { position: absolute; top: -14px; width: 3px; height: 36px; background: white; transition: left 1s ease; box-shadow: 0 0 12px white; z-index: 5; }
-        .pointer-bubble { position: absolute; top: -42px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 900; white-space: nowrap; border: 2px solid ${accentColor}; }
+        .pointer-bubble { position: absolute; top: -42px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 900; white-space: nowrap; border: 2px solid ${accent}; }
         .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; font-weight: bold; text-align: center; line-height: 1.2; }
         .mark-confort { position: absolute; top: -4px; width: 12px; height: 12px; background: #fbbf24; border: 2px solid #0f172a; border-radius: 50%; transform: translateX(-50%); z-index: 4; }
         .steps-gauge { position: absolute; top: 15px; right: 15px; width: 85px; height: 85px; z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .steps-data { position: absolute; text-align: center; }
         .steps-gauge svg { transform: rotate(-90deg); width: 74px; height: 74px; }
-        .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4.5; stroke-linecap: round; }
+        .steps-gauge .meter { fill: none; stroke: ${accent}; stroke-width: 4.5; stroke-linecap: round; }
       </style>
       <div class="main-container">
         <div class="topbar"><button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button><button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button></div>
@@ -161,18 +156,13 @@ class HealthDashboardCard extends HTMLElement {
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this._activeTab = 'profile'; }
   set hass(hass) { this._hass = hass; }
-  setConfig(config) { this._config = JSON.parse(JSON.stringify(config || {})); this.render(); }
+  setConfig(config) { this._config = config; this.render(); }
 
   render() {
     if (!this._hass || !this._config) return;
-    
-    // Sécurité supplémentaire : On s'assure que les objets person1/2 existent avant le rendu de l'éditeur
     const pKey = this._config.current_view || 'person1';
-    if (!this._config[pKey]) {
-        this.innerHTML = `<div style="padding:20px; color:red;">Erreur : Données du profil manquantes. Veuillez rafraîchir ou réinitialiser en YAML.</div>`;
-        return;
-    }
     const p = this._config[pKey];
+    if (!p) return;
 
     this.innerHTML = `
       <style>
@@ -189,8 +179,8 @@ class HealthDashboardCardEditor extends HTMLElement {
       </style>
       <div class="ed-box">
         <div style="display:flex; gap:8px; margin-bottom:12px;">
-            <button style="flex:1; padding:10px; background:${pKey==='person1'?'#38bdf8':'#444'};" id="t-p1">PATRICK</button>
-            <button style="flex:1; padding:10px; background:${pKey==='person2'?'#38bdf8':'#444'};" id="t-p2">SANDRA</button>
+            <button style="flex:1; padding:10px; background:${pKey==='person1'?'#38bdf8':'#444'};" id="t-p1">${this._config.person1.name}</button>
+            <button style="flex:1; padding:10px; background:${pKey==='person2'?'#38bdf8':'#444'};" id="t-p2">${this._config.person2.name}</button>
         </div>
         <div class="tabs">
             <button class="tab ${this._activeTab === 'profile' ? 'active' : ''}" id="tab-profile">PROFIL</button>
@@ -245,7 +235,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
+                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold;" id="add-s">➕ AJOUTER</button>
             ` : ''}
             ${this._activeTab === 'design' ? `
                 <label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height}">
@@ -266,12 +256,9 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   _attachEvents(pKey) {
-    const bt1 = this.querySelector('#t-p1');
-    const bt2 = this.querySelector('#t-p2');
-    if (bt1) bt1.onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
-    if (bt2) bt2.onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
-
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._activeTab = t.id.replace('tab-',''); this.render(); });
+    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
 
     const bind = (id, field, isRoot = false) => {
         const el = this.querySelector(id);
@@ -306,4 +293,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.2" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.3" });
