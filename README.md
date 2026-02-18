@@ -1,65 +1,72 @@
-# 🥗 Health Dashboard Card (V66)
+# Health Dashboard Card 📊
 
-[![HACS](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![Version](https://img.shields.io/github/v/release/xez7082/health-dashboard-card?include_prereleases&style=for-the-badge)
-[![License](https://img.shields.io/github/license/xez7082/health-dashboard-card?style=for-the-badge)](LICENSE)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=for-the-badge)](https://github.com/xez7082/health-dashboard-card/graphs/commit-activity)
-[![BuyMeACoffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange.svg?style=for-the-badge&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/xez7082)
+Une carte Home Assistant (Lovelace) hautement personnalisable pour le suivi de la santé de deux personnes. Conçue pour offrir une visualisation moderne et intuitive de vos données biométriques (poids, pas, IMC, etc.).
 
----
 
-Une carte Home Assistant personnalisée, élégante et interactive pour le suivi de la santé et des objectifs de poids, inspirée du design "Apple Health".
 
----
+## ✨ Caractéristiques
 
-## 📸 Aperçu
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/xez7082/health-dashboard-card/main/poid.png" width="45%" alt="Dashboard Vue Patrick">
-  <img src="https://raw.githubusercontent.com/xez7082/health-dashboard-card/main/poid1.png" width="45%" alt="Dashboard Vue Sandra">
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/xez7082/health-dashboard-card/main/poid2.png" width="45%" alt="Éditeur de configuration">
-  <img src="https://raw.githubusercontent.com/xez7082/health-dashboard-card/main/poid3.png" width="45%" alt="Gestion des capteurs">
-</p>
+- **Double Profil** : Basculez entre deux profils (ex: Patrick & Sandra) via des boutons dédiés.
+- **Suivi de Poids Interactif** : Une barre de progression visuelle entre le poids de départ et le poids idéal, incluant le calcul automatique du delta.
+- **Jauge de Pas** : Un anneau de progression circulaire basé sur votre objectif quotidien.
+- **Blocs Santé Flexibles** : Affichage de l'IMC et de la Corpulence avec personnalisation complète des icônes et du texte.
+- **Capteurs Additionnels** : Ajoutez autant de capteurs que vous le souhaitez (Sommeil, Tension, Température, etc.).
+- **Éditeur Visuel (GUI)** : Plus besoin de coder en YAML. Configurez positions, tailles et entités directement dans l'interface.
 
 ---
 
-## 📖 Contexte & Concept
+## 🚀 Installation
 
-Le suivi de santé dans Home Assistant manque souvent d'esthétique. Cette carte transforme vos données biométriques froides en une interface visuelle motivante.
-
-### Points forts :
-* **Visualisation de Progression** : Une règle dynamique place votre poids actuel entre votre point de départ et votre objectif idéal.
-* **Delta Intelligent** : Affiche la différence de poids en temps réel (Vert pour une perte, Rouge pour une prise).
-* **Entièrement Personnalisable** : Gérez les positions X/Y de vos capteurs et les dimensions des bulles directement depuis l'interface.
+1. **Fichier** : Téléchargez `health-dashboard-card.js` et placez-le dans votre dossier `/config/www/`.
+2. **Ressource** : Dans Home Assistant, allez dans *Paramètres* > *Tableaux de bord* > *Ressources* et ajoutez :
+   - **URL** : `/local/health-dashboard-card.js`
+   - **Type** : `Module JavaScript`
+3. **Carte** : Ajoutez une nouvelle carte `Custom: Health Dashboard Card` à votre tableau de bord.
 
 ---
 
-## 🛠️ Configuration des Capteurs (Requis)
+## ⚙️ Configuration de l'Éditeur
 
-Pour un fonctionnement optimal du "Delta" de poids, vous devez créer des capteurs Template dans votre fichier `configuration.yaml` :
+L'éditeur est divisé en quatre sections pour une gestion simplifiée :
 
-```yaml
-template:
-  - sensor:
-      - name: "Difference Poids Patrick"
-        unique_id: health_card_diff_patrick
-        unit_of_measurement: "kg"
-        device_class: weight
-        state_class: measurement
-        state: >
-          {% set actuel = states('sensor.withings_poids_patrick') | float(none) %}
-          {% set depart = 85.0 %} 
-          {{ (actuel - depart) | round(1) if actuel is not none else 'unavailable' }}
+### 1. Profil 👤
+- **Nom** : Identité affichée sur le bouton.
+- **Image** : URL de l'image de fond pour le profil.
+- **Objectifs** : Réglage du poids de départ, de l'objectif et du poids idéal.
+- **Pas** : Définition de l'objectif quotidien de pas.
 
-      - name: "Difference Poids Sandra"
-        unique_id: health_card_diff_sandra
-        unit_of_measurement: "kg"
-        device_class: weight
-        state_class: measurement
-        state: >
-          {% set actuel = states('sensor.withings_poids_sandra') | float(none) %}
-          {% set depart = 65.0 %}
-          {{ (actuel - depart) | round(1) if actuel is not none else 'unavailable' }}
+### 2. Santé 🏥
+- **IMC & Corpulence** : Choix des entités, personnalisation des noms, des icônes, des tailles de police et positionnement précis sur la carte (X/Y).
+
+### 3. Capteurs ➕
+- **Gestion libre** : Ajoutez des capteurs supplémentaires.
+- **Icônes** : Chaque capteur peut avoir sa propre icône MDI.
+- **Positionnement** : Déplacement libre de chaque bloc via les coordonnées en pourcentage (%).
+- **Suppression** : Bouton direct pour retirer les capteurs inutiles.
+
+### 4. Design 🎨
+- **Dimensions globales** : Hauteur de la carte et taille par défaut des blocs.
+- **Positions** : Ajustement de l'emplacement des boutons de profil et de l'offset de l'image de fond.
+
+---
+
+## 🛠️ Entités Requises
+
+Pour une intégration automatique (ex: Withings), la carte utilise les suffixes de profil :
+
+- **Poids** : `sensor.withings_poids_patrick` / `_sandra`
+- **Différence** : `sensor.difference_poids_patrick` / `_sandra`
+- **Pas** : `sensor.withings_pas_patrick` / `_sandra`
+
+---
+
+## 🔄 Historique des Versions
+
+- **v2.1.4** : Gestion des icônes pour les capteurs additionnels.
+- **v2.1.3** : Personnalisation des textes et icônes IMC/Corpulence.
+- **v2.1.2** : Intégration des réglages de design globaux (X/Y boutons, polices).
+- **v2.1.1** : Correction du bug de suppression des capteurs dans l'éditeur.
+
+---
+
+*Développé pour Home Assistant - 2026*
