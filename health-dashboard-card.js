@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V79.1 (FULL CONTROL RESTORED)
+ * HEALTH DASHBOARD CARD – V80.1 (STABLE & SECURE)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -11,8 +11,14 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
+    // SÉCURITÉ : On s'assure que les blocs person1/2 existent toujours
+    const baseObj = { name: "Nouveau", sensors: [], start: 0, goal: 0, ideal: 0, step_goal: 10000 };
     this._config = JSON.parse(JSON.stringify(config));
+    
+    if (!this._config.person1) this._config.person1 = { ...baseObj, name: "Patrick" };
+    if (!this._config.person2) this._config.person2 = { ...baseObj, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
+    
     this.render();
   }
 
@@ -24,6 +30,17 @@ class HealthDashboardCard extends HTMLElement {
   _num(val, defaultVal = 0) {
     const n = parseFloat(val);
     return isNaN(n) ? defaultVal : n;
+  }
+
+  _getRelativeTime(lastChanged) {
+    if (!lastChanged) return "n/a";
+    const now = new Date();
+    const passed = new Date(lastChanged);
+    const diff = Math.floor((now - passed) / 1000);
+    if (diff < 60) return `à l'instant`;
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`;
+    return `il y a ${Math.floor(diff / 86400)}j`;
   }
 
   updateSensors() {
@@ -38,7 +55,9 @@ class HealthDashboardCard extends HTMLElement {
     if (stPoids && progPointer) {
         const actuel = this._num(stPoids.state);
         const range = this._num(pData.start) - this._num(pData.ideal);
-        progPointer.style.left = `${Math.max(0, Math.min(100, (range !== 0 ? ((this._num(pData.start) - actuel) / range) * 100 : 0)))}%`;
+        const pct = range !== 0 ? ((this._num(pData.start) - actuel) / range) * 100 : 0;
+        progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        
         let diffHtml = '';
         if (stDiff) {
             const valDiff = this._num(stDiff.state);
@@ -55,17 +74,18 @@ class HealthDashboardCard extends HTMLElement {
         const steps = this._num(stSteps.state);
         const goal = this._num(pData.step_goal, 10000);
         const pct = Math.min(100, (steps / goal) * 100);
-        const dash = (pct * 125.6) / 100;
-        circle.style.strokeDasharray = `${dash}, 125.6`;
+        circle.style.strokeDasharray = `${(pct * 125.6) / 100}, 125.6`;
         stepVal.textContent = steps >= 1000 ? (steps/1000).toFixed(1) + 'k' : steps;
     }
 
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
+            const timeEl = this.shadowRoot.getElementById(`time-${i}`);
             const stateObj = this._hass.states[s.entity];
-            if (valEl && stateObj) {
-                valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
+            if (stateObj) {
+                if (valEl) valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
+                if (timeEl) timeEl.textContent = this._getRelativeTime(stateObj.last_changed);
                 this._renderTrends(s.entity, i, view === 'person1' ? '#38bdf8' : '#f43f5e');
             }
         });
@@ -87,7 +107,7 @@ class HealthDashboardCard extends HTMLElement {
   render() {
     if (!this._config) return;
     const view = this._config.current_view;
-    const pData = this._config[view] || { sensors: [] };
+    const pData = this._config[view];
     const accentColor = view === 'person1' ? '#38bdf8' : '#f43f5e';
 
     this.shadowRoot.innerHTML = `
@@ -97,29 +117,27 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; left: ${this._num(this._config.btn_x, 5)}%; top: ${this._num(this._config.btn_y, 3)}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; box-shadow: 0 0 15px ${accentColor}; }
-        
         .steps-gauge { position: absolute; top: 10px; right: 15px; width: 80px; height: 80px; z-index: 100; background: rgba(0,0,0,0.4); border-radius: 50%; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
         .steps-gauge svg { transform: rotate(-90deg); width: 70px; height: 70px; }
         .steps-gauge .bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 4; }
-        .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4; stroke-linecap: round; }
+        .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray 1s ease; }
         .steps-data { position: absolute; text-align: center; }
         .steps-data .val { font-size: 14px; font-weight: 900; }
         .steps-data .unit { font-size: 8px; color: ${accentColor}; font-weight: bold; display: block; }
-
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171 0%, #fbbf24 65%, #4ade80 100%); border-radius: 5px; margin-top: 30px; }
         .marker-label { position: absolute; top: 20px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: 900; text-shadow: 1px 1px 2px black; }
         .prog-pointer { position: absolute; top: -12px; width: 3px; height: 34px; background: white; transition: left 1s ease; border-radius: 2px; }
         .pointer-info { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); background: white; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: #000; white-space: nowrap; }
-        
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); overflow: hidden; }
         .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 30px; z-index: -1; }
+        .time-text { font-size: 8px; color: #94a3b8; margin-top: 2px; font-style: italic; }
         ha-icon { --mdc-icon-size: 22px; color: ${accentColor}; }
       </style>
       <div class="main-container">
         <div class="topbar">
-          <button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1?.name || 'P1'}</button>
-          <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2?.name || 'P2'}</button>
+          <button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button>
+          <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button>
         </div>
         <div class="steps-gauge"><svg viewBox="0 0 50 50"><circle class="bg" cx="25" cy="25" r="20"/><circle id="gauge-path" class="meter" cx="25" cy="25" r="20" stroke-dasharray="0, 125.6"/></svg><div class="steps-data"><span id="step-value" class="val">--</span><span class="unit">Pas</span></div></div>
         <div class="bg-img"></div>
@@ -141,6 +159,7 @@ class HealthDashboardCard extends HTMLElement {
               <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
               <div style="font-size:10px; color:#cbd5e1; font-weight:bold;">${s.name}</div>
               <div id="value-${i}" style="font-weight:900; font-size:1.1em;">--</div>
+              <div id="time-${i}" class="time-text">--</div>
             </div>`;
         }).join('')}
       </div>
@@ -158,7 +177,7 @@ class HealthDashboardCardEditor extends HTMLElement {
   render() {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
-    const p = this._config[pKey];
+    const p = this._config[pKey] || { name: "", sensors: [] };
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; font-size: 13px; }
@@ -208,7 +227,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div class="section">
             <label>VOS CAPTEURS</label>
             <div id="sensors-container">
-            ${p.sensors.map((s, i) => `
+            ${(p.sensors || []).map((s, i) => `
               <div class="s-card">
                 <button class="del-btn" data-idx="${i}">X</button>
                 <label>NOM</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
@@ -245,7 +264,11 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
     this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
     this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
-    this.querySelector('#add-sensor').onclick = () => { this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 }); this._fire(); this.render(); };
+    this.querySelector('#add-sensor').onclick = () => { 
+        if (!this._config[pKey].sensors) this._config[pKey].sensors = [];
+        this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 }); 
+        this._fire(); this.render(); 
+    };
     this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => { this._config[pKey].sensors.splice(e.target.dataset.idx, 1); this._fire(); this.render(); });
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -254,4 +277,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.1" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V80.1" });
