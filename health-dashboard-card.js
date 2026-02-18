@@ -1,6 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V1.9.8
- * Inclus : Réglages IMC/Corpulence, Tailles des cartes et Icônes.
+ * HEALTH DASHBOARD CARD – V1.9.8 (FIXED IMC/CORP)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -47,13 +46,11 @@ class HealthDashboardCard extends HTMLElement {
     // 1. POIDS
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const stDiff = this._hass.states['sensor.difference_poids' + suffix];
-    const progPointer = this.shadowRoot.getElementById('progression-pointer');
-    
-    if (stPoids && progPointer) {
+    if (stPoids) {
         const actuel = this._num(stPoids.state);
         const range = this._num(pData.start) - this._num(pData.ideal);
         const pct = range !== 0 ? ((this._num(pData.start) - actuel) / range) * 100 : 0;
-        progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        this.shadowRoot.getElementById('progression-pointer').style.left = `${Math.max(0, Math.min(100, pct))}%`;
         
         let diffHtml = '';
         if (stDiff) {
@@ -63,7 +60,7 @@ class HealthDashboardCard extends HTMLElement {
         this.shadowRoot.getElementById('pointer-label').innerHTML = `${actuel} kg${diffHtml}`;
     }
 
-    // 2. IMC & CORPULENCE
+    // 2. IMC & CORPULENCE (Blocs fixes)
     const updateStatic = (id, entity) => {
         const el = this.shadowRoot.getElementById(id);
         const st = this._hass.states[entity];
@@ -74,10 +71,9 @@ class HealthDashboardCard extends HTMLElement {
 
     // 3. PAS
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
-    const circle = this.shadowRoot.getElementById('gauge-path');
-    if (stSteps && circle) {
+    if (stSteps) {
         const pct = Math.min(100, (this._num(stSteps.state) / this._num(pData.step_goal, 10000)) * 100);
-        circle.style.strokeDasharray = `${(pct * 125.6) / 100}, 125.6`;
+        this.shadowRoot.getElementById('gauge-path').style.strokeDasharray = `${(pct * 125.6) / 100}, 125.6`;
         this.shadowRoot.getElementById('step-value').textContent = stSteps.state;
     }
 
@@ -129,12 +125,12 @@ class HealthDashboardCard extends HTMLElement {
 
         <div class="bg-img"></div>
 
-        <div class="sensor" style="left:${pData.imc_x}%; top:${pData.imc_y}%;">
+        <div class="sensor" id="bloc-imc" style="left:${pData.imc_x || 20}%; top:${pData.imc_y || 20}%;">
             <ha-icon icon="mdi:calculator-variant"></ha-icon>
             <div style="font-size:10px; opacity:0.8;">IMC</div>
             <div id="imc-val" style="font-weight:900;">--</div>
         </div>
-        <div class="sensor" style="left:${pData.corp_x}%; top:${pData.corp_y}%;">
+        <div class="sensor" id="bloc-corp" style="left:${pData.corp_x || 20}%; top:${pData.corp_y || 35}%;">
             <ha-icon icon="mdi:human-biceps"></ha-icon>
             <div style="font-size:10px; opacity:0.8;">Corpulence</div>
             <div id="corp-val" style="font-weight:900;">--</div>
@@ -175,7 +171,6 @@ class HealthDashboardCardEditor extends HTMLElement {
     if (!this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
-    const allEnt = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
 
     this.innerHTML = `
       <style>
@@ -202,29 +197,29 @@ class HealthDashboardCardEditor extends HTMLElement {
             <button class="tab ${this._activeTab === 'design' ? 'active' : ''}" id="tab-design">DESIGN</button>
         </div>
         <div class="section">
+            ${this._activeTab === 'health' ? `
+                <div style="border-bottom: 1px solid #444; padding-bottom:10px; margin-bottom:10px;">
+                    <label>ENTITÉ IMC EXISTANTE</label><input type="text" id="inp-imce" value="${p.imc_entity || ''}">
+                    <div class="grid">
+                        <div><label>POS X %</label><input type="number" id="inp-imcx" value="${p.imc_x || 20}"></div>
+                        <div><label>POS Y %</label><input type="number" id="inp-imcy" value="${p.imc_y || 20}"></div>
+                    </div>
+                </div>
+                <div>
+                    <label>ENTITÉ CORPULENCE EXISTANTE</label><input type="text" id="inp-corpe" value="${p.corp_entity || ''}">
+                    <div class="grid">
+                        <div><label>POS X %</label><input type="number" id="inp-corpx" value="${p.corp_x || 20}"></div>
+                        <div><label>POS Y %</label><input type="number" id="inp-corpy" value="${p.corp_y || 35}"></div>
+                    </div>
+                </div>
+            ` : ''}
+            
             ${this._activeTab === 'profile' ? `
                 <label>NOM</label><input type="text" id="inp-name" value="${p.name}">
                 <label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image}">
                 <div class="grid">
                     <div><label>DÉPART (KG)</label><input type="number" id="inp-start" value="${p.start}"></div>
                     <div><label>OBJECTIF PAS</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
-                </div>
-                <div class="grid">
-                    <div><label>CONFORT (KG)</label><input type="number" id="inp-goal" value="${p.goal}"></div>
-                    <div><label>IDÉAL (KG)</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
-                </div>
-            ` : ''}
-
-            ${this._activeTab === 'health' ? `
-                <label>ENTITÉ IMC</label><input type="text" id="inp-imce" value="${p.imc_entity}">
-                <div class="grid">
-                    <div><label>IMC POS X %</label><input type="number" id="inp-imcx" value="${p.imc_x}"></div>
-                    <div><label>IMC POS Y %</label><input type="number" id="inp-imcy" value="${p.imc_y}"></div>
-                </div>
-                <label style="margin-top:20px;">ENTITÉ CORPULENCE</label><input type="text" id="inp-corpe" value="${p.corp_entity}">
-                <div class="grid">
-                    <div><label>CORP POS X %</label><input type="number" id="inp-corpx" value="${p.corp_x}"></div>
-                    <div><label>CORP POS Y %</label><input type="number" id="inp-corpy" value="${p.corp_y}"></div>
                 </div>
             ` : ''}
 
@@ -243,20 +238,19 @@ class HealthDashboardCardEditor extends HTMLElement {
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold;" id="add-s">➕ AJOUTER</button>
+                <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold;" id="add-s">➕ AJOUTER UN NOUVEAU</button>
             ` : ''}
 
             ${this._activeTab === 'design' ? `
                 <div class="grid">
                     <div><label>HAUTEUR CARTE</label><input type="number" id="inp-ch" value="${this._config.card_height}"></div>
-                    <div><label>IMAGE OFFSET %</label><input type="number" id="inp-off" value="${this._config.img_offset}"></div>
+                    <div><label>IMAGE OFFSET %</label><input type="number" id="inp-off" value="${this._config.img_offset || 50}"></div>
                 </div>
                 <div class="grid" style="margin-top:15px;">
                     <div><label>LARG. WIDGET (PX)</label><input type="number" id="inp-bw" value="${this._config.b_width}"></div>
                     <div><label>HAUT. WIDGET (PX)</label><input type="number" id="inp-bh" value="${this._config.b_height}"></div>
                 </div>
             ` : ''}
-            <div style="font-size:8px; color:#555; text-align:right; margin-top:10px;">V1.9.8</div>
         </div>
       </div>
     `;
@@ -278,20 +272,24 @@ class HealthDashboardCardEditor extends HTMLElement {
         };
     };
 
-    bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-sgoal', 'step_goal');
-    bind('#inp-goal', 'goal'); bind('#inp-ideal', 'ideal');
-    bind('#inp-imce', 'imc_entity'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y');
-    bind('#inp-corpe', 'corp_entity'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y');
-    bind('#inp-ch', 'card_height', true); bind('#inp-off', 'img_offset', true);
-    bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true);
-
+    if(this._activeTab === 'health') {
+        bind('#inp-imce', 'imc_entity'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y');
+        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y');
+    }
+    if(this._activeTab === 'profile') {
+        bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-sgoal', 'step_goal');
+    }
+    if(this._activeTab === 'design') {
+        bind('#inp-ch', 'card_height', true); bind('#inp-off', 'img_offset', true);
+        bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true);
+    }
     if(this._activeTab === 'sensors') {
         this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
         this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
         this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
         this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
         this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
-        this.querySelector('#add-s').onclick = () => { this._config[pKey].sensors.push({name:"Nouveau", entity:"", icon:"mdi:heart", x:50, y:50}); this._fire(); this.render(); };
+        this.querySelector('#add-s').onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", icon:"mdi:heart", x:50, y:50}); this._fire(); this.render(); };
         this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => { this._config[pKey].sensors.splice(e.target.dataset.idx, 1); this._fire(); this.render(); });
     }
   }
