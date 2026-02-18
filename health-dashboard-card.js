@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V79.9 (STABLE RELEASE)
+ * HEALTH DASHBOARD CARD – V1.9.4 (STABLE RELEASE)
  */
 
 class HealthDashboardCard extends HTMLElement {
