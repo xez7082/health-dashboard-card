@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.1.4
- * Ajout du réglage des icônes pour les capteurs additionnels.
+ * HEALTH DASHBOARD CARD – V2.2.0
+ * Inclus : Départ, Actuel (+/- Delta), Confort, Idéal.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -14,7 +14,7 @@ class HealthDashboardCard extends HTMLElement {
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config || {}));
     const base = { 
-        name: "Prénom", sensors: [], start: 80, goal: 75, ideal: 70, image: "", step_goal: 10000,
+        name: "Prénom", sensors: [], start: 80, comfort: 75, ideal: 70, image: "", step_goal: 10000,
         imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
         corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
     };
@@ -55,17 +55,28 @@ class HealthDashboardCard extends HTMLElement {
         const depart = this._num(pData.start);
         const ideal = this._num(pData.ideal);
         const diffVal = stDiff ? stDiff.state : "0";
+        
+        // Mise à jour du label flottant (Poids Actuel + Delta)
         const label = this.shadowRoot.getElementById('pointer-label');
         if(label) {
             const valFloat = parseFloat(diffVal);
             const color = valFloat <= 0 ? '#4ade80' : '#f87171';
             const sign = valFloat > 0 ? '+' : '';
-            label.innerHTML = `${actuel}kg <span style="color:${color}; margin-left:5px; font-size:0.85em;">(${sign}${diffVal}kg)</span>`;
+            label.innerHTML = `${actuel}kg <span style="color:${color}; margin-left:4px; font-size:0.8em;">(${sign}${diffVal})</span>`;
         }
+
+        // Calcul de la position du curseur
         const range = depart - ideal;
         const pct = range !== 0 ? ((depart - actuel) / range) * 100 : 0;
         const pointer = this.shadowRoot.getElementById('progression-pointer');
         if(pointer) pointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+
+        // Position du marqueur "Confort"
+        const confortMark = this.shadowRoot.getElementById('mark-comfort');
+        if(confortMark) {
+            const pctC = range !== 0 ? ((depart - this._num(pData.comfort)) / range) * 100 : 50;
+            confortMark.style.left = `${Math.max(0, Math.min(100, pctC))}%`;
+        }
     }
 
     const setVal = (id, entity) => {
@@ -80,9 +91,9 @@ class HealthDashboardCard extends HTMLElement {
 
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     if (stSteps) {
-        const pct = Math.min(100, (this._num(stSteps.state) / this._num(pData.step_goal, 10000)) * 100);
+        const pctS = Math.min(100, (this._num(stSteps.state) / this._num(pData.step_goal, 10000)) * 100);
         const path = this.shadowRoot.getElementById('gauge-path');
-        if(path) path.style.strokeDasharray = `${(pct * 125.6) / 100}, 125.6`;
+        if(path) path.style.strokeDasharray = `${(pctS * 125.6) / 100}, 125.6`;
         const valPas = this.shadowRoot.getElementById('step-value');
         if(valPas) valPas.textContent = stSteps.state;
     }
@@ -110,10 +121,19 @@ class HealthDashboardCard extends HTMLElement {
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
         .sensor-card { position: absolute; transform: translate(-50%, -50%); border-radius: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 4px; backdrop-filter: blur(8px); }
         ha-icon { --mdc-icon-size: 26px; color: ${accentColor}; margin-bottom: 2px; }
-        .rule-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 88%; height: 80px; z-index: 30; }
-        .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171, #fbbf24, #4ade80); border-radius: 5px; margin-top: 35px; }
-        .prog-pointer { position: absolute; top: -12px; width: 4px; height: 34px; background: white; transition: left 1s ease; box-shadow: 0 0 10px white; border-radius: 2px; }
-        .weight-marks { position: absolute; width: 100%; top: 22px; display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; }
+        
+        /* Barre de poids */
+        .rule-container { position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%); width: 90%; height: 80px; z-index: 30; }
+        .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 40px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+        .rule-fill { position: absolute; height: 100%; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); border-radius: 4px; width: 100%; opacity: 0.8; }
+        
+        .prog-pointer { position: absolute; top: -14px; width: 3px; height: 36px; background: white; transition: left 1s ease; box-shadow: 0 0 12px white; z-index: 5; }
+        .pointer-bubble { position: absolute; top: -42px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 900; white-space: nowrap; border: 2px solid ${accentColor}; }
+        
+        .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; font-weight: bold; text-align: center; }
+        .mark-line { position: absolute; top: -16px; left: 50%; width: 2px; height: 12px; background: rgba(255,255,255,0.4); }
+        .mark-confort { position: absolute; top: -4px; width: 12px; height: 12px; background: #fbbf24; border: 2px solid #0f172a; border-radius: 50%; transform: translateX(-50%); z-index: 4; }
+
         .steps-gauge { position: absolute; top: 15px; right: 15px; width: 85px; height: 85px; z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .steps-gauge svg { transform: rotate(-90deg); width: 74px; height: 74px; }
         .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4.5; stroke-linecap: round; }
@@ -124,13 +144,22 @@ class HealthDashboardCard extends HTMLElement {
         <div class="steps-gauge"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4.5"/><circle id="gauge-path" class="meter" cx="25" cy="25" r="20" stroke-dasharray="0, 125.6"/></svg><div class="steps-data"><span id="step-value" style="font-weight:900;">--</span></div></div>
         <div class="bg-img"></div>
         
-        <div class="sensor-card" style="left:${pData.imc_x}%; top:${pData.imc_y}%; width:${pData.imc_w}px; height:${pData.imc_h}px;"><ha-icon icon="${pData.imc_icon || 'mdi:scale-bathroom'}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.imc_name}</div><div id="imc-val" style="font-weight:900; font-size:${pData.imc_font}px;">--</div></div>
+        <div class="sensor-card" style="left:${pData.imc_x}%; top:${pData.imc_y}%; width:${pData.imc_w}px; height:${pData.imc_h}px;"><ha-icon icon="${pData.imc_icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.imc_name}</div><div id="imc-val" style="font-weight:900; font-size:${pData.imc_font}px;">--</div></div>
+        <div class="sensor-card" style="left:${pData.corp_x}%; top:${pData.corp_y}%; width:${pData.corp_w}px; height:${pData.corp_h}px;"><ha-icon icon="${pData.corp_icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.corp_name}</div><div id="corp-val" style="font-weight:900; font-size:${pData.corp_font}px;">--</div></div>
         
-        <div class="sensor-card" style="left:${pData.corp_x}%; top:${pData.corp_y}%; width:${pData.corp_w}px; height:${pData.corp_h}px;"><ha-icon icon="${pData.corp_icon || 'mdi:human-male'}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.corp_name}</div><div id="corp-val" style="font-weight:900; font-size:${pData.corp_font}px;">--</div></div>
+        ${(pData.sensors || []).map((s, i) => `<div class="sensor-card" style="left:${s.x}%; top:${s.y}%; width:${this._config.b_width}px; height:${this._config.b_height}px;"><ha-icon icon="${s.icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="value-${i}" style="font-weight:900;">--</div></div>`).join('')}
         
-        ${(pData.sensors || []).map((s, i) => `<div class="sensor-card" style="left:${s.x}%; top:${s.y}%; width:${this._config.b_width}px; height:${this._config.b_height}px;"><ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon><div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="value-${i}" style="font-weight:900;">--</div></div>`).join('')}
-        
-        <div class="rule-container"><div class="rule-track"><div id="progression-pointer" class="prog-pointer"><div id="pointer-label" style="position:absolute; top:-38px; left:50%; transform:translateX(-50%); background:white; color:black; padding:5px 12px; border-radius:10px; font-size:14px; font-weight:900; border: 2.5px solid ${accentColor};">--</div></div><div class="weight-marks"><span>${pData.start}kg</span><span>${pData.ideal}kg</span></div></div></div>
+        <div class="rule-container">
+            <div class="rule-track">
+                <div class="rule-fill"></div>
+                <div id="progression-pointer" class="prog-pointer">
+                    <div id="pointer-label" class="pointer-bubble">--</div>
+                </div>
+                <div class="mark" style="left: 0%;"><div class="mark-line"></div>DÉPART<br>${pData.start}kg</div>
+                <div id="mark-comfort" class="mark" style="left: 50%; color:#fbbf24;"><div class="mark-confort"></div>CONFORT<br>${pData.comfort}kg</div>
+                <div class="mark" style="left: 100%;"><div class="mark-line"></div>IDÉAL<br>${pData.ideal}kg</div>
+            </div>
+        </div>
       </div>
     `;
     this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
@@ -178,10 +207,10 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <label>Nom</label><input type="text" id="inp-name" value="${p.name}">
                 <label>Image URL</label><input type="text" id="inp-img" value="${p.image}">
                 <div class="grid">
-                    <div><label>Départ</label><input type="number" id="inp-start" value="${p.start}"></div>
-                    <div><label>Objectif</label><input type="number" id="inp-goal" value="${p.goal}"></div>
-                    <div><label>Idéal</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
-                    <div><label>Pas</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
+                    <div><label>Poids Départ</label><input type="number" id="inp-start" value="${p.start}"></div>
+                    <div><label>Poids Confort</label><input type="number" id="inp-conf" value="${p.comfort}"></div>
+                    <div><label>Poids Idéal</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
+                    <div><label>Objectif Pas</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
                 </div>
             ` : ''}
             ${this._activeTab === 'health' ? `
@@ -190,11 +219,8 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
-                        <div><label>L</label><input type="number" id="inp-imcw" value="${p.imc_w}"></div>
-                        <div><label>H</label><input type="number" id="inp-imch" value="${p.imc_h}"></div>
                         <div><label>X %</label><input type="number" id="inp-imcx" value="${p.imc_x}"></div>
                         <div><label>Y %</label><input type="number" id="inp-imcy" value="${p.imc_y}"></div>
-                        <div><label>Police</label><input type="number" id="inp-imcf" value="${p.imc_font}"></div>
                     </div>
                 </div>
                 <div class="sub-sec">
@@ -202,11 +228,8 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
-                        <div><label>L</label><input type="number" id="inp-corpw" value="${p.corp_w}"></div>
-                        <div><label>H</label><input type="number" id="inp-corph" value="${p.corp_h}"></div>
                         <div><label>X %</label><input type="number" id="inp-corpx" value="${p.corp_x}"></div>
                         <div><label>Y %</label><input type="number" id="inp-corpy" value="${p.corp_y}"></div>
-                        <div><label>Police</label><input type="number" id="inp-corpf" value="${p.corp_font}"></div>
                     </div>
                 </div>
             ` : ''}
@@ -219,26 +242,18 @@ class HealthDashboardCardEditor extends HTMLElement {
                         <div><label>Icône</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
                     </div>
                     <label>Entité</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
-                    <div class="grid">
-                        <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
-                        <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
-                    </div>
+                    <div class="grid"><div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div><div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div></div>
                     <button class="del-btn" data-idx="${i}">Supprimer</button>
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
+                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
             ` : ''}
             ${this._activeTab === 'design' ? `
                 <label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height}">
-                <label>Image Offset %</label><input type="number" id="inp-off" value="${this._config.img_offset || 50}">
                 <div class="grid">
-                    <div><label>Pos Boutons X%</label><input type="number" id="inp-bx" value="${this._config.btn_x}"></div>
-                    <div><label>Pos Boutons Y%</label><input type="number" id="inp-by" value="${this._config.btn_y}"></div>
-                </div>
-                <div class="grid">
-                    <div><label>Largeur Blocs</label><input type="number" id="inp-bw" value="${this._config.b_width}"></div>
-                    <div><label>Hauteur Blocs</label><input type="number" id="inp-bh" value="${this._config.b_height}"></div>
+                    <div><label>Boutons X%</label><input type="number" id="inp-bx" value="${this._config.btn_x}"></div>
+                    <div><label>Boutons Y%</label><input type="number" id="inp-by" value="${this._config.btn_y}"></div>
                 </div>
             ` : ''}
         </div>
@@ -261,12 +276,9 @@ class HealthDashboardCardEditor extends HTMLElement {
         };
     };
 
-    if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-goal', 'goal'); bind('#inp-ideal', 'ideal'); bind('#inp-sgoal', 'step_goal'); }
-    if(this._activeTab === 'health') { 
-        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcw', 'imc_w'); bind('#inp-imch', 'imc_h'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-imcf', 'imc_font');
-        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpw', 'corp_w'); bind('#inp-corph', 'corp_h'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); bind('#inp-corpf', 'corp_font');
-    }
-    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-off', 'img_offset', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true); }
+    if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-conf', 'comfort'); bind('#inp-ideal', 'ideal'); bind('#inp-sgoal', 'step_goal'); }
+    if(this._activeTab === 'health') { bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); }
+    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); }
     
     if(this._activeTab === 'sensors') {
         this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
@@ -284,4 +296,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.1.4" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.0" });
