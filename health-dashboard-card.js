@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V80.1 (STABLE & SECURE)
+ * HEALTH DASHBOARD CARD – V80.1 (ULTRA-STABLE)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -11,12 +11,13 @@ class HealthDashboardCard extends HTMLElement {
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   setConfig(config) {
-    // SÉCURITÉ : On s'assure que les blocs person1/2 existent toujours
-    const baseObj = { name: "Nouveau", sensors: [], start: 0, goal: 0, ideal: 0, step_goal: 10000 };
+    if (!config) throw new Error("Configuration invalide");
     this._config = JSON.parse(JSON.stringify(config));
     
-    if (!this._config.person1) this._config.person1 = { ...baseObj, name: "Patrick" };
-    if (!this._config.person2) this._config.person2 = { ...baseObj, name: "Sandra" };
+    // SÉCURITÉ ABSOLUE : Initialisation des blocs si manquants
+    const defaultPerson = { name: "Nouveau", sensors: [], start: 0, goal: 0, ideal: 0, step_goal: 10000 };
+    if (!this._config.person1) this._config.person1 = { ...defaultPerson, name: "Patrick" };
+    if (!this._config.person2) this._config.person2 = { ...defaultPerson, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
     
     this.render();
@@ -44,14 +45,15 @@ class HealthDashboardCard extends HTMLElement {
   }
 
   updateSensors() {
-    if (!this._hass || !this.shadowRoot) return;
+    if (!this._hass || !this.shadowRoot || !this._config) return;
     const view = this._config.current_view;
-    const pData = this._config[view];
+    const pData = this._config[view] || { sensors: [] };
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
 
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const stDiff = this._hass.states['sensor.difference_poids' + suffix];
     const progPointer = this.shadowRoot.getElementById('progression-pointer');
+    
     if (stPoids && progPointer) {
         const actuel = this._num(stPoids.state);
         const range = this._num(pData.start) - this._num(pData.ideal);
@@ -107,7 +109,7 @@ class HealthDashboardCard extends HTMLElement {
   render() {
     if (!this._config) return;
     const view = this._config.current_view;
-    const pData = this._config[view];
+    const pData = this._config[view] || { name: "Erreur", sensors: [], start:0, goal:0, ideal:0 };
     const accentColor = view === 'person1' ? '#38bdf8' : '#f43f5e';
 
     this.shadowRoot.innerHTML = `
@@ -136,8 +138,8 @@ class HealthDashboardCard extends HTMLElement {
       </style>
       <div class="main-container">
         <div class="topbar">
-          <button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button>
-          <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button>
+          <button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name || 'P1'}</button>
+          <button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name || 'P2'}</button>
         </div>
         <div class="steps-gauge"><svg viewBox="0 0 50 50"><circle class="bg" cx="25" cy="25" r="20"/><circle id="gauge-path" class="meter" cx="25" cy="25" r="20" stroke-dasharray="0, 125.6"/></svg><div class="steps-data"><span id="step-value" class="val">--</span><span class="unit">Pas</span></div></div>
         <div class="bg-img"></div>
@@ -177,7 +179,7 @@ class HealthDashboardCardEditor extends HTMLElement {
   render() {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
-    const p = this._config[pKey] || { name: "", sensors: [] };
+    const p = this._config[pKey] || { name: "Nouveau", sensors: [] };
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; font-size: 13px; }
@@ -194,20 +196,20 @@ class HealthDashboardCardEditor extends HTMLElement {
       </style>
       <div class="ed-box">
         <div class="tab-menu">
-            <button class="t-btn ${pKey==='person1'?'active':''}" id="t-p1">PATRICK</button>
-            <button class="t-btn ${pKey==='person2'?'active':''}" id="t-p2">SANDRA</button>
+            <button class="t-btn ${pKey==='person1'?'active':''}" id="t-p1">${(this._config.person1||{}).name || 'P1'}</button>
+            <button class="t-btn ${pKey==='person2'?'active':''}" id="t-p2">${(this._config.person2||{}).name || 'P2'}</button>
         </div>
         <div class="section">
             <label>NOM & OBJECTIFS</label>
-            <input type="text" id="inp-name" value="${p.name}">
+            <input type="text" id="inp-name" value="${p.name || ''}">
             <div class="grid-2">
                 <div><label>OBJECTIF PAS</label><input type="number" id="inp-sgoal" value="${p.step_goal || 10000}"></div>
                 <div><label>IMAGE URL</label><input type="text" id="inp-img" value="${p.image || ''}"></div>
             </div>
             <div class="grid-3">
-                <div><label>DÉPART (KG)</label><input type="number" id="inp-start" value="${p.start}"></div>
-                <div><label>CONFORT (KG)</label><input type="number" id="inp-goal" value="${p.goal}"></div>
-                <div><label>IDÉAL (KG)</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
+                <div><label>DÉPART (KG)</label><input type="number" id="inp-start" value="${p.start || 0}"></div>
+                <div><label>CONFORT (KG)</label><input type="number" id="inp-goal" value="${p.goal || 0}"></div>
+                <div><label>IDÉAL (KG)</label><input type="number" id="inp-ideal" value="${p.ideal || 0}"></div>
             </div>
         </div>
         <div class="section">
