@@ -1,6 +1,6 @@
 {
   "name": "Health Dashboard Card",
-  "content_type": "plugin",
   "render_readme": true,
-  "filename": "health-dashboard-card.js"
+  "filename": "health-dashboard-card.js",
+  "content_type": "plugin"
 }
