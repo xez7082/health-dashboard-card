@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V81.0 (ANTI-CRASH EDITION)
+ * HEALTH DASHBOARD CARD – V81.1 (FULL VISUAL EDITION)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -12,13 +12,12 @@ class HealthDashboardCard extends HTMLElement {
 
   setConfig(config) {
     if (!config) throw new Error("Configuration invalide");
-    
-    // CLONAGE ET SECURISATION DES DONNEES
     const conf = JSON.parse(JSON.stringify(config));
     
-    // Création automatique des blocs si absents du YAML
-    if (!conf.person1) conf.person1 = { name: "Patrick", sensors: [], start: 0, goal: 0, ideal: 0, image: "" };
-    if (!conf.person2) conf.person2 = { name: "Sandra", sensors: [], start: 0, goal: 0, ideal: 0, image: "" };
+    // Initialisation automatique des données par défaut
+    const defaultPerson = { name: "Nouveau", sensors: [], start: 0, goal: 0, ideal: 0, image: "" };
+    if (!conf.person1) conf.person1 = { ...defaultPerson, name: "Patrick" };
+    if (!conf.person2) conf.person2 = { ...defaultPerson, name: "Sandra" };
     if (!conf.current_view) conf.current_view = 'person1';
     if (!conf.card_height) conf.card_height = 600;
 
@@ -39,7 +38,6 @@ class HealthDashboardCard extends HTMLElement {
     const pData = this._config[view];
     const suffix = view === 'person2' ? '_sandra' : '_patrick';
 
-    // Mise à jour Poids
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
     const pointer = this.shadowRoot.getElementById('progression-pointer');
     if (stPoids && pointer) {
@@ -47,10 +45,10 @@ class HealthDashboardCard extends HTMLElement {
         const range = this._num(pData.start) - this._num(pData.ideal);
         const pct = range !== 0 ? ((this._num(pData.start) - actuel) / range) * 100 : 0;
         pointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
-        this.shadowRoot.getElementById('pointer-label').textContent = `${actuel} kg`;
+        const label = this.shadowRoot.getElementById('pointer-label');
+        if (label) label.textContent = `${actuel} kg`;
     }
 
-    // Mise à jour Capteurs
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const stateObj = this._hass.states[s.entity];
@@ -70,15 +68,15 @@ class HealthDashboardCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        .main { position: relative; width: 100%; height: ${this._num(this._config.card_height, 600)}px; background: #0f172a; border-radius: 15px; overflow: hidden; color: white; font-family: 'Segoe UI', sans-serif; }
-        .bg { position: absolute; inset: 0; background: url('${pData.image}') center/cover; opacity: 0.35; z-index: 1; transition: background 0.5s; }
+        .main { position: relative; width: 100%; height: ${this._num(this._config.card_height, 600)}px; background: #0f172a; border-radius: 15px; overflow: hidden; color: white; font-family: sans-serif; }
+        .bg { position: absolute; inset: 0; background: url('${pData.image}') center/cover; opacity: 0.35; z-index: 1; }
         .topbar { position: absolute; top: 20px; left: 20px; display: flex; gap: 12px; z-index: 10; }
-        .btn { padding: 10px 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-weight: bold; backdrop-filter: blur(5px); }
+        .btn { padding: 10px 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-weight: bold; }
         .btn.active { background: ${accent}; border-color: ${accent}; box-shadow: 0 0 15px ${accent}; }
         .rule-bg { position: absolute; bottom: 50px; left: 10%; width: 80%; height: 10px; background: linear-gradient(to right, #f87171, #fbbf24, #4ade80); border-radius: 5px; z-index: 5; }
-        .pointer { position: absolute; top: -12px; width: 4px; height: 34px; background: white; transition: left 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); border-radius: 2px; }
+        .pointer { position: absolute; top: -12px; width: 4px; height: 34px; background: white; transition: left 1s; border-radius: 2px; }
         .label { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 8px; border-radius: 5px; font-size: 13px; font-weight: 900; white-space: nowrap; }
-        .sensor-box { position: absolute; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; backdrop-filter: blur(8px); text-align: center; min-width: 100px; z-index: 5; }
+        .sensor-box { position: absolute; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; backdrop-filter: blur(8px); text-align: center; min-width: 90px; z-index: 5; }
       </style>
       <div class="main">
         <div class="bg"></div>
@@ -91,8 +89,8 @@ class HealthDashboardCard extends HTMLElement {
         </div>
         ${(pData.sensors || []).map((s, i) => `
           <div class="sensor-box" style="left:${s.x}%; top:${s.y}%;">
-            <div style="font-size:11px; color:${accent}; font-weight:bold; margin-bottom:4px;">${s.name}</div>
-            <div id="value-${i}" style="font-size:1.3em; font-weight:bold;">--</div>
+            <div style="font-size:10px; color:${accent}; font-weight:bold;">${s.name}</div>
+            <div id="value-${i}" style="font-size:1.2em; font-weight:bold;">--</div>
           </div>
         `).join('')}
       </div>
@@ -114,39 +112,83 @@ class HealthDashboardCardEditor extends HTMLElement {
   render() {
     if (!this._config) return;
     const pKey = this._config.current_view || 'person1';
-    const p = this._config[pKey] || { name: "", sensors: [] };
+    const p = this._config[pKey];
 
     this.innerHTML = `
-      <div style="padding: 15px; background: #f4f4f4; color: #333; border-radius: 8px; font-family: sans-serif;">
-        <h3 style="color: #03a9f4;">Modifier ${p.name}</h3>
-        <div style="margin-bottom: 10px;">
-          <label style="display:block; font-weight:bold;">Nom du profil</label>
-          <input type="text" id="ed-name" value="${p.name}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+      <style>
+        .ed-section { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-family: sans-serif; }
+        .ed-title { color: #03a9f4; margin-top: 0; border-bottom: 2px solid #03a9f4; padding-bottom: 5px; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .sensor-card { background: #fff; border: 1px solid #eee; padding: 10px; margin-top: 10px; border-left: 4px solid #03a9f4; position: relative; }
+        .btn-add { width: 100%; padding: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-del { position: absolute; top: 5px; right: 5px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
+        .grid { display: flex; gap: 10px; }
+      </style>
+
+      <div class="ed-section">
+        <h3 class="ed-title">Configuration Globale</h3>
+        <div class="field">
+          <label>Hauteur de la carte (pixels)</label>
+          <input type="number" id="gl-height" value="${this._config.card_height}">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label style="display:block; font-weight:bold;">Image de fond (URL)</label>
-          <input type="text" id="ed-img" value="${p.image || ''}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+
+      <div class="ed-section">
+        <h3 class="ed-title">Profil : ${p.name}</h3>
+        <div class="field"><label>Nom</label><input type="text" id="p-name" value="${p.name}"></div>
+        <div class="field"><label>Image URL</label><input type="text" id="p-img" value="${p.image}"></div>
+        <div class="grid">
+          <div class="field"><label>Poids Départ</label><input type="number" id="p-start" value="${p.start}"></div>
+          <div class="field"><label>Objectif</label><input type="number" id="p-goal" value="${p.goal}"></div>
+          <div class="field"><label>Idéal</label><input type="number" id="p-ideal" value="${p.ideal}"></div>
         </div>
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-          <div style="flex:1;"><label style="font-size:11px;">Poids Départ</label><input type="number" id="ed-start" value="${p.start}" style="width:100%; padding:5px;"></div>
-          <div style="flex:1;"><label style="font-size:11px;">Objectif</label><input type="number" id="ed-goal" value="${p.goal}" style="width:100%; padding:5px;"></div>
-          <div style="flex:1;"><label style="font-size:11px;">Idéal</label><input type="number" id="ed-ideal" value="${p.ideal}" style="width:100%; padding:5px;"></div>
+      </div>
+
+      <div class="ed-section">
+        <h3 class="ed-title">Capteurs sur l'image</h3>
+        <div id="sensors-container">
+          ${(p.sensors || []).map((s, i) => `
+            <div class="sensor-card">
+              <button class="btn-del" data-idx="${i}">Supprimer</button>
+              <div class="field"><label>Titre</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}"></div>
+              <div class="field"><label>Entité (sensor.xxx)</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}"></div>
+              <div class="grid">
+                <div class="field"><label>Position X (%)</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
+                <div class="field"><label>Position Y (%)</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+              </div>
+            </div>
+          `).join('')}
         </div>
-        <button id="add-s" style="width:100%; padding:10px; background:#4caf50; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">➕ AJOUTER UN CAPTEUR</button>
+        <button id="btn-add-sensor" class="btn-add">➕ Ajouter un Capteur</button>
       </div>
     `;
 
-    this.querySelector('#ed-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
-    this.querySelector('#ed-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
-    this.querySelector('#ed-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
-    this.querySelector('#ed-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
-    this.querySelector('#ed-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
-    
-    this.querySelector('#add-s').onclick = () => {
+    // Events Globaux
+    this.querySelector('#gl-height').onchange = (e) => { this._config.card_height = e.target.value; this._fire(); };
+    this.querySelector('#p-name').onchange = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
+    this.querySelector('#p-img').onchange = (e) => { this._config[pKey].image = e.target.value; this._fire(); };
+    this.querySelector('#p-start').onchange = (e) => { this._config[pKey].start = e.target.value; this._fire(); };
+    this.querySelector('#p-goal').onchange = (e) => { this._config[pKey].goal = e.target.value; this._fire(); };
+    this.querySelector('#p-ideal').onchange = (e) => { this._config[pKey].ideal = e.target.value; this._fire(); };
+
+    // Events Capteurs
+    this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
+    this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+
+    this.querySelector('#btn-add-sensor').onclick = () => {
         if(!this._config[pKey].sensors) this._config[pKey].sensors = [];
         this._config[pKey].sensors.push({ name: "Nouveau", entity: "", x: 50, y: 50 });
         this._fire(); this.render();
     };
+
+    this.querySelectorAll('.btn-del').forEach(el => el.onclick = (e) => {
+        this._config[pKey].sensors.splice(e.target.dataset.idx, 1);
+        this._fire(); this.render();
+    });
   }
 
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -155,4 +197,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V81.0" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V81.1" });
