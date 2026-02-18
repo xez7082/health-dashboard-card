@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V1.9.4 (STABLE RELEASE)
+ * HEALTH DASHBOARD CARD – V1.9.5 (ICON SUPPORT)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -76,7 +76,8 @@ class HealthDashboardCard extends HTMLElement {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
             const stateObj = this._hass.states[s.entity];
             if (valEl && stateObj) {
-                valEl.textContent = `${stateObj.state} ${stateObj.attributes.unit_of_measurement || ''}`;
+                const uom = stateObj.attributes.unit_of_measurement || '';
+                valEl.textContent = `${stateObj.state} ${uom}`;
             }
         });
     }
@@ -94,19 +95,22 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; left: ${this._num(this._config.btn_x, 5)}%; top: ${this._num(this._config.btn_y, 3)}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
+        
         .steps-gauge { position: absolute; top: 10px; right: 15px; width: 80px; height: 80px; z-index: 100; background: rgba(0,0,0,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .steps-gauge svg { transform: rotate(-90deg); width: 70px; height: 70px; }
         .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4; stroke-linecap: round; }
         .steps-data { position: absolute; text-align: center; }
         .steps-data .val { font-size: 14px; font-weight: 900; }
         .steps-data .unit { font-size: 8px; color: ${accentColor}; font-weight: bold; display: block; }
+
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171, #fbbf24, #4ade80); border-radius: 5px; margin-top: 30px; }
         .marker { position: absolute; top: 20px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: 900; line-height: 1.1; }
         .prog-pointer { position: absolute; top: -12px; width: 3px; height: 34px; background: white; transition: left 1s ease; border-radius: 2px; }
         .pointer-info { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); background: white; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: #000; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); }
-        ha-icon { --mdc-icon-size: 22px; color: ${accentColor}; }
+        ha-icon { --mdc-icon-size: 24px; color: ${accentColor}; margin-bottom: 2px; }
       </style>
       <div class="main-container">
         <div class="topbar">
@@ -163,9 +167,9 @@ class HealthDashboardCardEditor extends HTMLElement {
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 10px; }
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
-        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; border: none; color: white; cursor: pointer; padding: 2px 6px; }
-        .res-box { background: #333; border: 1px solid #38bdf8; max-height: 100px; overflow-y: auto; display: none; position: absolute; width: 90%; z-index: 100; }
+        .s-card { background: #111; padding: 10px; margin-bottom: 15px; border-left: 4px solid #38bdf8; position: relative; border-radius: 0 4px 4px 0; }
+        .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; border: none; color: white; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+        .res-box { background: #333; border: 1px solid #38bdf8; max-height: 100px; overflow-y: auto; display: none; position: absolute; width: 90%; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
         .res-item { padding: 8px; cursor: pointer; font-size: 11px; }
         .res-item:hover { background: #38bdf8; color: black; }
         .version { font-size: 8px; color: #555; text-align: right; margin-top: 10px; }
@@ -202,6 +206,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                   <div class="s-card">
                     <button class="del-btn" data-idx="${i}">X</button>
                     <label>NOM</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
+                    <label>ICÔNE (ex: mdi:water)</label><input type="text" class="s-icon" data-idx="${i}" value="${s.icon || 'mdi:heart'}">
                     <label>RECHERCHE ENTITÉ</label><input type="text" class="search-in" data-idx="${i}" value="${s.entity}">
                     <div class="res-box" id="res-${i}"></div>
                     <div class="grid">
@@ -211,7 +216,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
+                <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
             ` : ''}
 
             ${this._activeTab === 'design' ? `
@@ -224,7 +229,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div><label>BOUTONS Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
                 </div>
             ` : ''}
-            <div class="version">V79.9 - GitHub Sync Ready</div>
+            <div class="version">V80.0 - Icons Added</div>
         </div>
       </div>
     `;
@@ -275,11 +280,13 @@ class HealthDashboardCardEditor extends HTMLElement {
             };
         });
         this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-icon').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
         this.querySelectorAll('.s-x').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
         this.querySelectorAll('.s-y').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+        
         this.querySelector('#add-s').onclick = () => {
             if(!this._config[pKey].sensors) this._config[pKey].sensors = [];
-            this._config[pKey].sensors.push({ name: "Nouveau", entity: "", x: 50, y: 50 });
+            this._config[pKey].sensors.push({ name: "Nouveau", entity: "", icon: "mdi:heart", x: 50, y: 50 });
             this._fire(); this.render();
         };
         this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = (e) => {
@@ -294,4 +301,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.9" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V80.0" });
