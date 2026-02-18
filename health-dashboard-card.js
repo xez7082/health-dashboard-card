@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V1.9.6 (FULL SIZE CONTROLS)
+ * HEALTH DASHBOARD CARD – V1.9.7 (FULL SIZE CONTROLS)
  */
 
 class HealthDashboardCard extends HTMLElement {
