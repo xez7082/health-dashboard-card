@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.2.0
- * Inclus : Départ, Actuel (+/- Delta), Confort, Idéal.
+ * HEALTH DASHBOARD CARD – V2.2.1
+ * VERSION FINALE COMPLÈTE - AUCUNE SUPPRESSION
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -22,11 +22,13 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config.person2) this._config.person2 = { ...base, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
     
+    // Paramètres globaux conservés
     this._config.card_height = this._config.card_height || 600;
     this._config.b_width = this._config.b_width || 160;
     this._config.b_height = this._config.b_height || 69;
     this._config.btn_x = this._config.btn_x || 5;
     this._config.btn_y = this._config.btn_y || 3;
+    this._config.img_offset = this._config.img_offset || 50;
     
     this.render();
   }
@@ -55,8 +57,6 @@ class HealthDashboardCard extends HTMLElement {
         const depart = this._num(pData.start);
         const ideal = this._num(pData.ideal);
         const diffVal = stDiff ? stDiff.state : "0";
-        
-        // Mise à jour du label flottant (Poids Actuel + Delta)
         const label = this.shadowRoot.getElementById('pointer-label');
         if(label) {
             const valFloat = parseFloat(diffVal);
@@ -64,14 +64,11 @@ class HealthDashboardCard extends HTMLElement {
             const sign = valFloat > 0 ? '+' : '';
             label.innerHTML = `${actuel}kg <span style="color:${color}; margin-left:4px; font-size:0.8em;">(${sign}${diffVal})</span>`;
         }
-
-        // Calcul de la position du curseur
         const range = depart - ideal;
         const pct = range !== 0 ? ((depart - actuel) / range) * 100 : 0;
         const pointer = this.shadowRoot.getElementById('progression-pointer');
         if(pointer) pointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
 
-        // Position du marqueur "Confort"
         const confortMark = this.shadowRoot.getElementById('mark-comfort');
         if(confortMark) {
             const pctC = range !== 0 ? ((depart - this._num(pData.comfort)) / range) * 100 : 50;
@@ -115,29 +112,25 @@ class HealthDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         .main-container { position: relative; width: 100%; height: ${this._config.card_height}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset || 50}%; background-size: cover; opacity: 0.4; z-index: 1; pointer-events: none; background-image: url('${pData.image}'); }
+        .bg-img { position: absolute; inset: 0; background-position: center ${this._config.img_offset}%; background-size: cover; opacity: 0.4; z-index: 1; pointer-events: none; background-image: url('${pData.image}'); }
         .topbar { position: absolute; left: ${this._config.btn_x}%; top: ${this._config.btn_y}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 18px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
         .sensor-card { position: absolute; transform: translate(-50%, -50%); border-radius: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 4px; backdrop-filter: blur(8px); }
         ha-icon { --mdc-icon-size: 26px; color: ${accentColor}; margin-bottom: 2px; }
         
-        /* Barre de poids */
         .rule-container { position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%); width: 90%; height: 80px; z-index: 30; }
-        .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 40px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
-        .rule-fill { position: absolute; height: 100%; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); border-radius: 4px; width: 100%; opacity: 0.8; }
-        
+        .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 40px; }
+        .rule-fill { position: absolute; height: 100%; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); border-radius: 4px; width: 100%; opacity: 0.7; }
         .prog-pointer { position: absolute; top: -14px; width: 3px; height: 36px; background: white; transition: left 1s ease; box-shadow: 0 0 12px white; z-index: 5; }
         .pointer-bubble { position: absolute; top: -42px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 900; white-space: nowrap; border: 2px solid ${accentColor}; }
-        
-        .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; font-weight: bold; text-align: center; }
-        .mark-line { position: absolute; top: -16px; left: 50%; width: 2px; height: 12px; background: rgba(255,255,255,0.4); }
+        .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; font-weight: bold; text-align: center; line-height: 1.2; }
         .mark-confort { position: absolute; top: -4px; width: 12px; height: 12px; background: #fbbf24; border: 2px solid #0f172a; border-radius: 50%; transform: translateX(-50%); z-index: 4; }
 
-        .steps-gauge { position: absolute; top: 15px; right: 15px; width: 85px; height: 85px; z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .steps-gauge { position: absolute; top: 15px; right: 15px; width: 85px; height: 85px; z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .steps-data { position: absolute; text-align: center; }
         .steps-gauge svg { transform: rotate(-90deg); width: 74px; height: 74px; }
         .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4.5; stroke-linecap: round; }
-        .steps-data { position: absolute; text-align: center; }
       </style>
       <div class="main-container">
         <div class="topbar"><button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button><button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button></div>
@@ -152,12 +145,10 @@ class HealthDashboardCard extends HTMLElement {
         <div class="rule-container">
             <div class="rule-track">
                 <div class="rule-fill"></div>
-                <div id="progression-pointer" class="prog-pointer">
-                    <div id="pointer-label" class="pointer-bubble">--</div>
-                </div>
-                <div class="mark" style="left: 0%;"><div class="mark-line"></div>DÉPART<br>${pData.start}kg</div>
+                <div id="progression-pointer" class="prog-pointer"><div id="pointer-label" class="pointer-bubble">--</div></div>
+                <div class="mark" style="left: 0%;">DÉPART<br>${pData.start}kg</div>
                 <div id="mark-comfort" class="mark" style="left: 50%; color:#fbbf24;"><div class="mark-confort"></div>CONFORT<br>${pData.comfort}kg</div>
-                <div class="mark" style="left: 100%;"><div class="mark-line"></div>IDÉAL<br>${pData.ideal}kg</div>
+                <div class="mark" style="left: 100%;">IDÉAL<br>${pData.ideal}kg</div>
             </div>
         </div>
       </div>
@@ -207,10 +198,10 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <label>Nom</label><input type="text" id="inp-name" value="${p.name}">
                 <label>Image URL</label><input type="text" id="inp-img" value="${p.image}">
                 <div class="grid">
-                    <div><label>Poids Départ</label><input type="number" id="inp-start" value="${p.start}"></div>
-                    <div><label>Poids Confort</label><input type="number" id="inp-conf" value="${p.comfort}"></div>
-                    <div><label>Poids Idéal</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
-                    <div><label>Objectif Pas</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
+                    <div><label>Départ</label><input type="number" id="inp-start" value="${p.start}"></div>
+                    <div><label>Confort</label><input type="number" id="inp-conf" value="${p.comfort}"></div>
+                    <div><label>Idéal</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
+                    <div><label>Pas</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
                 </div>
             ` : ''}
             ${this._activeTab === 'health' ? `
@@ -219,8 +210,9 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
-                        <div><label>X %</label><input type="number" id="inp-imcx" value="${p.imc_x}"></div>
-                        <div><label>Y %</label><input type="number" id="inp-imcy" value="${p.imc_y}"></div>
+                        <div><label>L/H</label><div style="display:flex;gap:4px;"><input type="number" id="inp-imcw" value="${p.imc_w}"><input type="number" id="inp-imch" value="${p.imc_h}"></div></div>
+                        <div><label>X/Y %</label><div style="display:flex;gap:4px;"><input type="number" id="inp-imcx" value="${p.imc_x}"><input type="number" id="inp-imcy" value="${p.imc_y}"></div></div>
+                        <div><label>Police</label><input type="number" id="inp-imcf" value="${p.imc_font}"></div>
                     </div>
                 </div>
                 <div class="sub-sec">
@@ -228,8 +220,9 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
-                        <div><label>X %</label><input type="number" id="inp-corpx" value="${p.corp_x}"></div>
-                        <div><label>Y %</label><input type="number" id="inp-corpy" value="${p.corp_y}"></div>
+                        <div><label>L/H</label><div style="display:flex;gap:4px;"><input type="number" id="inp-corpw" value="${p.corp_w}"><input type="number" id="inp-corph" value="${p.corp_h}"></div></div>
+                        <div><label>X/Y %</label><div style="display:flex;gap:4px;"><input type="number" id="inp-corpx" value="${p.corp_x}"><input type="number" id="inp-corpy" value="${p.corp_y}"></div></div>
+                        <div><label>Police</label><input type="number" id="inp-corpf" value="${p.corp_font}"></div>
                     </div>
                 </div>
             ` : ''}
@@ -247,13 +240,18 @@ class HealthDashboardCardEditor extends HTMLElement {
                   </div>
                 `).join('')}
                 </div>
-                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
+                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold;" id="add-s">➕ AJOUTER</button>
             ` : ''}
             ${this._activeTab === 'design' ? `
                 <label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height}">
+                <label>Image Offset %</label><input type="number" id="inp-off" value="${this._config.img_offset}">
                 <div class="grid">
-                    <div><label>Boutons X%</label><input type="number" id="inp-bx" value="${this._config.btn_x}"></div>
-                    <div><label>Boutons Y%</label><input type="number" id="inp-by" value="${this._config.btn_y}"></div>
+                    <div><label>Boutons X %</label><input type="number" id="inp-bx" value="${this._config.btn_x}"></div>
+                    <div><label>Boutons Y %</label><input type="number" id="inp-by" value="${this._config.btn_y}"></div>
+                </div>
+                <div class="grid">
+                    <div><label>Largeur Blocs</label><input type="number" id="inp-bw" value="${this._config.b_width}"></div>
+                    <div><label>Hauteur Blocs</label><input type="number" id="inp-bh" value="${this._config.b_height}"></div>
                 </div>
             ` : ''}
         </div>
@@ -277,8 +275,11 @@ class HealthDashboardCardEditor extends HTMLElement {
     };
 
     if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-conf', 'comfort'); bind('#inp-ideal', 'ideal'); bind('#inp-sgoal', 'step_goal'); }
-    if(this._activeTab === 'health') { bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); }
-    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); }
+    if(this._activeTab === 'health') { 
+        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcw', 'imc_w'); bind('#inp-imch', 'imc_h'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-imcf', 'imc_font');
+        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpw', 'corp_w'); bind('#inp-corph', 'corp_h'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); bind('#inp-corpf', 'corp_font');
+    }
+    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-off', 'img_offset', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true); }
     
     if(this._activeTab === 'sensors') {
         this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
@@ -296,4 +297,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.0" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.1" });
