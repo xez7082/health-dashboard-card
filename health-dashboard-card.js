@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V101
+ * HEALTH DASHBOARD CARD – V102
  * Améliorations v2.3.0 :
  *   1. Throttling de updateSensors() — 500ms min entre chaque appel
  *   2. Sélecteur d'entités natif HA (ha-entity-picker) dans l'éditeur
@@ -535,308 +535,270 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-
 // ─── Éditeur ─────────────────────────────────────────────────────────────────
+// Règles fondamentales pour un éditeur visuel HA fiable :
+//   1. set hass() NE DOIT PAS appeler render() — HA injecte hass en continu.
+//   2. Seul setConfig() déclenche render().
+//   3. Pas de ha-entity-picker (trop fragile) — simples inputs texte.
+//   4. Toujours utiliser oninput/onchange sur les éléments du DOM, jamais addEventListener
+//      sur un innerHTML car les références sont perdues à chaque render().
 
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._activeTab = 'profile'; this._pickersReady = false; }
-
-  // CORRECTION 1 : set hass ne doit JAMAIS appeler render().
-  // HA injecte hass des dizaines de fois/sec → boucle de re-rendu qui plante l'éditeur.
-  // On se contente de stocker hass et de mettre à jour .hass sur les pickers existants.
-  set hass(hass) {
-    this._hass = hass;
-    // Mise à jour silencieuse des pickers déjà dans le DOM
-    this.querySelectorAll('ha-entity-picker').forEach(p => { p.hass = hass; });
+  constructor() {
+    super();
+    this._config    = null;
+    this._hass      = null;
+    this._activeTab = 'profile';
   }
 
-  setConfig(config) { this._config = config; this.render(); }
+  // HA injecte hass en permanence — on stocke seulement, pas de render().
+  set hass(h) { this._hass = h; }
+
+  setConfig(config) {
+    this._config = JSON.parse(JSON.stringify(config));
+    this.render();
+  }
+
+  // ── Rendu ─────────────────────────────────────────────────────────────────
 
   render() {
     if (!this._config) return;
     const pKey = this._config.current_view || 'person1';
-    const p = this._config[pKey];
+    const p    = this._config[pKey];
     if (!p) return;
+
+    const tab  = this._activeTab;
+    const ac   = '#38bdf8';
+
+    // Génération du contenu de l'onglet actif
+    let tabContent = '';
+
+    if (tab === 'profile') {
+      tabContent = `
+        <label>Nom</label>
+        <input id="f-name" type="text" value="${this._esc(p.name)}">
+        <label>Image URL</label>
+        <input id="f-img" type="text" value="${this._esc(p.image)}">
+        <div class="grid2">
+          <div><label>Départ (kg)</label><input id="f-start" type="number" value="${p.start}"></div>
+          <div><label>Confort (kg)</label><input id="f-conf"  type="number" value="${p.comfort}"></div>
+          <div><label>Idéal (kg)</label><input id="f-ideal" type="number" value="${p.ideal}"></div>
+          <div><label>Objectif pas</label><input id="f-sgoal" type="number" value="${p.step_goal}"></div>
+        </div>
+      `;
+    }
+
+    if (tab === 'health') {
+      tabContent = `
+        <div class="sub">
+          <div class="sub-title">IMC</div>
+          <label>Entité</label><input id="f-imce" type="text" value="${this._esc(p.imc_entity||'')}">
+          <div class="grid2">
+            <div><label>Nom</label><input id="f-imcn" type="text" value="${this._esc(p.imc_name)}"></div>
+            <div><label>Icône</label><input id="f-imci" type="text" value="${this._esc(p.imc_icon)}"></div>
+            <div><label>Largeur</label><input id="f-imcw" type="number" value="${p.imc_w}"></div>
+            <div><label>Hauteur</label><input id="f-imch" type="number" value="${p.imc_h}"></div>
+            <div><label>X (%)</label><input id="f-imcx" type="number" value="${p.imc_x}"></div>
+            <div><label>Y (%)</label><input id="f-imcy" type="number" value="${p.imc_y}"></div>
+            <div><label>Police</label><input id="f-imcf" type="number" value="${p.imc_font}"></div>
+          </div>
+        </div>
+        <div class="sub">
+          <div class="sub-title">CORPULENCE</div>
+          <label>Entité</label><input id="f-corpe" type="text" value="${this._esc(p.corp_entity||'')}">
+          <div class="grid2">
+            <div><label>Nom</label><input id="f-corpn" type="text" value="${this._esc(p.corp_name)}"></div>
+            <div><label>Icône</label><input id="f-corpi" type="text" value="${this._esc(p.corp_icon)}"></div>
+            <div><label>Largeur</label><input id="f-corpw" type="number" value="${p.corp_w}"></div>
+            <div><label>Hauteur</label><input id="f-corph" type="number" value="${p.corp_h}"></div>
+            <div><label>X (%)</label><input id="f-corpx" type="number" value="${p.corp_x}"></div>
+            <div><label>Y (%)</label><input id="f-corpy" type="number" value="${p.corp_y}"></div>
+            <div><label>Police</label><input id="f-corpf" type="number" value="${p.corp_font}"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'sensors') {
+      const rows = (p.sensors || []).map((s, i) => `
+        <div class="sub">
+          <div class="grid2">
+            <div><label>Nom</label><input class="sn" data-i="${i}" type="text" value="${this._esc(s.name)}"></div>
+            <div><label>Icône</label><input class="si" data-i="${i}" type="text" value="${this._esc(s.icon||'mdi:heart')}"></div>
+          </div>
+          <label>Entité</label><input class="se" data-i="${i}" type="text" value="${this._esc(s.entity||'')}">
+          <div class="grid2">
+            <div><label>X (%)</label><input class="sx" data-i="${i}" type="number" value="${s.x}"></div>
+            <div><label>Y (%)</label><input class="sy" data-i="${i}" type="number" value="${s.y}"></div>
+          </div>
+          <button class="del-btn" data-i="${i}">🗑 Supprimer</button>
+        </div>
+      `).join('');
+      tabContent = `
+        ${rows}
+        <button id="btn-add" class="add-btn">➕ Ajouter un capteur</button>
+      `;
+    }
+
+    if (tab === 'design') {
+      tabContent = `
+        <label>Hauteur carte (px)</label><input id="f-ch"  type="number" value="${this._config.card_height}">
+        <label>Décalage image (%)</label><input id="f-off" type="number" value="${this._config.img_offset}">
+        <div class="grid2">
+          <div><label>Boutons X (%)</label><input id="f-bx" type="number" value="${this._config.btn_x}"></div>
+          <div><label>Boutons Y (%)</label><input id="f-by" type="number" value="${this._config.btn_y}"></div>
+          <div><label>Largeur blocs</label><input id="f-bw" type="number" value="${this._config.b_width}"></div>
+          <div><label>Hauteur blocs</label><input id="f-bh" type="number" value="${this._config.b_height}"></div>
+        </div>
+      `;
+    }
 
     this.innerHTML = `
       <style>
-        .ed-box  { padding:12px; background:#1a1a1a; color:white; font-family:sans-serif; }
-        .tabs    { display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid #444; }
-        .tab     { padding:10px; cursor:pointer; background:#252525; border:none; color:#888; flex:1; font-size:11px; }
-        .tab.active { background:#38bdf8; color:black; font-weight:bold; }
-        .section { background:#252525; padding:15px; border:1px solid #444; border-radius:6px; }
-        label    { color:#38bdf8; font-size:10px; font-weight:bold; display:block; margin-top:10px; }
-        input    { width:100%; padding:8px; background:#333; color:white; border:1px solid #555; border-radius:4px; box-sizing:border-box; }
-        .grid    { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-        .sub-sec { background:#111; padding:10px; border-radius:8px; margin-bottom:15px; border-left:3px solid #38bdf8; }
-        .del-btn { width:100%; margin-top:10px; background:#f87171; border:none; color:white; padding:8px; border-radius:4px; cursor:pointer; }
-        /* picker wrap : le fallback input est masqué dès que le picker est injecté */
-        .picker-wrap { margin-top:6px; }
-        .picker-wrap ha-entity-picker { display:block; }
-        .picker-wrap ha-entity-picker ~ .fallback-ent { display:none; }
-        ha-entity-picker { display:block; }
+        :host { display: block; font-family: sans-serif; }
+        .box  { padding: 12px; background: #1a1a1a; color: #fff; }
+
+        /* Sélecteur personne */
+        .person-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .person-bar button {
+          flex: 1; padding: 10px; border: none; border-radius: 6px;
+          cursor: pointer; font-weight: bold; font-size: 13px;
+        }
+
+        /* Onglets */
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #444; }
+        .tab  { flex: 1; padding: 9px 4px; border: none; background: #252525; color: #888; cursor: pointer; font-size: 11px; }
+        .tab.on { background: #38bdf8; color: #000; font-weight: bold; }
+
+        /* Contenu */
+        .section { background: #252525; padding: 14px; border: 1px solid #444; border-radius: 6px; }
+        label { display: block; margin-top: 10px; margin-bottom: 3px; color: #38bdf8; font-size: 10px; font-weight: bold; }
+        input[type=text], input[type=number] {
+          width: 100%; padding: 8px; background: #333; color: #fff;
+          border: 1px solid #555; border-radius: 4px; box-sizing: border-box; font-size: 13px;
+        }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+
+        /* Blocs capteurs */
+        .sub { background: #111; padding: 10px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #38bdf8; }
+        .sub-title { color: #38bdf8; font-size: 11px; font-weight: bold; margin-bottom: 6px; }
+        .del-btn { margin-top: 10px; width: 100%; padding: 8px; background: #f87171; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
+        .add-btn { width: 100%; padding: 12px; background: #4ade80; border: none; color: #000; font-weight: bold; border-radius: 4px; cursor: pointer; }
       </style>
-      <div class="ed-box">
-
-        <!-- Sélecteur de personne -->
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
-          <button style="flex:1;padding:10px;background:${pKey==='person1'?'#38bdf8':'#444'};border:none;color:${pKey==='person1'?'black':'white'};border-radius:6px;cursor:pointer;font-weight:bold;" id="t-p1">${this._config.person1.name}</button>
-          <button style="flex:1;padding:10px;background:${pKey==='person2'?'#38bdf8':'#444'};border:none;color:${pKey==='person2'?'black':'white'};border-radius:6px;cursor:pointer;font-weight:bold;" id="t-p2">${this._config.person2.name}</button>
+      <div class="box">
+        <div class="person-bar">
+          <button id="btn-p1" style="background:${pKey==='person1'?'#38bdf8':'#444'};color:${pKey==='person1'?'#000':'#fff'};">${this._config.person1.name}</button>
+          <button id="btn-p2" style="background:${pKey==='person2'?'#38bdf8':'#444'};color:${pKey==='person2'?'#000':'#fff'};">${this._config.person2.name}</button>
         </div>
-
-        <!-- Onglets -->
         <div class="tabs">
-          <button class="tab ${this._activeTab==='profile' ?'active':''}" id="tab-profile">PROFIL</button>
-          <button class="tab ${this._activeTab==='health'  ?'active':''}" id="tab-health">SANTÉ</button>
-          <button class="tab ${this._activeTab==='sensors' ?'active':''}" id="tab-sensors">CAPTEURS</button>
-          <button class="tab ${this._activeTab==='design'  ?'active':''}" id="tab-design">DESIGN</button>
+          <button class="tab ${tab==='profile' ?'on':''}" data-tab="profile">PROFIL</button>
+          <button class="tab ${tab==='health'  ?'on':''}" data-tab="health">SANTÉ</button>
+          <button class="tab ${tab==='sensors' ?'on':''}" data-tab="sensors">CAPTEURS</button>
+          <button class="tab ${tab==='design'  ?'on':''}" data-tab="design">DESIGN</button>
         </div>
-
-        <div class="section">
-
-          ${this._activeTab === 'profile' ? `
-            <label>Nom</label>
-            <input type="text" id="inp-name" value="${p.name}">
-            <label>Image URL</label>
-            <input type="text" id="inp-img" value="${p.image}">
-            <div class="grid">
-              <div><label>Départ (kg)</label><input type="number" id="inp-start" value="${p.start}"></div>
-              <div><label>Confort (kg)</label><input type="number" id="inp-conf" value="${p.comfort}"></div>
-              <div><label>Idéal (kg)</label><input type="number" id="inp-ideal" value="${p.ideal}"></div>
-              <div><label>Objectif pas</label><input type="number" id="inp-sgoal" value="${p.step_goal}"></div>
-            </div>
-          ` : ''}
-
-          ${this._activeTab === 'health' ? `
-            <div class="sub-sec">
-              <label>IMC — entité</label>
-              <div class="picker-wrap" id="picker-imc-entity" data-field="imc_entity" data-value="${p.imc_entity||''}">
-                <input type="text" class="fallback-ent" id="fb-imc" value="${p.imc_entity||''}" placeholder="sensor.mon_imc">
-              </div>
-              <div class="grid">
-                <div><label>Nom affiché</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
-                <div><label>Icône MDI</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
-                <div><label>Largeur / Hauteur</label>
-                  <div style="display:flex;gap:4px;">
-                    <input type="number" id="inp-imcw" value="${p.imc_w}" placeholder="L">
-                    <input type="number" id="inp-imch" value="${p.imc_h}" placeholder="H">
-                  </div>
-                </div>
-                <div><label>Position X% / Y%</label>
-                  <div style="display:flex;gap:4px;">
-                    <input type="number" id="inp-imcx" value="${p.imc_x}" placeholder="X">
-                    <input type="number" id="inp-imcy" value="${p.imc_y}" placeholder="Y">
-                  </div>
-                </div>
-                <div><label>Taille police</label><input type="number" id="inp-imcf" value="${p.imc_font}"></div>
-              </div>
-            </div>
-
-            <div class="sub-sec">
-              <label>CORPULENCE — entité</label>
-              <div class="picker-wrap" id="picker-corp-entity" data-field="corp_entity" data-value="${p.corp_entity||''}">
-                <input type="text" class="fallback-ent" id="fb-corp" value="${p.corp_entity||''}" placeholder="sensor.ma_corpulence">
-              </div>
-              <div class="grid">
-                <div><label>Nom affiché</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
-                <div><label>Icône MDI</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
-                <div><label>Largeur / Hauteur</label>
-                  <div style="display:flex;gap:4px;">
-                    <input type="number" id="inp-corpw" value="${p.corp_w}" placeholder="L">
-                    <input type="number" id="inp-corph" value="${p.corp_h}" placeholder="H">
-                  </div>
-                </div>
-                <div><label>Position X% / Y%</label>
-                  <div style="display:flex;gap:4px;">
-                    <input type="number" id="inp-corpx" value="${p.corp_x}" placeholder="X">
-                    <input type="number" id="inp-corpy" value="${p.corp_y}" placeholder="Y">
-                  </div>
-                </div>
-                <div><label>Taille police</label><input type="number" id="inp-corpf" value="${p.corp_font}"></div>
-              </div>
-            </div>
-          ` : ''}
-
-          ${this._activeTab === 'sensors' ? `
-            <div id="sensors-container">
-              ${(p.sensors || []).map((s, i) => `
-                <div class="sub-sec">
-                  <div class="grid">
-                    <div><label>Nom</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}"></div>
-                    <div><label>Icône MDI</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon||'mdi:heart'}"></div>
-                  </div>
-                  <label>Entité</label>
-                  <div class="picker-wrap" id="picker-sensor-${i}" data-field="sensor" data-idx="${i}" data-value="${s.entity||''}">
-                    <input type="text" class="fallback-ent s-ent" data-idx="${i}" value="${s.entity||''}" placeholder="sensor.mon_capteur">
-                  </div>
-                  <div class="grid">
-                    <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
-                    <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
-                  </div>
-                  <button class="del-btn" data-idx="${i}">Supprimer</button>
-                </div>
-              `).join('')}
-            </div>
-            <button style="width:100%;padding:12px;background:#4ade80;border:none;font-weight:bold;border-radius:4px;cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
-          ` : ''}
-
-          ${this._activeTab === 'design' ? `
-            <label>Hauteur de carte (px)</label>
-            <input type="number" id="inp-ch" value="${this._config.card_height}">
-            <label>Décalage image vertical (%)</label>
-            <input type="number" id="inp-off" value="${this._config.img_offset}">
-            <div class="grid">
-              <div><label>Boutons X (%)</label><input type="number" id="inp-bx" value="${this._config.btn_x}"></div>
-              <div><label>Boutons Y (%)</label><input type="number" id="inp-by" value="${this._config.btn_y}"></div>
-            </div>
-            <div class="grid">
-              <div><label>Largeur blocs (px)</label><input type="number" id="inp-bw" value="${this._config.b_width}"></div>
-              <div><label>Hauteur blocs (px)</label><input type="number" id="inp-bh" value="${this._config.b_height}"></div>
-            </div>
-          ` : ''}
-
-        </div>
+        <div class="section">${tabContent}</div>
       </div>
     `;
 
-    this._attachEvents(pKey);
-    this._injectEntityPickers(pKey); // async — ne bloque pas le rendu
+    this._bindEvents(pKey);
   }
 
-  // ── Injection des ha-entity-picker ───────────────────────────────────────
-  // CORRECTION 2 : attendre que ha-entity-picker soit défini avant de le créer.
-  // CORRECTION 3 : try/catch + fallback input texte si le composant plante.
+  // ── Liaison des événements ─────────────────────────────────────────────────
 
-  async _injectEntityPickers(pKey) {
-    // Attente que le composant natif HA soit disponible (timeout 3s)
-    try {
-      await Promise.race([
-        customElements.whenDefined('ha-entity-picker'),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
-      ]);
-    } catch (_) {
-      // ha-entity-picker indisponible → on garde les champs texte de secours
-      return;
-    }
-
-    const makePicker = (wrap, onChanged) => {
-      if (!wrap || !this._hass) return;
-      try {
-        const picker = document.createElement('ha-entity-picker');
-        picker.hass             = this._hass;
-        picker.value            = wrap.dataset.value || '';
-        picker.label            = wrap.dataset.label || '';
-        picker.allowCustomEntity = true;
-        picker.addEventListener('value-changed', (e) => onChanged(e.detail.value));
-        // CORRECTION 3 : innerHTML='' + appendChild au lieu de replaceChildren()
-        // (replaceChildren non dispo sur certaines versions de HA / Webkit)
-        wrap.innerHTML = '';
-        wrap.appendChild(picker);
-      } catch (err) {
-        // Fallback silencieux : le champ texte de secours reste visible
-        console.warn('[HealthDashboard] ha-entity-picker error:', err);
-      }
-    };
-
-    // IMC
-    makePicker(
-      this.querySelector('#picker-imc-entity'),
-      val => { this._config[pKey].imc_entity = val; this._fire(); }
-    );
-    // Corpulence
-    makePicker(
-      this.querySelector('#picker-corp-entity'),
-      val => { this._config[pKey].corp_entity = val; this._fire(); }
-    );
-    // Capteurs génériques
-    this.querySelectorAll('[id^="picker-sensor-"]').forEach(wrap => {
-      const idx = parseInt(wrap.dataset.idx);
-      makePicker(wrap, val => {
-        if (this._config[pKey].sensors[idx]) {
-          this._config[pKey].sensors[idx].entity = val;
-          this._fire();
-        }
-      });
-    });
-  }
-
-  // ── Events éditeur ────────────────────────────────────────────────────────
-
-  _attachEvents(pKey) {
-    // Onglets
-    this.querySelectorAll('.tab').forEach(t => {
-      t.onclick = () => { this._activeTab = t.id.replace('tab-', ''); this.render(); };
-    });
-
+  _bindEvents(pKey) {
     // Changement de personne
-    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
-    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    this.querySelector('#btn-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#btn-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
 
-    // Helper bind générique
-    const bind = (selector, field, isRoot = false) => {
-      const el = this.querySelector(selector);
+    // Changement d'onglet
+    this.querySelectorAll('.tab').forEach(btn => {
+      btn.onclick = () => { this._activeTab = btn.dataset.tab; this.render(); };
+    });
+
+    const tab = this._activeTab;
+    const p   = this._config[pKey];
+
+    // Helper : bind un input vers un champ de config
+    const bind = (id, setter) => {
+      const el = this.querySelector(id);
       if (!el) return;
-      el.onchange = (e) => {
-        const val = el.type === 'number' ? parseFloat(e.target.value) : e.target.value;
-        if (isRoot) this._config[field] = val;
-        else this._config[pKey][field] = val;
-        this._fire();
-      };
+      el.onchange = () => { setter(el.value); this._fire(); };
+    };
+    const bindNum = (id, setter) => {
+      const el = this.querySelector(id);
+      if (!el) return;
+      el.onchange = () => { setter(parseFloat(el.value)); this._fire(); };
     };
 
-    if (this._activeTab === 'profile') {
-      bind('#inp-name',  'name');      bind('#inp-img',   'image');
-      bind('#inp-start', 'start');     bind('#inp-conf',  'comfort');
-      bind('#inp-ideal', 'ideal');     bind('#inp-sgoal', 'step_goal');
+    if (tab === 'profile') {
+      bind('#f-name',  v => p.name      = v);
+      bind('#f-img',   v => p.image     = v);
+      bindNum('#f-start', v => p.start    = v);
+      bindNum('#f-conf',  v => p.comfort  = v);
+      bindNum('#f-ideal', v => p.ideal    = v);
+      bindNum('#f-sgoal', v => p.step_goal = v);
     }
 
-    if (this._activeTab === 'health') {
-      // Fallback text inputs (actifs si ha-entity-picker absent)
-      const fbImc = this.querySelector('#fb-imc');
-      if (fbImc) fbImc.onchange = (e) => { this._config[pKey].imc_entity = e.target.value; this._fire(); };
-      const fbCorp = this.querySelector('#fb-corp');
-      if (fbCorp) fbCorp.onchange = (e) => { this._config[pKey].corp_entity = e.target.value; this._fire(); };
-
-      bind('#inp-imcn',  'imc_name');   bind('#inp-imci',  'imc_icon');
-      bind('#inp-imcw',  'imc_w');      bind('#inp-imch',  'imc_h');
-      bind('#inp-imcx',  'imc_x');      bind('#inp-imcy',  'imc_y');
-      bind('#inp-imcf',  'imc_font');
-      bind('#inp-corpn', 'corp_name');  bind('#inp-corpi', 'corp_icon');
-      bind('#inp-corpw', 'corp_w');     bind('#inp-corph', 'corp_h');
-      bind('#inp-corpx', 'corp_x');     bind('#inp-corpy', 'corp_y');
-      bind('#inp-corpf', 'corp_font');
+    if (tab === 'health') {
+      bind('#f-imce',  v => p.imc_entity  = v);
+      bind('#f-imcn',  v => p.imc_name    = v);
+      bind('#f-imci',  v => p.imc_icon    = v);
+      bindNum('#f-imcw', v => p.imc_w     = v);
+      bindNum('#f-imch', v => p.imc_h     = v);
+      bindNum('#f-imcx', v => p.imc_x     = v);
+      bindNum('#f-imcy', v => p.imc_y     = v);
+      bindNum('#f-imcf', v => p.imc_font  = v);
+      bind('#f-corpe', v => p.corp_entity = v);
+      bind('#f-corpn', v => p.corp_name   = v);
+      bind('#f-corpi', v => p.corp_icon   = v);
+      bindNum('#f-corpw', v => p.corp_w   = v);
+      bindNum('#f-corph', v => p.corp_h   = v);
+      bindNum('#f-corpx', v => p.corp_x   = v);
+      bindNum('#f-corpy', v => p.corp_y   = v);
+      bindNum('#f-corpf', v => p.corp_font= v);
     }
 
-    if (this._activeTab === 'design') {
-      bind('#inp-ch',  'card_height', true); bind('#inp-off', 'img_offset', true);
-      bind('#inp-bx',  'btn_x',  true);      bind('#inp-by',  'btn_y',  true);
-      bind('#inp-bw',  'b_width', true);      bind('#inp-bh',  'b_height', true);
+    if (tab === 'design') {
+      bindNum('#f-ch',  v => this._config.card_height = v);
+      bindNum('#f-off', v => this._config.img_offset  = v);
+      bindNum('#f-bx',  v => this._config.btn_x       = v);
+      bindNum('#f-by',  v => this._config.btn_y       = v);
+      bindNum('#f-bw',  v => this._config.b_width     = v);
+      bindNum('#f-bh',  v => this._config.b_height    = v);
     }
 
-    if (this._activeTab === 'sensors') {
-      // [BUG 2 FIX] parseInt() sur data-idx
-      this.querySelectorAll('.s-name').forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].name   = e.target.value; this._fire(); });
-      this.querySelectorAll('.s-ico') .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].icon   = e.target.value; this._fire(); });
-      this.querySelectorAll('.s-ent') .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].entity = e.target.value; this._fire(); });
-      this.querySelectorAll('.s-x')   .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].x      = parseFloat(e.target.value); this._fire(); });
-      this.querySelectorAll('.s-y')   .forEach(el => el.onchange = (e) => { this._config[pKey].sensors[parseInt(el.dataset.idx)].y      = parseFloat(e.target.value); this._fire(); });
+    if (tab === 'sensors') {
+      if (!p.sensors) p.sensors = [];
 
-      this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = () => {
-        this._config[pKey].sensors.splice(parseInt(btn.dataset.idx), 1);
-        this._fire(); this.render();
+      this.querySelectorAll('.sn').forEach(el => el.onchange = () => { p.sensors[+el.dataset.i].name   = el.value; this._fire(); });
+      this.querySelectorAll('.si').forEach(el => el.onchange = () => { p.sensors[+el.dataset.i].icon   = el.value; this._fire(); });
+      this.querySelectorAll('.se').forEach(el => el.onchange = () => { p.sensors[+el.dataset.i].entity = el.value; this._fire(); });
+      this.querySelectorAll('.sx').forEach(el => el.onchange = () => { p.sensors[+el.dataset.i].x      = parseFloat(el.value); this._fire(); });
+      this.querySelectorAll('.sy').forEach(el => el.onchange = () => { p.sensors[+el.dataset.i].y      = parseFloat(el.value); this._fire(); });
+
+      this.querySelectorAll('.del-btn').forEach(btn => {
+        btn.onclick = () => { p.sensors.splice(+btn.dataset.i, 1); this._fire(); this.render(); };
       });
 
-      const addS = this.querySelector('#add-s');
-      if (addS) addS.onclick = () => {
-        if (!this._config[pKey].sensors) this._config[pKey].sensors = [];
-        this._config[pKey].sensors.push({ name: 'Nouveau', entity: '', x: 50, y: 50, icon: 'mdi:heart' });
+      const addBtn = this.querySelector('#btn-add');
+      if (addBtn) addBtn.onclick = () => {
+        p.sensors.push({ name: 'Nouveau', entity: '', x: 50, y: 50, icon: 'mdi:heart' });
         this._fire(); this.render();
       };
     }
   }
+
+  // ── Utilitaires ───────────────────────────────────────────────────────────
+
+  // Échappe les guillemets dans les attributs value=""
+  _esc(s) { return String(s).replace(/"/g, '&quot;'); }
 
   _fire() {
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent('config-changed', {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    }));
   }
 }
 
@@ -846,4 +808,4 @@ customElements.define('health-dashboard-card',        HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: 'health-dashboard-card', name: 'Health Dashboard V2.3.1' });
+window.customCards.push({ type: 'health-dashboard-card', name: 'Health Dashboard V2.3.2' });
