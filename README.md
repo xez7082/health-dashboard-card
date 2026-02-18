@@ -1,5 +1,26 @@
 # Health Dashboard Card 📊
 
+---
+
+## ℹ️ Informations techniques
+
+<p align="left">
+  <img src="https://img.shields.io/badge/Version-2.1.4-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="Licence">
+  <img src="https://img.shields.io/badge/Home--Assistant-Ready-orange?style=for-the-badge" alt="Home Assistant">
+</p>
+
+### ⚖️ Licence
+Ce projet est sous licence **MIT**. Vous êtes libre de l'utiliser, de le modifier et de le distribuer, tant que vous conservez la mention des auteurs originaux.
+
+### 👤 Auteurs & Support
+- **Développeur** : [Ton Nom/Pseudo]
+- **Communauté** : N'hésitez pas à partager vos configurations sur le forum Home Assistant.
+
+---
+
+*Dernière mise à jour : Février 2026*
+
 Une carte Home Assistant (Lovelace) hautement personnalisable pour le suivi de la santé de deux personnes. Conçue pour offrir une visualisation moderne et intuitive de vos données biométriques (poids, pas, IMC, etc.).
 
 
