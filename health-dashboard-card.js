@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V1.9.9
- * Correction définitive du contrôle des blocs natifs IMC/Corpulence.
+ * HEALTH DASHBOARD CARD – V2.0.0
+ * Gestion complète des modules IMC & Corpulence dans l'onglet SANTÉ.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -13,8 +13,13 @@ class HealthDashboardCard extends HTMLElement {
 
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config || {}));
-    if (!this._config.person1) this._config.person1 = { name: "Patrick", sensors: [] };
-    if (!this._config.person2) this._config.person2 = { name: "Sandra", sensors: [] };
+    const base = { 
+        name: "Prénom", sensors: [], start: 80, goal: 75, ideal: 70, image: "", step_goal: 10000,
+        imc_entity: "", imc_name: "IMC", imc_icon: "mdi:calculator-variant", imc_x: 20, imc_y: 20,
+        corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-biceps", corp_x: 20, corp_y: 35
+    };
+    if (!this._config.person1) this._config.person1 = { ...base, name: "Patrick" };
+    if (!this._config.person2) this._config.person2 = { ...base, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
     
     this._config.card_height = this._config.card_height || 600;
@@ -61,7 +66,7 @@ class HealthDashboardCard extends HTMLElement {
         }
     }
 
-    // 2. IMC & CORPULENCE (Uniquement si configurés)
+    // 2. IMC & CORPULENCE
     const updateVal = (id, entity) => {
         const el = this.shadowRoot.getElementById(id);
         if (el && entity && this._hass.states[entity]) {
@@ -72,7 +77,7 @@ class HealthDashboardCard extends HTMLElement {
     updateVal('imc-val', pData.imc_entity);
     updateVal('corp-val', pData.corp_entity);
 
-    // 3. PAS & AUTRES CAPTEURS
+    // 3. PAS & CAPTEURS
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     if (stSteps) {
         const pct = Math.min(100, (this._num(stSteps.state) / this._num(pData.step_goal, 10000)) * 100);
@@ -104,7 +109,7 @@ class HealthDashboardCard extends HTMLElement {
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
         
-        .sensor-card { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); width:${this._config.b_width}px; height:${this._config.b_height}px; transition: all 0.3s ease; }
+        .sensor-card { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); width:${this._config.b_width}px; height:${this._config.b_height}px; }
         ha-icon { --mdc-icon-size: 24px; color: ${accentColor}; }
         
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
@@ -130,16 +135,16 @@ class HealthDashboardCard extends HTMLElement {
         <div class="bg-img"></div>
 
         ${pData.imc_entity ? `
-        <div class="sensor-card" id="natif-imc" style="left:${pData.imc_x || 20}%; top:${pData.imc_y || 20}%;">
-            <ha-icon icon="mdi:calculator-variant"></ha-icon>
-            <div style="font-size:10px; opacity:0.8;">IMC</div>
+        <div class="sensor-card" style="left:${pData.imc_x}%; top:${pData.imc_y}%;">
+            <ha-icon icon="${pData.imc_icon || 'mdi:calculator-variant'}"></ha-icon>
+            <div style="font-size:10px; opacity:0.8;">${pData.imc_name || 'IMC'}</div>
             <div id="imc-val" style="font-weight:900;">--</div>
         </div>` : ''}
 
         ${pData.corp_entity ? `
-        <div class="sensor-card" id="natif-corp" style="left:${pData.corp_x || 20}%; top:${pData.corp_y || 35}%;">
-            <ha-icon icon="mdi:human-biceps"></ha-icon>
-            <div style="font-size:10px; opacity:0.8;">Corpulence</div>
+        <div class="sensor-card" style="left:${pData.corp_x}%; top:${pData.corp_y}%;">
+            <ha-icon icon="${pData.corp_icon || 'mdi:human-biceps'}"></ha-icon>
+            <div style="font-size:10px; opacity:0.8;">${pData.corp_name || 'Corpulence'}</div>
             <div id="corp-val" style="font-weight:900;">--</div>
         </div>` : ''}
 
@@ -189,6 +194,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 10px; }
         input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sub-sec { background: #111; padding: 10px; border-radius: 5px; margin-bottom: 15px; border-left: 2px solid #38bdf8; }
       </style>
       <div class="ed-box">
         <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -203,17 +209,25 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
         <div class="section">
             ${this._activeTab === 'health' ? `
-                <div style="background:#111; padding:10px; border-radius:5px; margin-bottom:15px;">
-                    <label>BLOC IMC</label>
-                    <input type="text" id="inp-imce" placeholder="Entité IMC (vide = caché)" value="${p.imc_entity || ''}">
+                <div class="sub-sec">
+                    <label>MODULE IMC</label>
+                    <input type="text" id="inp-imce" placeholder="Entité (ex: sensor.imc)" value="${p.imc_entity || ''}">
+                    <div class="grid">
+                        <div><label>NOM</label><input type="text" id="inp-imcn" value="${p.imc_name || 'IMC'}"></div>
+                        <div><label>ICÔNE</label><input type="text" id="inp-imci" value="${p.imc_icon || 'mdi:calculator-variant'}"></div>
+                    </div>
                     <div class="grid">
                         <div><label>POS X %</label><input type="number" id="inp-imcx" value="${p.imc_x || 20}"></div>
                         <div><label>POS Y %</label><input type="number" id="inp-imcy" value="${p.imc_y || 20}"></div>
                     </div>
                 </div>
-                <div style="background:#111; padding:10px; border-radius:5px;">
-                    <label>BLOC CORPULENCE</label>
-                    <input type="text" id="inp-corpe" placeholder="Entité Corpulence (vide = caché)" value="${p.corp_entity || ''}">
+                <div class="sub-sec">
+                    <label>MODULE CORPULENCE</label>
+                    <input type="text" id="inp-corpe" placeholder="Entité (ex: sensor.corp)" value="${p.corp_entity || ''}">
+                    <div class="grid">
+                        <div><label>NOM</label><input type="text" id="inp-corpn" value="${p.corp_name || 'Corpulence'}"></div>
+                        <div><label>ICÔNE</label><input type="text" id="inp-corpi" value="${p.corp_icon || 'mdi:human-biceps'}"></div>
+                    </div>
                     <div class="grid">
                         <div><label>POS X %</label><input type="number" id="inp-corpx" value="${p.corp_x || 20}"></div>
                         <div><label>POS Y %</label><input type="number" id="inp-corpy" value="${p.corp_y || 35}"></div>
@@ -261,6 +275,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                 </div>
                 <button style="width:100%; padding:10px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER UN CAPTEUR</button>
             ` : ''}
+            <div style="font-size:9px; color:#555; text-align:right; margin-top:10px;">V2.0.0</div>
         </div>
       </div>
     `;
@@ -283,8 +298,8 @@ class HealthDashboardCardEditor extends HTMLElement {
     };
 
     if(this._activeTab === 'health') {
-        bind('#inp-imce', 'imc_entity'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y');
-        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y');
+        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y');
+        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y');
     }
     if(this._activeTab === 'profile') {
         bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-sgoal', 'step_goal'); bind('#inp-goal', 'goal'); bind('#inp-ideal', 'ideal');
@@ -308,4 +323,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V1.9.9" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.0.0" });
