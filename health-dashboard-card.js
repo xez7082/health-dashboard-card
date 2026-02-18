@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V79.3 (FIXED SELECTOR)
+ * HEALTH DASHBOARD CARD – V79.4 (SEARCHABLE SENSORS)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -108,16 +108,18 @@ class HealthDashboardCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     const pKey = this._config.current_view || 'person1';
     const p = this._config[pKey];
-    const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.')).sort();
 
     this.innerHTML = `
       <style>
         .ed-box { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
         .section { background: #252525; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #444; }
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; }
-        input, .select-ent { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
+        input { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         .s-card { background: #111; padding: 10px; margin-bottom: 10px; border-left: 4px solid #38bdf8; position: relative; }
         .del-btn { position: absolute; top: 5px; right: 5px; background: #f87171; border: none; color: white; cursor: pointer; padding: 2px 6px; }
+        .search-results { background: #333; border: 1px solid #555; max-height: 150px; overflow-y: auto; border-radius: 0 0 4px 4px; display: none; }
+        .search-item { padding: 8px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #444; }
+        .search-item:hover { background: #38bdf8; color: black; }
       </style>
       <div class="ed-box">
         <div style="display:flex; gap:8px; margin-bottom:15px;">
@@ -131,12 +133,12 @@ class HealthDashboardCardEditor extends HTMLElement {
               <div class="s-card">
                 <button class="del-btn" data-idx="${i}">X</button>
                 <label>NOM AFFICHÉ</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}">
-                <label>ENTITÉ</label>
-                <select class="s-ent" data-idx="${i}">
-                    <option value="">Sélectionner un capteur</option>
-                    ${entities.map(e => `<option value="${e}" ${e === s.entity ? 'selected' : ''}>${e.replace('sensor.', '')}</option>`).join('')}
-                </select>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                
+                <label>RECHERCHER UN CAPTEUR</label>
+                <input type="text" class="search-input" data-idx="${i}" placeholder="Tapez pour filtrer..." value="${s.entity}">
+                <div class="search-results" id="res-${i}"></div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:8px;">
                     <div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div>
                     <div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
                 </div>
@@ -148,16 +150,41 @@ class HealthDashboardCardEditor extends HTMLElement {
       </div>
     `;
 
-    // Attachement des événements sans re-render immédiat pour éviter le "saut"
+    // Logique de recherche
+    const allEntities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.'));
+
+    this.querySelectorAll('.search-input').forEach(input => {
+        input.oninput = (e) => {
+            const val = e.target.value.toLowerCase();
+            const idx = e.target.dataset.idx;
+            const resDiv = this.querySelector(`#res-${idx}`);
+            
+            if (val.length < 2) { resDiv.style.display = 'none'; return; }
+            
+            const filtered = allEntities.filter(en => en.toLowerCase().includes(val)).slice(0, 10);
+            
+            if (filtered.length > 0) {
+                resDiv.style.display = 'block';
+                resDiv.innerHTML = filtered.map(en => `<div class="search-item" data-en="${en}">${en}</div>`).join('');
+                resDiv.querySelectorAll('.search-item').forEach(item => {
+                    item.onclick = () => {
+                        this._config[pKey].sensors[idx].entity = item.dataset.en;
+                        input.value = item.dataset.en;
+                        resDiv.style.display = 'none';
+                        this._fire();
+                    };
+                });
+            } else {
+                resDiv.style.display = 'none';
+            }
+        };
+    });
+
+    // Autres événements
     this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelector('#inp-name').oninput = (e) => { this._config[pKey].name = e.target.value; this._fire(); };
-    
     this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
-    this.querySelectorAll('.s-ent').forEach(el => el.onchange = (e) => { 
-        this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; 
-        this._fire(); 
-    });
     this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
     this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
     
@@ -177,4 +204,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.3" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.4" });
