@@ -1,5 +1,5 @@
 /**
- * HEALTH DASHBOARD CARD – V79.8 (FULL PROGRESS BAR)
+ * HEALTH DASHBOARD CARD – V79.9 (STABLE RELEASE)
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -44,24 +44,21 @@ class HealthDashboardCard extends HTMLElement {
         const actuel = this._num(stPoids.state);
         const start = this._num(pData.start);
         const ideal = this._num(pData.ideal);
-        
-        // Calcul du pourcentage sur la barre (Inversé car perdre du poids = avancer vers la droite)
         const range = start - ideal;
         const pct = range !== 0 ? ((start - actuel) / range) * 100 : 0;
         progPointer.style.left = `${Math.max(0, Math.min(100, pct))}%`;
         
-        // Affichage du poids + différence
         let diffHtml = '';
         if (stDiff) {
             const valDiff = this._num(stDiff.state);
-            const color = valDiff <= 0 ? '#4ade80' : '#f87171'; // Vert si perte, rouge si gain
+            const color = valDiff <= 0 ? '#4ade80' : '#f87171';
             diffHtml = ` <span style="color:${color}; font-size:0.8em; margin-left:4px;">(${valDiff > 0 ? '+' : ''}${valDiff} kg)</span>`;
         }
         const labelEl = this.shadowRoot.getElementById('pointer-label');
         if (labelEl) labelEl.innerHTML = `${actuel} kg${diffHtml}`;
     }
 
-    // 2. JAUGE DE PAS
+    // 2. PAS
     const stSteps = this._hass.states['sensor.withings_pas' + suffix];
     const circle = this.shadowRoot.getElementById('gauge-path');
     const stepVal = this.shadowRoot.getElementById('step-value');
@@ -73,7 +70,7 @@ class HealthDashboardCard extends HTMLElement {
         stepVal.textContent = steps >= 1000 ? (steps/1000).toFixed(1) + 'k' : steps;
     }
 
-    // 3. AUTRES SENSORS
+    // 3. CAPTEURS DYNAMIQUES
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const valEl = this.shadowRoot.getElementById(`value-${i}`);
@@ -97,20 +94,17 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; left: ${this._num(this._config.btn_x, 5)}%; top: ${this._num(this._config.btn_y, 3)}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 11px; font-weight: bold; }
         .btn.active { background: ${accentColor} !important; border-color: ${accentColor}; }
-        
         .steps-gauge { position: absolute; top: 10px; right: 15px; width: 80px; height: 80px; z-index: 100; background: rgba(0,0,0,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .steps-gauge svg { transform: rotate(-90deg); width: 70px; height: 70px; }
         .steps-gauge .meter { fill: none; stroke: ${accentColor}; stroke-width: 4; stroke-linecap: round; }
         .steps-data { position: absolute; text-align: center; }
         .steps-data .val { font-size: 14px; font-weight: 900; }
         .steps-data .unit { font-size: 8px; color: ${accentColor}; font-weight: bold; display: block; }
-
         .rule-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 85%; height: 75px; z-index: 30; }
-        .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171 0%, #fbbf24 65%, #4ade80 100%); border-radius: 5px; margin-top: 30px; }
+        .rule-track { position: relative; width: 100%; height: 10px; background: linear-gradient(to right, #f87171, #fbbf24, #4ade80); border-radius: 5px; margin-top: 30px; }
         .marker { position: absolute; top: 20px; font-size: 9px; transform: translateX(-50%); text-align: center; font-weight: 900; line-height: 1.1; }
         .prog-pointer { position: absolute; top: -12px; width: 3px; height: 34px; background: white; transition: left 1s ease; border-radius: 2px; }
         .pointer-info { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); background: white; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: #000; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-        
         .sensor { position: absolute; transform: translate(-50%, -50%); border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 5px; backdrop-filter: blur(5px); }
         ha-icon { --mdc-icon-size: 22px; color: ${accentColor}; }
       </style>
@@ -174,6 +168,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         .res-box { background: #333; border: 1px solid #38bdf8; max-height: 100px; overflow-y: auto; display: none; position: absolute; width: 90%; z-index: 100; }
         .res-item { padding: 8px; cursor: pointer; font-size: 11px; }
         .res-item:hover { background: #38bdf8; color: black; }
+        .version { font-size: 8px; color: #555; text-align: right; margin-top: 10px; }
       </style>
       <div class="ed-box">
         <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -229,6 +224,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div><label>BOUTONS Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
                 </div>
             ` : ''}
+            <div class="version">V79.9 - GitHub Sync Ready</div>
         </div>
       </div>
     `;
@@ -298,4 +294,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.8" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V79.9" });
