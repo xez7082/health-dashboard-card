@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.1.2
- * Inclus : Delta Poids, Dimensions Blocs, Positions Boutons, Tailles Polices.
+ * HEALTH DASHBOARD CARD – V2.1.3
+ * Inclus : Noms et Icônes personnalisables pour IMC et Corpulence.
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -22,7 +22,6 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config.person2) this._config.person2 = { ...base, name: "Sandra" };
     if (!this._config.current_view) this._config.current_view = 'person1';
     
-    // Valeurs par défaut globales
     this._config.card_height = this._config.card_height || 600;
     this._config.b_width = this._config.b_width || 160;
     this._config.b_height = this._config.b_height || 69;
@@ -131,7 +130,7 @@ class HealthDashboardCard extends HTMLElement {
         
         ${(pData.sensors || []).map((s, i) => `<div class="sensor-card" style="left:${s.x}%; top:${s.y}%; width:${this._config.b_width}px; height:${this._config.b_height}px;"><ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon><div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="value-${i}" style="font-weight:900;">--</div></div>`).join('')}
         
-        <div class="rule-container"><div class="rule-track"><div id="progression-pointer" class="prog-pointer"><div id="pointer-label" style="position:absolute; top:-38px; left:50%; transform:translateX(-50%); background:white; color:black; padding:5px 12px; border-radius:10px; font-size:14px; font-weight:900; border: 2.5px solid ${accentColor}; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">--</div></div><div class="weight-marks"><span>${pData.start}kg</span><span>${pData.ideal}kg</span></div></div></div>
+        <div class="rule-container"><div class="rule-track"><div id="progression-pointer" class="prog-pointer"><div id="pointer-label" style="position:absolute; top:-38px; left:50%; transform:translateX(-50%); background:white; color:black; padding:5px 12px; border-radius:10px; font-size:14px; font-weight:900; border: 2.5px solid ${accentColor};">--</div></div><div class="weight-marks"><span>${pData.start}kg</span><span>${pData.ideal}kg</span></div></div></div>
       </div>
     `;
     this.shadowRoot.getElementById('bt1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
@@ -187,8 +186,10 @@ class HealthDashboardCardEditor extends HTMLElement {
             ` : ''}
             ${this._activeTab === 'health' ? `
                 <div class="sub-sec">
-                    <label>IMC</label><input type="text" id="inp-imce" value="${p.imc_entity || ''}">
+                    <label>IMC</label><input type="text" id="inp-imce" placeholder="Entité" value="${p.imc_entity || ''}">
                     <div class="grid">
+                        <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
+                        <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
                         <div><label>L</label><input type="number" id="inp-imcw" value="${p.imc_w}"></div>
                         <div><label>H</label><input type="number" id="inp-imch" value="${p.imc_h}"></div>
                         <div><label>X %</label><input type="number" id="inp-imcx" value="${p.imc_x}"></div>
@@ -197,8 +198,10 @@ class HealthDashboardCardEditor extends HTMLElement {
                     </div>
                 </div>
                 <div class="sub-sec">
-                    <label>CORPULENCE</label><input type="text" id="inp-corpe" value="${p.corp_entity || ''}">
+                    <label>CORPULENCE</label><input type="text" id="inp-corpe" placeholder="Entité" value="${p.corp_entity || ''}">
                     <div class="grid">
+                        <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
+                        <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
                         <div><label>L</label><input type="number" id="inp-corpw" value="${p.corp_w}"></div>
                         <div><label>H</label><input type="number" id="inp-corph" value="${p.corp_h}"></div>
                         <div><label>X %</label><input type="number" id="inp-corpx" value="${p.corp_x}"></div>
@@ -254,8 +257,8 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-goal', 'goal'); bind('#inp-ideal', 'ideal'); bind('#inp-sgoal', 'step_goal'); }
     if(this._activeTab === 'health') { 
-        bind('#inp-imce', 'imc_entity'); bind('#inp-imcw', 'imc_w'); bind('#inp-imch', 'imc_h'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-imcf', 'imc_font');
-        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpw', 'corp_w'); bind('#inp-corph', 'corp_h'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); bind('#inp-corpf', 'corp_font');
+        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon'); bind('#inp-imcw', 'imc_w'); bind('#inp-imch', 'imc_h'); bind('#inp-imcx', 'imc_x'); bind('#inp-imcy', 'imc_y'); bind('#inp-imcf', 'imc_font');
+        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon'); bind('#inp-corpw', 'corp_w'); bind('#inp-corph', 'corp_h'); bind('#inp-corpx', 'corp_x'); bind('#inp-corpy', 'corp_y'); bind('#inp-corpf', 'corp_font');
     }
     if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-off', 'img_offset', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true); }
     
@@ -274,4 +277,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.1.2" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.1.3" });
