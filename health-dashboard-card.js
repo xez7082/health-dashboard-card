@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.2.5
- * AJOUTS : ENTITÉS PAS PERSONNALISABLES + ARRONDI DES CARTES
+ * HEALTH DASHBOARD CARD – V2.2.6
+ * AJOUTS : COULEUR JAUGE PAS + OPTIMISATION ÉDITEUR
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -17,12 +17,12 @@ class HealthDashboardCard extends HTMLElement {
       card_height: 600,
       card_round: 12,
       person1: {
-        name: "Patrick", start: 85, comfort: 78, ideal: 72, image: "", sensors: [], step_entity: "", step_goal: 10000,
+        name: "Patrick", start: 85, comfort: 78, ideal: 72, image: "", sensors: [], step_entity: "", step_goal: 10000, step_color: "#38bdf8",
         imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
         corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
       },
       person2: {
-        name: "Sandra", start: 70, comfort: 65, ideal: 60, image: "", sensors: [], step_entity: "", step_goal: 10000,
+        name: "Sandra", start: 70, comfort: 65, ideal: 60, image: "", sensors: [], step_entity: "", step_goal: 10000, step_color: "#f43f5e",
         imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
         corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
       }
@@ -67,7 +67,6 @@ class HealthDashboardCard extends HTMLElement {
         if(cmf) cmf.style.left = `${range !== 0 ? ((this._num(pData.start) - this._num(pData.comfort)) / range) * 100 : 50}%`;
     }
 
-    // IMC & CORPULENCE
     const setV = (id, ent) => {
         const el = this.shadowRoot.getElementById(id);
         if (el && ent && this._hass.states[ent]) {
@@ -78,7 +77,7 @@ class HealthDashboardCard extends HTMLElement {
     setV('imc-val', pData.imc_entity);
     setV('corp-val', pData.corp_entity);
 
-    // PAS (NOUVEAUTÉ : ENTITÉ PERSO)
+    // PAS
     const stepEnt = pData.step_entity || 'sensor.withings_pas' + suffix;
     const stSteps = this._hass.states[stepEnt];
     if (stSteps) {
@@ -91,7 +90,6 @@ class HealthDashboardCard extends HTMLElement {
         if(vP) vP.textContent = valSteps;
     }
 
-    // AUTRES CAPTEURS
     if (pData.sensors) {
         pData.sensors.forEach((s, i) => {
             const vE = this.shadowRoot.getElementById(`value-${i}`);
@@ -107,6 +105,7 @@ class HealthDashboardCard extends HTMLElement {
     const pData = this._config[view];
     if(!pData) return;
     const accent = view === 'person1' ? '#38bdf8' : '#f43f5e';
+    const stepColor = pData.step_color || accent;
     const round = this._config.card_round || 12;
 
     this.shadowRoot.innerHTML = `
@@ -128,7 +127,7 @@ class HealthDashboardCard extends HTMLElement {
         .steps-gauge { position: absolute; top: 15px; right: 15px; width: 85px; height: 85px; z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .steps-data { position: absolute; text-align: center; }
         .steps-gauge svg { transform: rotate(-90deg); width: 74px; height: 74px; }
-        .steps-gauge .meter { fill: none; stroke: ${accent}; stroke-width: 4.5; stroke-linecap: round; }
+        .steps-gauge .meter { fill: none; stroke: ${stepColor}; stroke-width: 4.5; stroke-linecap: round; }
       </style>
       <div class="main-container">
         <div class="topbar"><button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button><button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button></div>
@@ -202,16 +201,16 @@ class HealthDashboardCardEditor extends HTMLElement {
             ${this._activeTab === 'health' ? `
                 <div class="sub-sec">
                     <label>PAS (ENTITÉ)</label><input type="text" id="inp-stepe" value="${p.step_entity || ''}" placeholder="sensor.withings_pas...">
-                    <label>OBJECTIF PAS</label><input type="number" id="inp-stepg" value="${p.step_goal || 10000}">
+                    <div class="grid">
+                        <div><label>Objectif</label><input type="number" id="inp-stepg" value="${p.step_goal || 10000}"></div>
+                        <div><label>Couleur</label><input type="color" id="inp-stepc" value="${p.step_color || '#38bdf8'}"></div>
+                    </div>
                 </div>
                 <div class="sub-sec">
                     <label>IMC</label><input type="text" id="inp-imce" value="${p.imc_entity || ''}">
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
-                        <div><label>L/H</label><div style="display:flex;gap:4px;"><input type="number" id="inp-imcw" value="${p.imc_w}"><input type="number" id="inp-imch" value="${p.imc_h}"></div></div>
-                        <div><label>X/Y %</label><div style="display:flex;gap:4px;"><input type="number" id="inp-imcx" value="${p.imc_x}"><input type="number" id="inp-imcy" value="${p.imc_y}"></div></div>
-                        <div><label>Police</label><input type="number" id="inp-imcf" value="${p.imc_font}"></div>
                     </div>
                 </div>
                 <div class="sub-sec">
@@ -219,12 +218,75 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div class="grid">
                         <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
                         <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
-                        <div><label>L/H</label><div style="display:flex;gap:4px;"><input type="number" id="inp-corpw" value="${p.corp_w}"><input type="number" id="inp-corph" value="${p.corp_h}"></div></div>
-                        <div><label>X/Y %</label><div style="display:flex;gap:4px;"><input type="number" id="inp-corpx" value="${p.corp_x}"><input type="number" id="inp-corpy" value="${p.corp_y}"></div></div>
-                        <div><label>Police</label><input type="number" id="inp-corpf" value="${p.corp_font}"></div>
                     </div>
                 </div>
             ` : ''}
             ${this._activeTab === 'sensors' ? `
                 <div id="sensors-container">
-                ${(p.sensors || []).map((s,
+                ${(p.sensors || []).map((s, i) => `
+                  <div class="sub-sec">
+                    <div class="grid">
+                        <div><label>Nom</label><input type="text" class="s-name" data-idx="${i}" value="${s.name}"></div>
+                        <div><label>Icône</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
+                    </div>
+                    <label>Entité</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
+                    <div class="grid"><div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div><div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div></div>
+                    <button class="del-btn" data-idx="${i}">Supprimer</button>
+                  </div>
+                `).join('')}
+                </div>
+                <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
+            ` : ''}
+            ${this._activeTab === 'design' ? `
+                <label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}">
+                <label>Arrondi Angles (px)</label><input type="number" id="inp-round" value="${this._config.card_round || 12}">
+                <label>Image Offset %</label><input type="number" id="inp-off" value="${this._config.img_offset || 50}">
+                <div class="grid">
+                    <div><label>Boutons X %</label><input type="number" id="inp-bx" value="${this._config.btn_x || 5}"></div>
+                    <div><label>Boutons Y %</label><input type="number" id="inp-by" value="${this._config.btn_y || 3}"></div>
+                </div>
+            ` : ''}
+        </div>
+      </div>
+    `;
+    this._attachEvents(pKey);
+  }
+
+  _attachEvents(pKey) {
+    this.querySelector('#t-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); this.render(); };
+    this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
+    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._activeTab = t.id.replace('tab-',''); this.render(); });
+    
+    const bind = (id, field, isRoot = false) => {
+        const el = this.querySelector(id);
+        if(el) el.oninput = (e) => { 
+            if(isRoot) this._config[field] = e.target.value;
+            else this._config[pKey][field] = e.target.value; 
+            this._fire(); 
+        };
+    };
+
+    if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-conf', 'comfort'); bind('#inp-ideal', 'ideal'); }
+    if(this._activeTab === 'health') { 
+        bind('#inp-stepe', 'step_entity'); bind('#inp-stepg', 'step_goal'); bind('#inp-stepc', 'step_color');
+        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon');
+        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon');
+    }
+    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-round', 'card_round', true); bind('#inp-off', 'img_offset', true); bind('#inp-bx', 'btn_x', true); bind('#inp-by', 'btn_y', true); }
+    if(this._activeTab === 'sensors') {
+        this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-ico').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-ent').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+        this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = () => { this._config[pKey].sensors.splice(btn.dataset.idx, 1); this._fire(); this.render(); });
+        const addS = this.querySelector('#add-s'); if (addS) addS.onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", x:50, y:50, icon:"mdi:heart"}); this._fire(); this.render(); };
+    }
+  }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
+}
+
+customElements.define('health-dashboard-card', HealthDashboardCard);
+customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
+window.customCards = window.customCards || [];
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.6" });
