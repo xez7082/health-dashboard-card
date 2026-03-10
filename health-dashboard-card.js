@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.2.7
- * AJOUTS : OPTION BLOCS RONDS + RÉGLAGE TAILLE ICÔNES
+ * HEALTH DASHBOARD CARD – V2.2.8
+ * AJOUT : FORME INDIVIDUELLE (ROND OU RECTANGLE) PAR CAPTEUR
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -16,17 +16,16 @@ class HealthDashboardCard extends HTMLElement {
       type: "custom:health-dashboard-card",
       card_height: 600,
       card_round: 12,
-      block_style: "rounded", // "rounded" ou "circle"
       icon_size: 26,
       person1: {
         name: "Patrick", start: 85, comfort: 78, ideal: 72, image: "", sensors: [], step_entity: "", step_goal: 10000, step_color: "#38bdf8",
-        imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
-        corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
+        imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14, imc_circle: false,
+        corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14, corp_circle: false
       },
       person2: {
         name: "Sandra", start: 70, comfort: 65, ideal: 60, image: "", sensors: [], step_entity: "", step_goal: 10000, step_color: "#f43f5e",
-        imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14,
-        corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14
+        imc_entity: "", imc_name: "IMC", imc_icon: "mdi:scale-bathroom", imc_x: 20, imc_y: 20, imc_w: 160, imc_h: 69, imc_font: 14, imc_circle: false,
+        corp_entity: "", corp_name: "Corpulence", corp_icon: "mdi:human-male", corp_x: 20, corp_y: 35, corp_w: 160, corp_h: 69, corp_font: 14, corp_circle: false
       }
     };
   }
@@ -69,7 +68,6 @@ class HealthDashboardCard extends HTMLElement {
         if(cmf) cmf.style.left = `${range !== 0 ? ((this._num(pData.start) - this._num(pData.comfort)) / range) * 100 : 50}%`;
     }
 
-    // IMC, CORPULENCE ET AUTRES
     const setV = (id, ent) => {
         const el = this.shadowRoot.getElementById(id);
         if (el && ent && this._hass.states[ent]) {
@@ -80,7 +78,6 @@ class HealthDashboardCard extends HTMLElement {
     setV('imc-val', pData.imc_entity);
     setV('corp-val', pData.corp_entity);
 
-    // PAS
     const stepEnt = pData.step_entity || 'sensor.withings_pas' + suffix;
     const stSteps = this._hass.states[stepEnt];
     if (stSteps) {
@@ -102,6 +99,18 @@ class HealthDashboardCard extends HTMLElement {
     }
   }
 
+  _renderBlock(x, y, w, h, icon, name, valId, font, isCircle, accent, round) {
+      const width = isCircle ? h : w;
+      const radius = isCircle ? '50%' : round + 'px';
+      return `
+        <div class="sensor-card" style="left:${x}%; top:${y}%; width:${width}px; height:${h}px; border-radius:${radius}; aspect-ratio:${isCircle ? '1/1' : 'auto'};">
+            <ha-icon icon="${icon}"></ha-icon>
+            <div style="font-size:10px; opacity:0.8; display:${isCircle ? 'none' : 'block'};">${name}</div>
+            <div id="${valId}" style="font-weight:900; font-size:${font}px;">--</div>
+        </div>
+      `;
+  }
+
   render() {
     if (!this._config) return;
     const view = this._config.current_view || 'person1';
@@ -109,7 +118,6 @@ class HealthDashboardCard extends HTMLElement {
     if(!pData) return;
     const accent = view === 'person1' ? '#38bdf8' : '#f43f5e';
     const round = this._config.card_round || 12;
-    const isCircle = this._config.block_style === "circle";
     const icoSize = this._config.icon_size || 26;
 
     this.shadowRoot.innerHTML = `
@@ -119,14 +127,7 @@ class HealthDashboardCard extends HTMLElement {
         .topbar { position: absolute; left: ${this._config.btn_x || 5}%; top: ${this._config.btn_y || 3}%; display: flex; gap: 10px; z-index: 100; }
         .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 18px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn.active { background: ${accent} !important; border-color: ${accent}; }
-        .sensor-card { 
-            position: absolute; transform: translate(-50%, -50%); 
-            border-radius: ${isCircle ? '50%' : round + 'px'}; 
-            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            z-index: 10; padding: 4px; backdrop-filter: blur(8px); overflow: hidden;
-            aspect-ratio: ${isCircle ? '1/1' : 'auto'};
-        }
+        .sensor-card { position: absolute; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 4px; backdrop-filter: blur(8px); overflow: hidden; }
         ha-icon { --mdc-icon-size: ${icoSize}px; color: ${accent}; margin-bottom: 2px; }
         .rule-container { position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%); width: 90%; height: 80px; z-index: 30; }
         .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 40px; }
@@ -144,9 +145,9 @@ class HealthDashboardCard extends HTMLElement {
         <div class="topbar"><button id="bt1" class="btn ${view==='person1'?'active':''}">${this._config.person1.name}</button><button id="bt2" class="btn ${view==='person2'?'active':''}">${this._config.person2.name}</button></div>
         <div class="steps-gauge"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4.5"/><circle id="gauge-path" class="meter" cx="25" cy="25" r="20" stroke-dasharray="0, 125.6"/></svg><div class="steps-data"><span id="step-value" style="font-weight:900;">--</span></div></div>
         <div class="bg-img"></div>
-        <div class="sensor-card" style="left:${pData.imc_x}%; top:${pData.imc_y}%; width:${isCircle ? pData.imc_h : pData.imc_w}px; height:${pData.imc_h}px;"><ha-icon icon="${pData.imc_icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.imc_name}</div><div id="imc-val" style="font-weight:900; font-size:${pData.imc_font}px;">--</div></div>
-        <div class="sensor-card" style="left:${pData.corp_x}%; top:${pData.corp_y}%; width:${isCircle ? pData.corp_h : pData.corp_w}px; height:${pData.corp_h}px;"><ha-icon icon="${pData.corp_icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${pData.corp_name}</div><div id="corp-val" style="font-weight:900; font-size:${pData.corp_font}px;">--</div></div>
-        ${(pData.sensors || []).map((s, i) => `<div class="sensor-card" style="left:${s.x}%; top:${s.y}%; width:${isCircle ? (this._config.b_height || 69) : (this._config.b_width || 160)}px; height:${this._config.b_height || 69}px;"><ha-icon icon="${s.icon}"></ha-icon><div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="value-${i}" style="font-weight:900;">--</div></div>`).join('')}
+        ${this._renderBlock(pData.imc_x, pData.imc_y, pData.imc_w, pData.imc_h, pData.imc_icon, pData.imc_name, 'imc-val', pData.imc_font, pData.imc_circle, accent, round)}
+        ${this._renderBlock(pData.corp_x, pData.corp_y, pData.corp_w, pData.corp_h, pData.corp_icon, pData.corp_name, 'corp-val', pData.corp_font, pData.corp_circle, accent, round)}
+        ${(pData.sensors || []).map((s, i) => this._renderBlock(s.x, s.y, this._config.b_width || 160, this._config.b_height || 69, s.icon, s.name, `value-${i}`, 14, s.is_circle, accent, round)).join('')}
         <div class="rule-container">
             <div class="rule-track">
                 <div class="rule-fill"></div>
@@ -186,6 +187,8 @@ class HealthDashboardCardEditor extends HTMLElement {
         input, select { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .sub-sec { background: #111; padding: 10px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid #38bdf8; }
+        .chk { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; }
+        .chk input { width: auto; }
         .del-btn { width: 100%; margin-top: 10px; background: #f87171; border: none; color: white; padding: 8px; border-radius: 4px; cursor: pointer; }
       </style>
       <div class="ed-box">
@@ -211,7 +214,7 @@ class HealthDashboardCardEditor extends HTMLElement {
             ` : ''}
             ${this._activeTab === 'health' ? `
                 <div class="sub-sec">
-                    <label>PAS (ENTITÉ)</label><input type="text" id="inp-stepe" value="${p.step_entity || ''}" placeholder="sensor.withings_pas...">
+                    <label>PAS (ENTITÉ)</label><input type="text" id="inp-stepe" value="${p.step_entity || ''}">
                     <div class="grid">
                         <div><label>Objectif</label><input type="number" id="inp-stepg" value="${p.step_goal || 10000}"></div>
                         <div><label>Couleur</label><input type="color" id="inp-stepc" value="${p.step_color || '#38bdf8'}"></div>
@@ -219,17 +222,11 @@ class HealthDashboardCardEditor extends HTMLElement {
                 </div>
                 <div class="sub-sec">
                     <label>IMC</label><input type="text" id="inp-imce" value="${p.imc_entity || ''}">
-                    <div class="grid">
-                        <div><label>Nom</label><input type="text" id="inp-imcn" value="${p.imc_name}"></div>
-                        <div><label>Icône</label><input type="text" id="inp-imci" value="${p.imc_icon}"></div>
-                    </div>
+                    <div class="chk"><input type="checkbox" id="chk-imcc" ${p.imc_circle?'checked':''}> <label style="margin:0;">Forme ronde</label></div>
                 </div>
                 <div class="sub-sec">
                     <label>CORPULENCE</label><input type="text" id="inp-corpe" value="${p.corp_entity || ''}">
-                    <div class="grid">
-                        <div><label>Nom</label><input type="text" id="inp-corpn" value="${p.corp_name}"></div>
-                        <div><label>Icône</label><input type="text" id="inp-corpi" value="${p.corp_icon}"></div>
-                    </div>
+                    <div class="chk"><input type="checkbox" id="chk-corpc" ${p.corp_circle?'checked':''}> <label style="margin:0;">Forme ronde</label></div>
                 </div>
             ` : ''}
             ${this._activeTab === 'sensors' ? `
@@ -241,6 +238,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                         <div><label>Icône</label><input type="text" class="s-ico" data-idx="${i}" value="${s.icon || 'mdi:heart'}"></div>
                     </div>
                     <label>Entité</label><input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
+                    <div class="chk"><input type="checkbox" class="s-circ" data-idx="${i}" ${s.is_circle?'checked':''}> <label style="margin:0;">Forme ronde</label></div>
                     <div class="grid"><div><label>X %</label><input type="number" class="s-x" data-idx="${i}" value="${s.x}"></div><div><label>Y %</label><input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div></div>
                     <button class="del-btn" data-idx="${i}">Supprimer</button>
                   </div>
@@ -249,18 +247,17 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <button style="width:100%; padding:12px; background:#4ade80; border:none; font-weight:bold; cursor:pointer;" id="add-s">➕ AJOUTER</button>
             ` : ''}
             ${this._activeTab === 'design' ? `
-                <label>Style des Blocs</label>
-                <select id="inp-style">
-                    <option value="rounded" ${this._config.block_style==='rounded'?'selected':''}>Rectangles arrondis</option>
-                    <option value="circle" ${this._config.block_style==='circle'?'selected':''}>Cercles parfaits</option>
-                </select>
                 <div class="grid">
                     <div><label>Hauteur Carte</label><input type="number" id="inp-ch" value="${this._config.card_height || 600}"></div>
                     <div><label>Taille Icônes</label><input type="number" id="inp-is" value="${this._config.icon_size || 26}"></div>
                 </div>
                 <div class="grid">
-                    <div><label>Arrondi (Rects)</label><input type="number" id="inp-round" value="${this._config.card_round || 12}"></div>
+                    <div><label>Arrondi Angles</label><input type="number" id="inp-round" value="${this._config.card_round || 12}"></div>
                     <div><label>Image Offset %</label><input type="number" id="inp-off" value="${this._config.img_offset || 50}"></div>
+                </div>
+                <div class="grid">
+                    <div><label>Larg. Blocs</label><input type="number" id="inp-bw" value="${this._config.b_width || 160}"></div>
+                    <div><label>Haut. Blocs</label><input type="number" id="inp-bh" value="${this._config.b_height || 69}"></div>
                 </div>
             ` : ''}
         </div>
@@ -274,10 +271,11 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#t-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); this.render(); };
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._activeTab = t.id.replace('tab-',''); this.render(); });
     
-    const bind = (id, field, isRoot = false) => {
+    const bind = (id, field, isRoot = false, isCheck = false) => {
         const el = this.querySelector(id);
         if(el) el.oninput = (e) => { 
-            this._config[isRoot ? field : pKey][field] = e.target.value; 
+            const val = isCheck ? e.target.checked : e.target.value;
+            if(isRoot) this._config[field] = val; else this._config[pKey][field] = val; 
             this._fire(); 
         };
     };
@@ -285,21 +283,18 @@ class HealthDashboardCardEditor extends HTMLElement {
     if(this._activeTab === 'profile') { bind('#inp-name', 'name'); bind('#inp-img', 'image'); bind('#inp-start', 'start'); bind('#inp-conf', 'comfort'); bind('#inp-ideal', 'ideal'); }
     if(this._activeTab === 'health') { 
         bind('#inp-stepe', 'step_entity'); bind('#inp-stepg', 'step_goal'); bind('#inp-stepc', 'step_color');
-        bind('#inp-imce', 'imc_entity'); bind('#inp-imcn', 'imc_name'); bind('#inp-imci', 'imc_icon');
-        bind('#inp-corpe', 'corp_entity'); bind('#inp-corpn', 'corp_name'); bind('#inp-corpi', 'corp_icon');
+        bind('#chk-imcc', 'imc_circle', false, true); bind('#chk-corpc', 'corp_circle', false, true);
     }
-    if(this._activeTab === 'design') { 
-        bind('#inp-style', 'block_style', true); bind('#inp-ch', 'card_height', true); bind('#inp-round', 'card_round', true); 
-        bind('#inp-off', 'img_offset', true); bind('#inp-is', 'icon_size', true);
-    }
+    if(this._activeTab === 'design') { bind('#inp-ch', 'card_height', true); bind('#inp-round', 'card_round', true); bind('#inp-off', 'img_offset', true); bind('#inp-is', 'icon_size', true); bind('#inp-bw', 'b_width', true); bind('#inp-bh', 'b_height', true); }
     if(this._activeTab === 'sensors') {
         this.querySelectorAll('.s-name').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].name = e.target.value; this._fire(); });
         this.querySelectorAll('.s-ico').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].icon = e.target.value; this._fire(); });
         this.querySelectorAll('.s-ent').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].entity = e.target.value; this._fire(); });
         this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].x = e.target.value; this._fire(); });
         this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].y = e.target.value; this._fire(); });
+        this.querySelectorAll('.s-circ').forEach(el => el.oninput = (e) => { this._config[pKey].sensors[el.dataset.idx].is_circle = e.target.checked; this._fire(); this.render(); });
         this.querySelectorAll('.del-btn').forEach(btn => btn.onclick = () => { this._config[pKey].sensors.splice(btn.dataset.idx, 1); this._fire(); this.render(); });
-        const addS = this.querySelector('#add-s'); if (addS) addS.onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", x:50, y:50, icon:"mdi:heart"}); this._fire(); this.render(); };
+        const addS = this.querySelector('#add-s'); if (addS) addS.onclick = () => { if(!this._config[pKey].sensors) this._config[pKey].sensors = []; this._config[pKey].sensors.push({name:"Nouveau", entity:"", x:50, y:50, icon:"mdi:heart", is_circle:false}); this._fire(); this.render(); };
     }
   }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -308,4 +303,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.7" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.2.8" });
