@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.3.3
- * FIX : SÉLECTEUR DE PERSONNE DANS L'ÉDITEUR + STABILITÉ DU FOCUS
+ * HEALTH DASHBOARD CARD – V2.3.4
+ * FIX : RETOUR DU MODE ROND (W=H) POUR TOUS LES ÉLÉMENTS
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -152,7 +152,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
         input { width: 100%; padding: 6px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; margin-bottom: 5px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .btn-add { width: 100%; padding: 10px; background: #4ade80; border: none; font-weight: bold; cursor: pointer; }
+        .btn-add { width: 100%; padding: 10px; background: #4ade80; border: none; font-weight: bold; cursor: pointer; color: black; }
       </style>
       <div class="ed">
         <label>Configurer qui ?</label>
@@ -189,14 +189,14 @@ class HealthDashboardCardEditor extends HTMLElement {
                         <div><label>Pos Y %</label><input type="number" data-conf="imc_y" value="${p.imc_y}"></div>
                     </div>
                     <div class="grid">
-                        <div><label>Larg (W)</label><input type="number" data-conf="imc_w" value="${p.imc_w}"></div>
-                        <div><label>Haut (H)</label><input type="number" data-conf="imc_h" value="${p.imc_h}"></div>
+                        <div><label>Largeur (W)</label><input type="number" data-conf="imc_w" value="${p.imc_w}"></div>
+                        <div><label>Hauteur (H)</label><input type="number" data-conf="imc_h" value="${p.imc_h}"></div>
                     </div>
                     <div class="grid">
                         <div><label>Bordure px</label><input type="number" data-conf="imc_b_w" value="${p.imc_b_w}"></div>
                         <div><label>Couleur</label><input type="text" data-conf="imc_b_c" value="${p.imc_b_c}"></div>
                     </div>
-                    <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> <span style="font-size:10px;">ROND (W=H)</span></div>
+                    <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> <span style="font-size:10px;">FORCER ROND (W=H)</span></div>
                 </div>
                 <div class="sec">
                     <label>CORPULENCE - Entité</label>
@@ -205,21 +205,30 @@ class HealthDashboardCardEditor extends HTMLElement {
                         <div><label>Pos X %</label><input type="number" data-conf="corp_x" value="${p.corp_x}"></div>
                         <div><label>Pos Y %</label><input type="number" data-conf="corp_y" value="${p.corp_y}"></div>
                     </div>
+                    <div class="grid">
+                        <div><label>Largeur (W)</label><input type="number" data-conf="corp_w" value="${p.corp_w}"></div>
+                        <div><label>Hauteur (H)</label><input type="number" data-conf="corp_h" value="${p.corp_h}"></div>
+                    </div>
+                    <div style="margin-top:10px;"><input type="checkbox" id="corpc" ${p.corp_circle?'checked':''}> <span style="font-size:10px;">FORCER ROND (W=H)</span></div>
                 </div>
             ` : ''}
 
             ${this._tab === 'sensors' ? `
                 ${(p.sensors || []).map((s, i) => `
                     <div class="sec">
-                        <label>Capteur ${i+1}</label>
+                        <label>Capteur ${i+1} : ${s.name}</label>
                         <input type="text" class="s-edit" data-idx="${i}" data-f="entity" value="${s.entity}">
                         <div class="grid">
-                            <input type="number" class="s-edit" data-idx="${i}" data-f="x" value="${s.x}">
-                            <input type="number" class="s-edit" data-idx="${i}" data-f="y" value="${s.y}">
+                            <div><label>Pos X %</label><input type="number" class="s-edit" data-idx="${i}" data-f="x" value="${s.x}"></div>
+                            <div><label>Pos Y %</label><input type="number" class="s-edit" data-idx="${i}" data-f="y" value="${s.y}"></div>
                         </div>
                         <div class="grid">
-                            <input type="number" class="s-edit" data-idx="${i}" data-f="w" value="${s.w}">
-                            <input type="number" class="s-edit" data-idx="${i}" data-f="h" value="${s.h || 70}">
+                            <div><label>Larg (W)</label><input type="number" class="s-edit" data-idx="${i}" data-f="w" value="${s.w}"></div>
+                            <div><label>Haut (H)</label><input type="number" class="s-edit" data-idx="${i}" data-f="h" value="${s.h || 70}"></div>
+                        </div>
+                        <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
+                            <div><input type="checkbox" class="s-circ" data-idx="${i}" ${s.circle?'checked':''}> <span style="font-size:10px;">ROND</span></div>
+                            <span class="del-s" data-idx="${i}" style="color:#f87171; font-size:10px; cursor:pointer;">Supprimer ❌</span>
                         </div>
                     </div>
                 `).join('')}
@@ -230,6 +239,7 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div class="sec">
                     <label>Image URL</label><input type="text" id="img-url" value="${p.image}">
                     <label>Hauteur Carte (px)</label><input type="number" id="card-h" value="${this._config.card_height}">
+                    <label>Coins arrondis (px)</label><input type="number" id="card-r" value="${this._config.card_round}">
                 </div>
             ` : ''}
         </div>
@@ -243,38 +253,43 @@ class HealthDashboardCardEditor extends HTMLElement {
     const p = this._config[pKey];
     const fire = () => this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
 
-    // Sélecteur personne
     this.querySelector('#sel-p1').onclick = () => { this._config.current_view = 'person1'; fire(); this.render(); };
     this.querySelector('#sel-p2').onclick = () => { this._config.current_view = 'person2'; fire(); this.render(); };
-
-    // Tabs
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._tab = t.id.replace('t-',''); this.render(); });
 
-    // Inputs généraux (anti-saut de focus)
     this.querySelectorAll('input[data-conf]').forEach(el => {
         el.oninput = (e) => { p[el.dataset.conf] = e.target.value; fire(); };
     });
 
-    // Cas spécifiques
-    const imcc = this.querySelector('#imcc');
-    if(imcc) imcc.onchange = (e) => { p.imc_circle = e.target.checked; fire(); this.render(); };
+    // Checkboxes Santé
+    if(this.querySelector('#imcc')) this.querySelector('#imcc').onchange = (e) => { p.imc_circle = e.target.checked; fire(); this.render(); };
+    if(this.querySelector('#corpc')) this.querySelector('#corpc').onchange = (e) => { p.corp_circle = e.target.checked; fire(); this.render(); };
 
-    const addS = this.querySelector('#add-s');
-    if(addS) addS.onclick = () => { if(!p.sensors) p.sensors = []; p.sensors.push({entity:"", name:"Nouveau", icon:"mdi:heart", x:50, y:50, w:100, h:70, b_w:1, b_c:"rgba(255,255,255,0.2)", circle:false}); fire(); this.render(); };
-
+    // Sensors Events
     this.querySelectorAll('.s-edit').forEach(el => {
         el.oninput = (e) => { p.sensors[el.dataset.idx][el.dataset.f] = e.target.value; fire(); };
     });
+    this.querySelectorAll('.s-circ').forEach(el => {
+        el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; fire(); this.render(); };
+    });
+    this.querySelectorAll('.del-s').forEach(el => {
+        el.onclick = () => { p.sensors.splice(el.dataset.idx, 1); fire(); this.render(); };
+    });
 
-    const imgUrl = this.querySelector('#img-url');
-    if(imgUrl) imgUrl.oninput = (e) => { p.image = e.target.value; fire(); };
+    const addS = this.querySelector('#add-s');
+    if(addS) addS.onclick = () => { 
+        if(!p.sensors) p.sensors = []; 
+        p.sensors.push({entity:"", name:"Nouveau", icon:"mdi:heart", x:50, y:50, w:100, h:70, circle:false}); 
+        fire(); this.render(); 
+    };
 
-    const cardH = this.querySelector('#card-h');
-    if(cardH) cardH.oninput = (e) => { this._config.card_height = e.target.value; fire(); };
+    if(this.querySelector('#img-url')) this.querySelector('#img-url').oninput = (e) => { p.image = e.target.value; fire(); };
+    if(this.querySelector('#card-h')) this.querySelector('#card-h').oninput = (e) => { this._config.card_height = e.target.value; fire(); };
+    if(this.querySelector('#card-r')) this.querySelector('#card-r').oninput = (e) => { this._config.card_round = e.target.value; fire(); };
   }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.3" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.4" });
