@@ -1,7 +1,7 @@
 /**
- * HEALTH DASHBOARD CARD – V2.4.0
- * SOLUTION RADICALE : BOUTON "APPLIQUER" POUR STOPPER LE SCROLL JUMP
- * AJOUT : SEUIL DE CONFORT + TOUS LES ONGLETS
+ * HEALTH DASHBOARD CARD – V2.4.1
+ * FIX : RETOUR DE LA CORPULENCE DANS L'ONGLET SANTÉ
+ * STABILITÉ : BOUTON "APPLIQUER" ANTI-SCROLL
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -176,8 +176,8 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div class="sec">
                     <label>Nom Affiché</label><input type="text" class="direct" data-f="name" value="${p.name}">
                     <div class="grid">
-                        <div><label>Départ</label><input type="number" class="direct" data-f="start" value="${p.start}"></div>
-                        <div><label>Idéal</label><input type="number" class="direct" data-f="ideal" value="${p.ideal}"></div>
+                        <div><label>Départ (kg)</label><input type="number" class="direct" data-f="start" value="${p.start}"></div>
+                        <div><label>Idéal (kg)</label><input type="number" class="direct" data-f="ideal" value="${p.ideal}"></div>
                     </div>
                     <label>Seuil de Confort (kg)</label><input type="number" class="direct" data-f="comfort" value="${p.comfort || 0}">
                 </div>
@@ -189,21 +189,43 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <input type="text" class="direct" data-f="imc_name" value="${p.imc_name || ''}">
                     <input type="text" class="direct" data-f="imc_entity" value="${p.imc_entity}">
                     <div class="grid">
-                        <input type="number" class="direct" data-f="imc_x" value="${p.imc_x}">
-                        <input type="number" class="direct" data-f="imc_y" value="${p.imc_y}">
+                        <div><label>X %</label><input type="number" class="direct" data-f="imc_x" value="${p.imc_x}"></div>
+                        <div><label>Y %</label><input type="number" class="direct" data-f="imc_y" value="${p.imc_y}"></div>
                     </div>
                     <div class="grid">
-                        <input type="number" class="direct" data-f="imc_w" value="${p.imc_w}">
-                        <input type="number" class="direct" data-f="imc_b_w" value="${p.imc_b_w || 0}">
+                        <div><label>W</label><input type="number" class="direct" data-f="imc_w" value="${p.imc_w}"></div>
+                        <div><label>H</label><input type="number" class="direct" data-f="imc_h" value="${p.imc_h || 70}"></div>
                     </div>
-                    <label>Couleur Bord</label><input type="text" class="direct" data-f="imc_b_c" value="${p.imc_b_c || ''}">
+                    <div class="grid">
+                        <div><label>Bord px</label><input type="number" class="direct" data-f="imc_b_w" value="${p.imc_b_w || 0}"></div>
+                        <div><label>Couleur</label><input type="text" class="direct" data-f="imc_b_c" value="${p.imc_b_c || ''}"></div>
+                    </div>
                     <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> ROND</div>
+                </div>
+                <div class="sec">
+                    <label>CORPULENCE - Libellé & Entité</label>
+                    <input type="text" class="direct" data-f="corp_name" value="${p.corp_name || ''}">
+                    <input type="text" class="direct" data-f="corp_entity" value="${p.corp_entity}">
+                    <div class="grid">
+                        <div><label>X %</label><input type="number" class="direct" data-f="corp_x" value="${p.corp_x}"></div>
+                        <div><label>Y %</label><input type="number" class="direct" data-f="corp_y" value="${p.corp_y}"></div>
+                    </div>
+                    <div class="grid">
+                        <div><label>W</label><input type="number" class="direct" data-f="corp_w" value="${p.corp_w}"></div>
+                        <div><label>H</label><input type="number" class="direct" data-f="corp_h" value="${p.corp_h || 70}"></div>
+                    </div>
+                    <div class="grid">
+                        <div><label>Bord px</label><input type="number" class="direct" data-f="corp_b_w" value="${p.corp_b_w || 0}"></div>
+                        <div><label>Couleur</label><input type="text" class="direct" data-f="corp_b_c" value="${p.corp_b_c || ''}"></div>
+                    </div>
+                    <div style="margin-top:10px;"><input type="checkbox" id="corpc" ${p.corp_circle?'checked':''}> ROND</div>
                 </div>
             ` : ''}
 
             ${this._tab === 'sensors' ? `
                 ${(p.sensors || []).map((s, i) => `
                     <div class="sec">
+                        <label>Capteur ${i+1}</label>
                         <input type="text" class="s-edit" data-idx="${i}" data-f="name" value="${s.name || ''}">
                         <input type="text" class="s-edit" data-idx="${i}" data-f="entity" value="${s.entity}">
                         <div class="grid">
@@ -212,22 +234,26 @@ class HealthDashboardCardEditor extends HTMLElement {
                         </div>
                         <div class="grid">
                             <input type="number" class="s-edit" data-idx="${i}" data-f="w" value="${s.w}">
-                            <input type="number" class="s-edit" data-idx="${i}" data-f="b_w" value="${s.b_w || 0}">
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="h" value="${s.h || 70}">
                         </div>
-                        <input type="text" class="s-edit" data-idx="${i}" data-f="b_c" value="${s.b_c || ''}">
-                        <div style="display:flex; justify-content:space-between;">
+                        <div class="grid">
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="b_w" value="${s.b_w || 0}">
+                            <input type="text" class="s-edit" data-idx="${i}" data-f="b_c" value="${s.b_c || ''}">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px;">
                            <div><input type="checkbox" class="s-circ" data-idx="${i}" ${s.circle?'checked':''}> ROND</div>
                            <span class="del-s" data-idx="${i}">Supprimer ❌</span>
                         </div>
                     </div>
                 `).join('')}
-                <button id="add-s" style="width:100%; padding:8px; background:#444; border:none; color:white; cursor:pointer;">+ Ajouter Capteur</button>
+                <button id="add-s" style="width:100%; padding:10px; background:#444; color:white; border:none; border-radius:4px; cursor:pointer;">➕ Ajouter Capteur</button>
             ` : ''}
 
             ${this._tab === 'design' ? `
                 <div class="sec">
                     <label>Image URL</label><input type="text" class="direct" data-f="image" value="${p.image}">
-                    <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height}">
+                    <label>Hauteur Carte (px)</label><input type="number" id="ch" value="${this._config.card_height}">
+                    <label>Coins arrondis (px)</label><input type="number" id="cr" value="${this._config.card_round}">
                 </div>
             ` : ''}
         </div>
@@ -241,13 +267,10 @@ class HealthDashboardCardEditor extends HTMLElement {
 
   _setup(pKey) {
     const p = this._config[pKey];
-    
-    // Bouton de navigation
     this.querySelector('#sel-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); };
     this.querySelector('#sel-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); };
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._tab = t.id.replace('t-',''); this.render(); });
 
-    // Inputs : on met juste à jour la config LOCALE, pas HA
     this.querySelectorAll('.direct').forEach(el => {
         el.oninput = (e) => { p[el.dataset.f] = e.target.value; };
     });
@@ -256,22 +279,22 @@ class HealthDashboardCardEditor extends HTMLElement {
         el.oninput = (e) => { p.sensors[el.dataset.idx][el.dataset.f] = e.target.value; };
     });
 
-    // Bouton APPLIQUER : seul moment où on communique avec Home Assistant
     this.querySelector('#apply').onclick = () => { this._fire(); };
 
-    // Cases à cocher (rafraîchissement nécessaire)
     const imcc = this.querySelector('#imcc'); if(imcc) imcc.onchange = (e) => { p.imc_circle = e.target.checked; this._fire(); };
+    const corpc = this.querySelector('#corpc'); if(corpc) corpc.onchange = (e) => { p.corp_circle = e.target.checked; this._fire(); };
     this.querySelectorAll('.s-circ').forEach(el => { el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; this._fire(); }; });
     this.querySelectorAll('.del-s').forEach(el => { el.onclick = () => { p.sensors.splice(el.dataset.idx, 1); this._fire(); }; });
     
     const addBtn = this.querySelector('#add-s');
     if(addBtn) addBtn.onclick = () => {
         if(!p.sensors) p.sensors = [];
-        p.sensors.push({name:"Nouveau", entity:"", x:50, y:50, w:100, b_w:1, b_c:"white", circle:false});
+        p.sensors.push({name:"Nouveau", entity:"", x:50, y:50, w:100, h:70, b_w:1, b_c:"white", circle:false});
         this._fire();
     };
 
     const ch = this.querySelector('#ch'); if(ch) ch.oninput = (e) => { this._config.card_height = e.target.value; };
+    const cr = this.querySelector('#cr'); if(cr) cr.oninput = (e) => { this._config.card_round = e.target.value; };
   }
 
   _fire() {
@@ -283,4 +306,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.4.0" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.4.1" });
