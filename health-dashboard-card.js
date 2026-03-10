@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.3.4
- * FIX : RETOUR DU MODE ROND (W=H) POUR TOUS LES ÉLÉMENTS
+ * HEALTH DASHBOARD CARD – V2.3.5
+ * FIX : FOCUS STABLE (L'ÉDITEUR NE SAUTE PLUS) + AFFICHAGE DES NOMS
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -37,6 +37,7 @@ class HealthDashboardCard extends HTMLElement {
             el.textContent = `${s.state}${s.attributes.unit_of_measurement || ''}`;
         }
     };
+    
     setV('imc-val', pData.imc_entity);
     setV('corp-val', pData.corp_entity);
     
@@ -100,18 +101,18 @@ class HealthDashboardCard extends HTMLElement {
 
         <div class="box" style="left:${pData.imc_x}%; top:${pData.imc_y}%; width:${pData.imc_w}px; height:${pData.imc_circle ? pData.imc_w : pData.imc_h}px; border-radius:${pData.imc_circle ? '50%' : round + 'px'}; border: ${pData.imc_b_w || 0}px solid ${pData.imc_b_c || 'transparent'};">
             <ha-icon icon="${pData.imc_icon || 'mdi:scale-bathroom'}"></ha-icon>
-            <div style="font-size:10px; opacity:0.8;">${pData.imc_name}</div><div id="imc-val" style="font-weight:bold;">--</div>
+            <div style="font-size:10px; opacity:0.8;">${pData.imc_name || 'IMC'}</div><div id="imc-val" style="font-weight:bold;">--</div>
         </div>
 
         <div class="box" style="left:${pData.corp_x}%; top:${pData.corp_y}%; width:${pData.corp_w}px; height:${pData.corp_circle ? pData.corp_w : pData.corp_h}px; border-radius:${pData.corp_circle ? '50%' : round + 'px'}; border: ${pData.corp_b_w || 0}px solid ${pData.corp_b_c || 'transparent'};">
             <ha-icon icon="${pData.corp_icon || 'mdi:human'}"></ha-icon>
-            <div style="font-size:10px; opacity:0.8;">${pData.corp_name}</div><div id="corp-val" style="font-weight:bold;">--</div>
+            <div style="font-size:10px; opacity:0.8;">${pData.corp_name || 'Corpulence'}</div><div id="corp-val" style="font-weight:bold;">--</div>
         </div>
 
         ${(pData.sensors || []).map((s, i) => `
           <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.circle ? s.w : (s.h || 70)}px; border-radius:${s.circle ? '50%' : round + 'px'}; border: ${s.b_w || 0}px solid ${s.b_c || 'transparent'};">
-            <ha-icon icon="${s.icon}"></ha-icon>
-            <div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="value-${i}" style="font-weight:bold;">--</div>
+            <ha-icon icon="${s.icon || 'mdi:heart'}"></ha-icon>
+            <div style="font-size:10px; opacity:0.8;">${s.name || 'Capteur'}</div><div id="value-${i}" style="font-weight:bold;">--</div>
           </div>
         `).join('')}
 
@@ -152,15 +153,13 @@ class HealthDashboardCardEditor extends HTMLElement {
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
         input { width: 100%; padding: 6px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; margin-bottom: 5px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .btn-add { width: 100%; padding: 10px; background: #4ade80; border: none; font-weight: bold; cursor: pointer; color: black; }
+        .del-s { color:#f87171; font-size: 10px; cursor:pointer; text-decoration: underline; }
       </style>
       <div class="ed">
-        <label>Configurer qui ?</label>
         <div class="person-selector">
             <button class="p-btn ${pKey==='person1'?'active':''}" id="sel-p1">${this._config.person1.name}</button>
             <button class="p-btn ${pKey==='person2'?'active':''}" id="sel-p2">${this._config.person2.name}</button>
         </div>
-
         <div class="tabs">
             <button class="tab ${this._tab==='poids'?'active':''}" id="t-poids">POIDS</button>
             <button class="tab ${this._tab==='health'?'active':''}" id="t-health">SANTÉ</button>
@@ -168,128 +167,112 @@ class HealthDashboardCardEditor extends HTMLElement {
             <button class="tab ${this._tab==='design'?'active':''}" id="t-design">CARTE</button>
         </div>
 
-        <div id="form-container">
+        <div id="editor-form">
             ${this._tab === 'poids' ? `
                 <div class="sec">
-                    <label>Nom</label><input type="text" data-conf="name" value="${p.name}">
+                    <label>Nom Affiché</label><input type="text" data-conf="name" value="${p.name}">
                     <div class="grid">
                         <div><label>Départ</label><input type="number" data-conf="start" value="${p.start}"></div>
-                        <div><label>Confort</label><input type="number" data-conf="comfort" value="${p.comfort}"></div>
                         <div><label>Idéal</label><input type="number" data-conf="ideal" value="${p.ideal}"></div>
                     </div>
+                    <label>Seuil Confort</label><input type="number" data-conf="comfort" value="${p.comfort}">
                 </div>
             ` : ''}
 
             ${this._tab === 'health' ? `
                 <div class="sec">
-                    <label>IMC - Entité</label>
+                    <label>IMC - Libellé & Entité</label>
+                    <input type="text" data-conf="imc_name" value="${p.imc_name || 'IMC'}">
                     <input type="text" data-conf="imc_entity" value="${p.imc_entity}">
                     <div class="grid">
                         <div><label>Pos X %</label><input type="number" data-conf="imc_x" value="${p.imc_x}"></div>
                         <div><label>Pos Y %</label><input type="number" data-conf="imc_y" value="${p.imc_y}"></div>
                     </div>
-                    <div class="grid">
-                        <div><label>Largeur (W)</label><input type="number" data-conf="imc_w" value="${p.imc_w}"></div>
-                        <div><label>Hauteur (H)</label><input type="number" data-conf="imc_h" value="${p.imc_h}"></div>
-                    </div>
-                    <div class="grid">
-                        <div><label>Bordure px</label><input type="number" data-conf="imc_b_w" value="${p.imc_b_w}"></div>
-                        <div><label>Couleur</label><input type="text" data-conf="imc_b_c" value="${p.imc_b_c}"></div>
-                    </div>
-                    <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> <span style="font-size:10px;">FORCER ROND (W=H)</span></div>
                 </div>
                 <div class="sec">
-                    <label>CORPULENCE - Entité</label>
+                    <label>Corpulence - Libellé & Entité</label>
+                    <input type="text" data-conf="corp_name" value="${p.corp_name || 'Corpulence'}">
                     <input type="text" data-conf="corp_entity" value="${p.corp_entity}">
                     <div class="grid">
                         <div><label>Pos X %</label><input type="number" data-conf="corp_x" value="${p.corp_x}"></div>
                         <div><label>Pos Y %</label><input type="number" data-conf="corp_y" value="${p.corp_y}"></div>
                     </div>
-                    <div class="grid">
-                        <div><label>Largeur (W)</label><input type="number" data-conf="corp_w" value="${p.corp_w}"></div>
-                        <div><label>Hauteur (H)</label><input type="number" data-conf="corp_h" value="${p.corp_h}"></div>
-                    </div>
-                    <div style="margin-top:10px;"><input type="checkbox" id="corpc" ${p.corp_circle?'checked':''}> <span style="font-size:10px;">FORCER ROND (W=H)</span></div>
                 </div>
             ` : ''}
 
             ${this._tab === 'sensors' ? `
                 ${(p.sensors || []).map((s, i) => `
                     <div class="sec">
-                        <label>Capteur ${i+1} : ${s.name}</label>
-                        <input type="text" class="s-edit" data-idx="${i}" data-f="entity" value="${s.entity}">
+                        <label>Nom du Capteur</label>
+                        <input type="text" class="s-input" data-idx="${i}" data-f="name" value="${s.name || ''}">
+                        <label>Entité</label>
+                        <input type="text" class="s-input" data-idx="${i}" data-f="entity" value="${s.entity}">
                         <div class="grid">
-                            <div><label>Pos X %</label><input type="number" class="s-edit" data-idx="${i}" data-f="x" value="${s.x}"></div>
-                            <div><label>Pos Y %</label><input type="number" class="s-edit" data-idx="${i}" data-f="y" value="${s.y}"></div>
+                            <div><label>X %</label><input type="number" class="s-input" data-idx="${i}" data-f="x" value="${s.x}"></div>
+                            <div><label>Y %</label><input type="number" class="s-input" data-idx="${i}" data-f="y" value="${s.y}"></div>
                         </div>
-                        <div class="grid">
-                            <div><label>Larg (W)</label><input type="number" class="s-edit" data-idx="${i}" data-f="w" value="${s.w}"></div>
-                            <div><label>Haut (H)</label><input type="number" class="s-edit" data-idx="${i}" data-f="h" value="${s.h || 70}"></div>
-                        </div>
-                        <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
-                            <div><input type="checkbox" class="s-circ" data-idx="${i}" ${s.circle?'checked':''}> <span style="font-size:10px;">ROND</span></div>
-                            <span class="del-s" data-idx="${i}" style="color:#f87171; font-size:10px; cursor:pointer;">Supprimer ❌</span>
+                        <div style="margin-top:10px; display:flex; justify-content:space-between;">
+                           <div><input type="checkbox" class="s-check" data-idx="${i}" ${s.circle?'checked':''}> <span style="font-size:10px;">ROND</span></div>
+                           <span class="del-s" data-idx="${i}">Supprimer ❌</span>
                         </div>
                     </div>
                 `).join('')}
-                <button class="btn-add" id="add-s">➕ AJOUTER UN CAPTEUR</button>
+                <button id="add-s" style="width:100%; padding:8px; background:#4ade80; border:none; border-radius:4px; cursor:pointer;">➕ Ajouter Capteur</button>
             ` : ''}
 
             ${this._tab === 'design' ? `
                 <div class="sec">
-                    <label>Image URL</label><input type="text" id="img-url" value="${p.image}">
-                    <label>Hauteur Carte (px)</label><input type="number" id="card-h" value="${this._config.card_height}">
-                    <label>Coins arrondis (px)</label><input type="number" id="card-r" value="${this._config.card_round}">
+                    <label>URL Image Arrière-plan</label><input type="text" id="img-url" value="${p.image}">
+                    <label>Hauteur Totale (px)</label><input type="number" id="card-h" value="${this._config.card_height}">
                 </div>
             ` : ''}
         </div>
       </div>
     `;
 
-    this._attachEvents(pKey);
+    this._setupListeners(pKey);
   }
 
-  _attachEvents(pKey) {
+  _setupListeners(pKey) {
     const p = this._config[pKey];
-    const fire = () => this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+    const fire = (conf = this._config) => this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: conf }, bubbles: true, composed: true }));
 
+    // Navigation (ici on render car on change de vue)
     this.querySelector('#sel-p1').onclick = () => { this._config.current_view = 'person1'; fire(); this.render(); };
     this.querySelector('#sel-p2').onclick = () => { this._config.current_view = 'person2'; fire(); this.render(); };
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._tab = t.id.replace('t-',''); this.render(); });
 
+    // Inputs (SANS RENDER pour garder le focus)
     this.querySelectorAll('input[data-conf]').forEach(el => {
         el.oninput = (e) => { p[el.dataset.conf] = e.target.value; fire(); };
     });
 
-    // Checkboxes Santé
-    if(this.querySelector('#imcc')) this.querySelector('#imcc').onchange = (e) => { p.imc_circle = e.target.checked; fire(); this.render(); };
-    if(this.querySelector('#corpc')) this.querySelector('#corpc').onchange = (e) => { p.corp_circle = e.target.checked; fire(); this.render(); };
-
-    // Sensors Events
-    this.querySelectorAll('.s-edit').forEach(el => {
+    // Capteurs
+    this.querySelectorAll('.s-input').forEach(el => {
         el.oninput = (e) => { p.sensors[el.dataset.idx][el.dataset.f] = e.target.value; fire(); };
     });
-    this.querySelectorAll('.s-circ').forEach(el => {
+
+    this.querySelectorAll('.s-check').forEach(el => {
         el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; fire(); this.render(); };
     });
+
     this.querySelectorAll('.del-s').forEach(el => {
         el.onclick = () => { p.sensors.splice(el.dataset.idx, 1); fire(); this.render(); };
     });
 
-    const addS = this.querySelector('#add-s');
-    if(addS) addS.onclick = () => { 
-        if(!p.sensors) p.sensors = []; 
-        p.sensors.push({entity:"", name:"Nouveau", icon:"mdi:heart", x:50, y:50, w:100, h:70, circle:false}); 
-        fire(); this.render(); 
+    const addBtn = this.querySelector('#add-s');
+    if(addBtn) addBtn.onclick = () => {
+        if(!p.sensors) p.sensors = [];
+        p.sensors.push({name:"Nouveau", entity:"", x:50, y:50, w:100, h:70, circle:false});
+        fire(); this.render();
     };
 
     if(this.querySelector('#img-url')) this.querySelector('#img-url').oninput = (e) => { p.image = e.target.value; fire(); };
     if(this.querySelector('#card-h')) this.querySelector('#card-h').oninput = (e) => { this._config.card_height = e.target.value; fire(); };
-    if(this.querySelector('#card-r')) this.querySelector('#card-r').oninput = (e) => { this._config.card_round = e.target.value; fire(); };
   }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.4" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.5" });
