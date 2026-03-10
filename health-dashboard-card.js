@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.3.0
- * RÉTABLISSEMENT COMPLET : BARRE DE POIDS + ÉDITEUR D'OBJECTIFS
+ * HEALTH DASHBOARD CARD – V2.3.1
+ * CORRECTIONS : ONGLET PAR DÉFAUT + TEXTE CONFORT + BULLE DE POIDS COMPLÈTE
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -42,6 +42,7 @@ class HealthDashboardCard extends HTMLElement {
     const view = this._config.current_view;
     const pData = this._config[view];
     if (!pData) return;
+    const suffix = view === 'person2' ? '_sandra' : '_patrick';
 
     // Valeurs IMC / CORP / LIBRES
     const setV = (id, ent) => {
@@ -63,24 +64,30 @@ class HealthDashboardCard extends HTMLElement {
         });
     }
     
-    // LOGIQUE DE LA BARRE DE POIDS
-    const suffix = view === 'person2' ? '_sandra' : '_patrick';
+    // LOGIQUE DE LA BARRE DE POIDS (RÈGLE)
     const stPoids = this._hass.states['sensor.withings_poids' + suffix];
+    const stDiff = this._hass.states['sensor.difference_poids' + suffix];
     if (stPoids) {
         const actuel = this._num(stPoids.state);
         const start = this._num(pData.start);
         const ideal = this._num(pData.ideal);
         const range = start - ideal;
         
+        // Mise à jour de la bulle : Poids (Différence)
         const label = this.shadowRoot.getElementById('pointer-label');
-        if(label) label.textContent = actuel + 'kg';
+        if(label) {
+            const diffVal = stDiff ? stDiff.state : "0";
+            label.innerHTML = `${actuel}kg <span style="font-size:0.8em; opacity:0.8;">(${diffVal})</span>`;
+        }
         
+        // Positionnement du curseur blanc
         const ptr = this.shadowRoot.getElementById('progression-pointer');
         if(ptr && range !== 0) {
             const pct = ((start - actuel) / range) * 100;
             ptr.style.left = `${Math.max(0, Math.min(100, pct))}%`;
         }
         
+        // Positionnement du point Confort
         const markC = this.shadowRoot.getElementById('mark-comfort');
         if(markC && range !== 0) {
             const pctC = ((start - this._num(pData.comfort)) / range) * 100;
@@ -146,7 +153,7 @@ class HealthDashboardCard extends HTMLElement {
                 <div class="rule-fill"></div>
                 <div id="progression-pointer" class="ptr"><div id="pointer-label" class="bub">--</div></div>
                 <div class="mark" style="left: 0%;">DÉPART<br>${pData.start}kg</div>
-                <div id="mark-comfort" class="mark" style="left: 50%; color:#fbbf24;"><div class="mark-c"></div>CONFORT<br>${pData.comfort}kg</div>
+                <div id="mark-comfort" class="mark" style="left: 50%; color:#fbbf24; width:80px; transform:translateX(-50%);"><div class="mark-c"></div>CONFORT<br>${pData.comfort}kg</div>
                 <div class="mark" style="left: 100%;">IDÉAL<br>${pData.ideal}kg</div>
             </div>
         </div>
@@ -158,6 +165,7 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
+  // L'onglet "poids" est maintenant l'onglet par défaut
   constructor() { super(); this._tab = 'poids'; }
   setConfig(config) { this._config = config; this.render(); }
 
@@ -174,8 +182,8 @@ class HealthDashboardCardEditor extends HTMLElement {
         .sec { background: #252525; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #38bdf8; }
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; }
         input { width: 100%; padding: 6px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .btn-add { width: 100%; padding: 10px; background: #4ade80; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
       </style>
       <div class="ed">
@@ -200,16 +208,13 @@ class HealthDashboardCardEditor extends HTMLElement {
 
         ${this._tab === 'health' ? `
             <div class="sec">
-                <label>IMC (Entité / Nom)</label>
+                <label>IMC (Entité / X / Y)</label>
                 <input type="text" id="imce" value="${p.imc_entity}">
                 <div class="grid"><input type="number" id="imcx" value="${p.imc_x}"> <input type="number" id="imcy" value="${p.imc_y}"></div>
-                <div class="grid">
-                    <div><label>Largeur</label><input type="number" id="imcw" value="${p.imc_w}"></div>
-                    <div style="margin-top:20px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> <span style="font-size:10px;">ROND</span></div>
-                </div>
+                <div class="grid"><div><label>Largeur</label><input type="number" id="imcw" value="${p.imc_w}"></div> <div style="margin-top:20px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> <span style="font-size:10px;">ROND</span></div></div>
             </div>
             <div class="sec">
-                <label>CORPULENCE (Entité / Nom)</label>
+                <label>CORPULENCE (Entité / X / Y)</label>
                 <input type="text" id="corpe" value="${p.corp_entity}">
                 <div class="grid"><input type="number" id="corpx" value="${p.corp_x}"> <input type="number" id="corpy" value="${p.corp_y}"></div>
             </div>
@@ -220,14 +225,8 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div class="sec">
                     <label>Capteur : ${s.name}</label>
                     <input type="text" class="s-ent" data-idx="${i}" value="${s.entity}">
-                    <div class="grid">
-                        <input type="number" class="s-x" data-idx="${i}" value="${s.x}">
-                        <input type="number" class="s-y" data-idx="${i}" value="${s.y}">
-                    </div>
-                    <div class="grid">
-                        <input type="number" class="s-w" data-idx="${i}" value="${s.w}">
-                        <input type="checkbox" class="s-c" data-idx="${i}" ${s.circle?'checked':''}>
-                    </div>
+                    <div class="grid"><input type="number" class="s-x" data-idx="${i}" value="${s.x}"> <input type="number" class="s-y" data-idx="${i}" value="${s.y}"></div>
+                    <div class="grid"><input type="number" class="s-w" data-idx="${i}" value="${s.w}"> <input type="checkbox" class="s-c" data-idx="${i}" ${s.circle?'checked':''}></div>
                 </div>
             `).join('')}
             <button class="btn-add" id="add-s">➕ AJOUTER UN CAPTEUR</button>
@@ -251,7 +250,6 @@ class HealthDashboardCardEditor extends HTMLElement {
         this.querySelector('#p-comfort').oninput = (e) => { p.comfort = e.target.value; fire(); };
         this.querySelector('#p-ideal').oninput = (e) => { p.ideal = e.target.value; fire(); };
     }
-    
     if(this._tab === 'health') {
         this.querySelector('#imce').oninput = (e) => { p.imc_entity = e.target.value; fire(); };
         this.querySelector('#imcx').oninput = (e) => { p.imc_x = e.target.value; fire(); };
@@ -262,16 +260,14 @@ class HealthDashboardCardEditor extends HTMLElement {
         this.querySelector('#corpx').oninput = (e) => { p.corp_x = e.target.value; fire(); };
         this.querySelector('#corpy').oninput = (e) => { p.corp_y = e.target.value; fire(); };
     }
-
     if(this._tab === 'sensors') {
         this.querySelectorAll('.s-ent').forEach(el => el.oninput = (e) => { p.sensors[el.dataset.idx].entity = e.target.value; fire(); });
         this.querySelectorAll('.s-x').forEach(el => el.oninput = (e) => { p.sensors[el.dataset.idx].x = e.target.value; fire(); });
         this.querySelectorAll('.s-y').forEach(el => el.oninput = (e) => { p.sensors[el.dataset.idx].y = e.target.value; fire(); });
         this.querySelectorAll('.s-w').forEach(el => el.oninput = (e) => { p.sensors[el.dataset.idx].w = e.target.value; fire(); });
         this.querySelectorAll('.s-c').forEach(el => el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; fire(); this.render(); });
-        this.querySelector('#add-s').onclick = () => { if(!p.sensors) p.sensors = []; p.sensors.push({entity:"", name:"Nouveau", icon:"mdi:heart", x:50, y:50, w:100, h:70, b_w:1, b_c:"rgba(255,255,255,0.2)", circle:false}); fire(); this.render(); };
+        this.querySelector('#add-s').onclick = () => { if(!p.sensors) p.sensors = []; p.sensors.push({entity:"", name:"Nouveau", icon:"mdi:heart", x:50, y:50, w:100, circle:false}); fire(); this.render(); };
     }
-
     if(this._tab === 'design') {
         this.querySelector('#img').oninput = (e) => { p.image = e.target.value; fire(); };
         this.querySelector('#ch').oninput = (e) => { this._config.card_height = e.target.value; fire(); };
@@ -282,4 +278,4 @@ class HealthDashboardCardEditor extends HTMLElement {
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.0" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.1" });
