@@ -1,6 +1,7 @@
 /**
- * HEALTH DASHBOARD CARD – V2.3.9
- * FULL : TOUS LES ONGLETS + FIX SCROLL JUMP (DEBOUNCE)
+ * HEALTH DASHBOARD CARD – V2.4.0
+ * SOLUTION RADICALE : BOUTON "APPLIQUER" POUR STOPPER LE SCROLL JUMP
+ * AJOUT : SEUIL DE CONFORT + TOUS LES ONGLETS
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -56,9 +57,15 @@ class HealthDashboardCard extends HTMLElement {
         const actuel = this._num(stPoids.state);
         const start = this._num(pData.start);
         const ideal = this._num(pData.ideal);
+        const comfort = this._num(pData.comfort);
         const range = start - ideal;
+        
         const ptr = this.shadowRoot.getElementById('progression-pointer');
         if(ptr && range !== 0) ptr.style.left = `${Math.max(0, Math.min(100, ((start - actuel) / range) * 100))}%`;
+        
+        const markC = this.shadowRoot.getElementById('mark-comfort');
+        if(markC && range !== 0) markC.style.left = `${((start - comfort) / range) * 100}%`;
+
         const label = this.shadowRoot.getElementById('pointer-label');
         if(label) {
             const stDiff = this._hass.states['sensor.difference_poids' + suffix];
@@ -89,6 +96,7 @@ class HealthDashboardCard extends HTMLElement {
         .ptr { position: absolute; top: -14px; width: 3px; height: 36px; background: white; transition: left 1s; z-index: 5; box-shadow: 0 0 10px white; }
         .bub { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 5px 12px; border-radius: 8px; font-weight: 900; border: 2px solid ${accent}; white-space: nowrap; }
         .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; font-weight: bold; text-align: center; color: rgba(255,255,255,0.6); line-height: 1.2; }
+        .mark-c { position: absolute; top: -4px; width: 12px; height: 12px; background: #fbbf24; border: 2px solid #0f172a; border-radius: 50%; transform: translateX(-50%); z-index: 4; }
       </style>
       <div class="main">
         <div class="bg"></div>
@@ -118,6 +126,7 @@ class HealthDashboardCard extends HTMLElement {
             <div class="rule-track">
                 <div class="rule-fill"></div>
                 <div id="progression-pointer" class="ptr"><div id="pointer-label" class="bub">--</div></div>
+                <div id="mark-comfort" class="mark" style="color:#fbbf24;"><div class="mark-c"></div>CONFORT<br>${pData.comfort}kg</div>
                 <div class="mark" style="left: 0%;">DÉPART<br>${pData.start}kg</div>
                 <div class="mark" style="left: 100%;">IDÉAL<br>${pData.ideal}kg</div>
             </div>
@@ -130,8 +139,8 @@ class HealthDashboardCard extends HTMLElement {
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._tab = 'poids'; this._timer = null; }
-  setConfig(config) { this._config = config; this.render(); }
+  constructor() { super(); this._tab = 'poids'; }
+  setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
 
   render() {
     const pKey = this._config.current_view || 'person1';
@@ -141,14 +150,14 @@ class HealthDashboardCardEditor extends HTMLElement {
       <style>
         .ed { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
         .person-selector, .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-        .p-btn, .tab { flex: 1; padding: 10px; border: none; border-radius: 4px; background: #333; color: #888; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .p-btn, .tab { flex: 1; padding: 10px; border: none; border-radius: 4px; background: #333; color: #ccc; cursor: pointer; font-weight: bold; font-size: 11px; }
         .active { background: #38bdf8 !important; color: black !important; }
         .sec { background: #252525; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #38bdf8; }
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
         input { width: 100%; padding: 8px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; margin-bottom: 5px; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .btn-add { width:100%; padding:10px; background:#4ade80; border:none; border-radius:4px; cursor:pointer; font-weight:bold; margin-top:10px; color: black; }
-        .del-s { color:#f87171; font-size: 10px; cursor:pointer; text-decoration: underline; margin-top: 8px; display: block; }
+        .apply-btn { width: 100%; padding: 15px; background: #4ade80; color: black; font-weight: 900; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 10px rgba(74, 222, 128, 0.3); }
+        .del-s { color:#f87171; font-size: 10px; cursor:pointer; text-decoration: underline; display: block; margin-top: 8px; }
       </style>
       <div class="ed">
         <div class="person-selector">
@@ -165,146 +174,113 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div id="form">
             ${this._tab === 'poids' ? `
                 <div class="sec">
-                    <label>Nom Affiché</label><input type="text" data-f="name" value="${p.name}">
+                    <label>Nom Affiché</label><input type="text" class="direct" data-f="name" value="${p.name}">
                     <div class="grid">
-                        <div><label>Départ (kg)</label><input type="number" data-f="start" value="${p.start}"></div>
-                        <div><label>Idéal (kg)</label><input type="number" data-f="ideal" value="${p.ideal}"></div>
+                        <div><label>Départ</label><input type="number" class="direct" data-f="start" value="${p.start}"></div>
+                        <div><label>Idéal</label><input type="number" class="direct" data-f="ideal" value="${p.ideal}"></div>
                     </div>
+                    <label>Seuil de Confort (kg)</label><input type="number" class="direct" data-f="comfort" value="${p.comfort || 0}">
                 </div>
             ` : ''}
 
             ${this._tab === 'health' ? `
                 <div class="sec">
                     <label>IMC - Libellé & Entité</label>
-                    <input type="text" data-f="imc_name" value="${p.imc_name || ''}">
-                    <input type="text" data-f="imc_entity" value="${p.imc_entity}">
+                    <input type="text" class="direct" data-f="imc_name" value="${p.imc_name || ''}">
+                    <input type="text" class="direct" data-f="imc_entity" value="${p.imc_entity}">
                     <div class="grid">
-                        <div><label>X %</label><input type="number" data-f="imc_x" value="${p.imc_x}"></div>
-                        <div><label>Y %</label><input type="number" data-f="imc_y" value="${p.imc_y}"></div>
+                        <input type="number" class="direct" data-f="imc_x" value="${p.imc_x}">
+                        <input type="number" class="direct" data-f="imc_y" value="${p.imc_y}">
                     </div>
                     <div class="grid">
-                        <div><label>Larg (W)</label><input type="number" data-f="imc_w" value="${p.imc_w}"></div>
-                        <div><label>Haut (H)</label><input type="number" data-f="imc_h" value="${p.imc_h}"></div>
+                        <input type="number" class="direct" data-f="imc_w" value="${p.imc_w}">
+                        <input type="number" class="direct" data-f="imc_b_w" value="${p.imc_b_w || 0}">
                     </div>
-                    <div class="grid">
-                        <div><label>Bord (px)</label><input type="number" data-f="imc_b_w" value="${p.imc_b_w || 0}"></div>
-                        <div><label>Couleur Bord</label><input type="text" data-f="imc_b_c" value="${p.imc_b_c || ''}"></div>
-                    </div>
-                    <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> FORCER ROND</div>
-                </div>
-                <div class="sec">
-                    <label>Corpulence - Libellé & Entité</label>
-                    <input type="text" data-f="corp_name" value="${p.corp_name || ''}">
-                    <input type="text" data-f="corp_entity" value="${p.corp_entity}">
-                    <div class="grid">
-                        <div><label>X %</label><input type="number" data-f="corp_x" value="${p.corp_x}"></div>
-                        <div><label>Y %</label><input type="number" data-f="corp_y" value="${p.corp_y}"></div>
-                    </div>
-                    <div class="grid">
-                        <div><label>Larg (W)</label><input type="number" data-f="corp_w" value="${p.corp_w}"></div>
-                        <div><label>Haut (H)</label><input type="number" data-f="corp_h" value="${p.corp_h}"></div>
-                    </div>
-                    <div class="grid">
-                        <div><label>Bord (px)</label><input type="number" data-f="corp_b_w" value="${p.corp_b_w || 0}"></div>
-                        <div><label>Couleur Bord</label><input type="text" data-f="corp_b_c" value="${p.corp_b_c || ''}"></div>
-                    </div>
-                    <div style="margin-top:10px;"><input type="checkbox" id="corpc" ${p.corp_circle?'checked':''}> FORCER ROND</div>
+                    <label>Couleur Bord</label><input type="text" class="direct" data-f="imc_b_c" value="${p.imc_b_c || ''}">
+                    <div style="margin-top:10px;"><input type="checkbox" id="imcc" ${p.imc_circle?'checked':''}> ROND</div>
                 </div>
             ` : ''}
 
             ${this._tab === 'sensors' ? `
                 ${(p.sensors || []).map((s, i) => `
                     <div class="sec">
-                        <label>Nom & Entité</label>
-                        <input type="text" class="s-input" data-idx="${i}" data-f="name" value="${s.name || ''}">
-                        <input type="text" class="s-input" data-idx="${i}" data-f="entity" value="${s.entity}">
+                        <input type="text" class="s-edit" data-idx="${i}" data-f="name" value="${s.name || ''}">
+                        <input type="text" class="s-edit" data-idx="${i}" data-f="entity" value="${s.entity}">
                         <div class="grid">
-                            <div><label>X %</label><input type="number" class="s-input" data-idx="${i}" data-f="x" value="${s.x}"></div>
-                            <div><label>Y %</label><input type="number" class="s-input" data-idx="${i}" data-f="y" value="${s.y}"></div>
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="x" value="${s.x}">
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="y" value="${s.y}">
                         </div>
                         <div class="grid">
-                            <div><label>W</label><input type="number" class="s-input" data-idx="${i}" data-f="w" value="${s.w}"></div>
-                            <div><label>H</label><input type="number" class="s-input" data-idx="${i}" data-f="h" value="${s.h || 70}"></div>
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="w" value="${s.w}">
+                            <input type="number" class="s-edit" data-idx="${i}" data-f="b_w" value="${s.b_w || 0}">
                         </div>
-                        <div class="grid">
-                            <div><label>Bord px</label><input type="number" class="s-input" data-idx="${i}" data-f="b_w" value="${s.b_w || 0}"></div>
-                            <div><label>Couleur</label><input type="text" class="s-input" data-idx="${i}" data-f="b_c" value="${s.b_c || ''}"></div>
-                        </div>
-                        <div style="margin-top:10px; display:flex; justify-content:space-between;">
-                           <div><input type="checkbox" class="s-check" data-idx="${i}" ${s.circle?'checked':''}> ROND</div>
+                        <input type="text" class="s-edit" data-idx="${i}" data-f="b_c" value="${s.b_c || ''}">
+                        <div style="display:flex; justify-content:space-between;">
+                           <div><input type="checkbox" class="s-circ" data-idx="${i}" ${s.circle?'checked':''}> ROND</div>
                            <span class="del-s" data-idx="${i}">Supprimer ❌</span>
                         </div>
                     </div>
                 `).join('')}
-                <button class="btn-add" id="add-s">➕ AJOUTER CAPTEUR</button>
+                <button id="add-s" style="width:100%; padding:8px; background:#444; border:none; color:white; cursor:pointer;">+ Ajouter Capteur</button>
             ` : ''}
 
             ${this._tab === 'design' ? `
                 <div class="sec">
-                    <label>URL Image Arrière-plan</label><input type="text" data-f="image" value="${p.image}">
-                    <label>Hauteur Carte (px)</label><input type="number" id="card-h" value="${this._config.card_height}">
-                    <label>Coins arrondis (px)</label><input type="number" id="card-r" value="${this._config.card_round}">
+                    <label>Image URL</label><input type="text" class="direct" data-f="image" value="${p.image}">
+                    <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height}">
                 </div>
             ` : ''}
         </div>
+
+        <button class="apply-btn" id="apply">✅ APPLIQUER LES CHANGEMENTS</button>
       </div>
     `;
 
-    this._attach(pKey);
+    this._setup(pKey);
   }
 
-  _attach(pKey) {
+  _setup(pKey) {
     const p = this._config[pKey];
-    const fire = (force = false) => {
-        if(this._timer) clearTimeout(this._timer);
-        if(force) {
-            this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-            this.render();
-        } else {
-            this._timer = setTimeout(() => {
-                this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
-            }, 1000);
-        }
-    };
-
-    this.querySelector('#sel-p1').onclick = () => { this._config.current_view = 'person1'; fire(true); };
-    this.querySelector('#sel-p2').onclick = () => { this._config.current_view = 'person2'; fire(true); };
+    
+    // Bouton de navigation
+    this.querySelector('#sel-p1').onclick = () => { this._config.current_view = 'person1'; this._fire(); };
+    this.querySelector('#sel-p2').onclick = () => { this._config.current_view = 'person2'; this._fire(); };
     this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._tab = t.id.replace('t-',''); this.render(); });
 
-    this.querySelectorAll('input[data-f]').forEach(el => {
-        el.oninput = (e) => { 
-            if(el.dataset.f === 'image') p.image = e.target.value;
-            else p[el.dataset.f] = e.target.value; 
-            fire(false); 
-        };
+    // Inputs : on met juste à jour la config LOCALE, pas HA
+    this.querySelectorAll('.direct').forEach(el => {
+        el.oninput = (e) => { p[el.dataset.f] = e.target.value; };
     });
 
-    const imcc = this.querySelector('#imcc'); if(imcc) imcc.onchange = (e) => { p.imc_circle = e.target.checked; fire(true); };
-    const corpc = this.querySelector('#corpc'); if(corpc) corpc.onchange = (e) => { p.corp_circle = e.target.checked; fire(true); };
-
-    this.querySelectorAll('.s-input').forEach(el => {
-        el.oninput = (e) => { p.sensors[el.dataset.idx][el.dataset.f] = e.target.value; fire(false); };
-    });
-    this.querySelectorAll('.s-check').forEach(el => {
-        el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; fire(true); };
-    });
-    this.querySelectorAll('.del-s').forEach(el => {
-        el.onclick = () => { p.sensors.splice(el.dataset.idx, 1); fire(true); };
+    this.querySelectorAll('.s-edit').forEach(el => {
+        el.oninput = (e) => { p.sensors[el.dataset.idx][el.dataset.f] = e.target.value; };
     });
 
+    // Bouton APPLIQUER : seul moment où on communique avec Home Assistant
+    this.querySelector('#apply').onclick = () => { this._fire(); };
+
+    // Cases à cocher (rafraîchissement nécessaire)
+    const imcc = this.querySelector('#imcc'); if(imcc) imcc.onchange = (e) => { p.imc_circle = e.target.checked; this._fire(); };
+    this.querySelectorAll('.s-circ').forEach(el => { el.onchange = (e) => { p.sensors[el.dataset.idx].circle = e.target.checked; this._fire(); }; });
+    this.querySelectorAll('.del-s').forEach(el => { el.onclick = () => { p.sensors.splice(el.dataset.idx, 1); this._fire(); }; });
+    
     const addBtn = this.querySelector('#add-s');
     if(addBtn) addBtn.onclick = () => {
         if(!p.sensors) p.sensors = [];
-        p.sensors.push({name:"Nouveau", entity:"", x:50, y:50, w:100, h:70, b_w:1, b_c:"white", circle:false});
-        fire(true);
+        p.sensors.push({name:"Nouveau", entity:"", x:50, y:50, w:100, b_w:1, b_c:"white", circle:false});
+        this._fire();
     };
 
-    const cardH = this.querySelector('#card-h'); if(cardH) cardH.oninput = (e) => { this._config.card_height = e.target.value; fire(false); };
-    const cardR = this.querySelector('#card-r'); if(cardR) cardR.oninput = (e) => { this._config.card_round = e.target.value; fire(false); };
+    const ch = this.querySelector('#ch'); if(ch) ch.oninput = (e) => { this._config.card_height = e.target.value; };
+  }
+
+  _fire() {
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+    this.render();
   }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.3.9" });
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.4.0" });
