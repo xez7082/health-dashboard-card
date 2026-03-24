@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.3.0
- * LECTURE CONFORT : CHIFFRES GROS, ESPACEMENT UNITÉS, BARRE ÉPAISSE
+ * HEALTH DASHBOARD CARD – V3.3.1
+ * VERSION FINALE CORRIGÉE : LISIBILITÉ MAX & RÉGLAGES COMPLETS
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -19,14 +19,13 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._hass || !this.shadowRoot || !this._config) return;
     const p = this._config[this._config.current_view];
     
-    // Fonction améliorée : Séparation nette Chiffre/Unité
     const setV = (idV, idU, ent) => {
       const elV = this.shadowRoot.getElementById(idV);
       const elU = this.shadowRoot.getElementById(idU);
       if(elV && elU && ent && this._hass.states[ent]) {
         const s = this._hass.states[ent];
         elV.textContent = s.state;
-        elU.textContent = s.attributes.unit_of_measurement || '';
+        elU.textContent = (s.attributes.unit_of_measurement || '').toLowerCase();
       }
     };
     
@@ -56,69 +55,63 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
     const p = this._config[this._config.current_view] || {};
     
+    // Fonction de style interne
+    const getStyle = (obj, pr) => {
+      const isC = obj[pr+'circle'];
+      const w = obj[pr+'w'] || 100;
+      const h = isC ? w : (obj[pr+'h'] || 80);
+      return `left:${obj[pr+'x']||50}%; top:${obj[pr+'y']||50}%; width:${w}px; height:${h}px; border-radius:${isC?'50%':(obj[pr+'r']||8)+'px'}; border:${obj[pr+'bw']||1}px solid ${obj[pr+'bc']||'#fff'}; transform: translate(-50%, -50%); font-size:${obj[pr+'ts']||1}rem;`;
+    };
+
     this.shadowRoot.innerHTML = `
       <style>
-        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
-        .box { position: absolute; background: rgba(15, 23, 42, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(8px); text-align: center; border: 1px solid #fff; box-sizing: border-box; }
-        
-        /* Typographie Confort */
-        .lbl { font-size: 11px; opacity: 0.8; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-        .val-wrap { display: flex; align-items: baseline; gap: 4px; }
-        .val { font-size: 1.8em; font-weight: bold; }
-        .uni { font-size: 0.9em; opacity: 0.7; }
+        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: 'Roboto', sans-serif; color: white; }
+        .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.25; z-index:1; }
+        .box { position: absolute; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; box-sizing: border-box; padding: 5px; }
+        .ico { --mdc-icon-size: 24px; opacity: 0.7; margin-bottom: 4px; }
+        .lbl { font-size: 0.7em; opacity: 0.6; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .val-wrap { display: flex; align-items: baseline; gap: 6px; }
+        .val { font-size: 1.6em; font-weight: 900; line-height: 1; }
+        .uni { font-size: 0.8em; font-weight: 400; opacity: 0.8; }
 
-        /* Barre de poids Améliorée */
-        .weight-track { position: absolute; left: 10%; width: 80%; height: 12px; background: #1e293b; border-radius: 6px; top: ${p.bar_y || 88}%; z-index:20; border: 1px solid #334155; }
-        .ptr { position: absolute; top: -6px; width: 16px; height: 24px; background: ${p.bar_c || '#38bdf8'}; border-radius: 4px; transition: left 1s; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .bub { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); background: white; color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .diff { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: bold; }
-        .mkr { position: absolute; top: 18px; transform: translateX(-50%); font-size: 11px; opacity: 0.8; text-align: center; font-weight: bold; }
+        /* Barre de poids lisible */
+        .weight-track { position: absolute; left: 10%; width: 80%; height: 14px; background: rgba(255,255,255,0.1); border-radius: 7px; top: ${p.bar_y || 88}%; z-index:20; border: 1px solid rgba(255,255,255,0.2); }
+        .ptr { position: absolute; top: -5px; width: 4px; height: 24px; background: #fff; border-radius: 2px; transition: left 1s cubic-bezier(0.4, 0, 0.2, 1); shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .bub { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 5px 12px; border-radius: 8px; font-weight: 900; font-size: 16px; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+        .diff { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: bold; white-space: nowrap; }
+        .mkr { position: absolute; top: 20px; transform: translateX(-50%); font-size: 11px; font-weight: bold; opacity: 0.8; text-align: center; line-height: 1.2; }
       </style>
+
       <div class="main">
-        <div class="box" style="left:${p.imc_x||25}%; top:${p.imc_y||20}%; width:120px; height:80px; border-radius:10px;">
+        <div class="bg"></div>
+        
+        <div class="box" style="${getStyle(p, 'imc_')}">
+            ${p.imc_icon?`<ha-icon icon="${p.imc_icon}" class="ico"></ha-icon>`:''}
             <div class="lbl">${p.imc_name||'IMC'}</div>
             <div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div>
         </div>
-        
-        <div class="weight-track">
-            <div class="mkr" style="left:0">DÉPART<br>${p.start||'-'}</div>
-            <div class="mkr" style="left:50%">CONFORT<br>${p.confort||'-'}</div>
-            <div class="mkr" style="left:100%">IDÉAL<br>${p.ideal||'-'}</div>
-            <div id="ptr" class="ptr"><div id="ptr-v" class="bub">--</div><div id="diff" class="diff">--</div></div>
-        </div>
-      </div>
-    `;
-  }
-}
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
-        .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.25; z-index:1; }
-        .box { position: absolute; background: rgba(15, 23, 42, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(8px); text-align: center; box-sizing: border-box; padding: 5px; }
-        .ico { --mdc-icon-size: 20px; opacity: 0.6; }
-        .lbl { font-size: 10px; opacity: 0.7; font-weight: bold; text-transform: uppercase; }
-        .val { font-weight: bold; line-height: 1.1; }
-        .uni { font-size: 0.5em; opacity: 0.6; display: block; }
-        .weight-track { position: absolute; left: 10%; width: 80%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; top: ${p.bar_y || 88}%; z-index:20; }
-        .ptr { position: absolute; top: -8px; width: 2px; height: 20px; background: #fff; transition: left 1s; }
-        .bub { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-        .diff { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: bold; }
-        .mkr { position: absolute; top: 10px; transform: translateX(-50%); font-size: 9px; opacity: 0.6; text-align: center; }
-      </style>
-      <div class="main">
-        <div class="bg"></div>
-        <div class="box" style="${getStyle(p, 'imc_')}">${p.imc_icon?`<ha-icon icon="${p.imc_icon}" class="ico"></ha-icon>`:''}<div class="lbl">${p.imc_name||'IMC'}</div><div class="val"><span id="imc-v">--</span><span id="imc-u" class="uni"></span></div></div>
-        <div class="box" style="${getStyle(p, 'corp_')}">${p.corp_icon?`<ha-icon icon="${p.corp_icon}" class="ico"></ha-icon>`:''}<div class="lbl">${p.corp_name||'CORP'}</div><div class="val"><span id="corp-v">--</span><span id="corp-u" class="uni"></span></div></div>
+        <div class="box" style="${getStyle(p, 'corp_')}">
+            ${p.corp_icon?`<ha-icon icon="${p.corp_icon}" class="ico"></ha-icon>`:''}
+            <div class="lbl">${p.corp_name||'CORP'}</div>
+            <div class="val-wrap"><span id="corp-v" class="val">--</span><span id="corp-u" class="uni"></span></div>
+        </div>
+
         ${(p.sensors || []).map((s, i) => `
-          <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.circle?s.w:s.h}px; border-radius:${s.circle?'50%':(s.r||8)+'px'}; border:${s.bw||1}px solid ${s.bc||'#fff'}; transform: translate(-50%, -50%) rotate(${s.rot||0}deg); font-size:${s.ts||1.6}em;">
-            ${s.icon?`<ha-icon icon="${s.icon}" class="ico"></ha-icon>`:''}<div class="lbl">${s.name}</div><div class="val"><span id="s-${i}-v">--</span><span id="s-${i}-u" class="uni"></span></div>
+          <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.circle?s.w:s.h}px; border-radius:${s.circle?'50%':(s.r||8)+'px'}; border:${s.bw||1}px solid ${s.bc||'#fff'}; transform: translate(-50%, -50%); font-size:${s.ts||1}rem;">
+            ${s.icon?`<ha-icon icon="${s.icon}" class="ico"></ha-icon>`:''}
+            <div class="lbl">${s.name}</div>
+            <div class="val-wrap"><span id="s-${i}-v" class="val">--</span><span id="s-${i}-u" class="uni"></span></div>
           </div>`).join('')}
+
         <div class="weight-track">
-            <div class="mkr" style="left:0">Départ<br>${p.start||'-'}</div>
-            <div class="mkr" style="left:50%">Confort<br>${p.confort||'-'}</div>
-            <div class="mkr" style="left:100%">Idéal<br>${p.ideal||'-'}</div>
-            <div id="ptr" class="ptr"><div id="ptr-v" class="bub">--</div><div id="diff" class="diff">--</div></div>
+            <div class="mkr" style="left:0; color:#aaa;">DÉPART<br>${p.start||'-'} kg</div>
+            <div class="mkr" style="left:50%; color:#38bdf8;">CONFORT<br>${p.confort||'-'} kg</div>
+            <div class="mkr" style="left:100%; color:#4caf50;">IDÉAL<br>${p.ideal||'-'} kg</div>
+            <div id="ptr" class="ptr">
+                <div id="ptr-v" class="bub">--</div>
+                <div id="diff" class="diff">--</div>
+            </div>
         </div>
       </div>
     `;
@@ -140,7 +133,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         .active { background: #38bdf8 !important; color: black !important; }
         .sec { background: #252525; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #38bdf8; }
         label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
-        input { width: 100%; padding: 8px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px; background: #111; color: white; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; margin-bottom: 4px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
       </style>
       <div class="ed">
@@ -151,20 +144,24 @@ class HealthDashboardCardEditor extends HTMLElement {
             <div class="sec">
                 <label>Entité Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
                 <div class="grid">
-                    <div><label>Départ</label><input type="number" data-f="start" value="${p.start}"></div>
-                    <div><label>Confort</label><input type="number" data-f="confort" value="${p.confort}"></div>
-                    <div><label>Idéal</label><input type="number" data-f="ideal" value="${p.ideal}"></div>
+                    <div><label>Départ</label><input type="number" step="0.1" data-f="start" value="${p.start}"></div>
+                    <div><label>Confort</label><input type="number" step="0.1" data-f="confort" value="${p.confort}"></div>
+                    <div><label>Idéal</label><input type="number" step="0.1" data-f="ideal" value="${p.ideal}"></div>
                 </div>
                 <div class="grid">
                     <div><label>Pos Y %</label><input type="number" data-f="bar_y" value="${p.bar_y||88}"></div>
-                    <div><label>Couleur</label><input type="color" data-f="bar_c" value="${p.bar_c||'#38bdf8'}"></div>
+                    <div><label>Couleur Bulle</label><input type="color" data-f="bar_c" value="${p.bar_c||'#38bdf8'}"></div>
                 </div>
             </div>` : ''}
         ${this._tab === 'sante' ? this._boxUI(p, 'IMC', 'imc_') + this._boxUI(p, 'CORPULENCE', 'corp_') : ''}
         ${this._tab === 'sensors' ? (p.sensors || []).map((s, i) => this._boxUI(s, `Sensor ${i+1}`, '', true, i)).join('') + '<button class="tab active" style="width:100%" id="add-s">+ AJOUTER SENSOR</button>' : ''}
-        ${this._tab === 'design' ? `<div class="sec"><label>Fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
-            <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height||600}">
-            <select id="ps" style="width:100%; padding:10px; background:#111; color:white; margin-top:10px;"><option value="person1" ${v==='person1'?'selected':''}>Patrick</option><option value="person2" ${v==='person2'?'selected':''}>Sandra</option></select></div>` : ''}
+        ${this._tab === 'design' ? `
+            <div class="sec">
+                <label>Fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
+                <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height||600}">
+                <label>Vue Active</label>
+                <select id="ps"><option value="person1" ${v==='person1'?'selected':''}>Patrick</option><option value="person2" ${v==='person2'?'selected':''}>Sandra</option></select>
+            </div>` : ''}
       </div>
     `;
     this._attach();
@@ -174,38 +171,38 @@ class HealthDashboardCardEditor extends HTMLElement {
     const f = (n) => isS ? n : pr + n;
     const d = isS ? `data-idx="${idx}"` : '';
     return `<div class="sec">
-        <label>${label} - NOM & ENTITÉ</label>
+        <label>${label}</label>
         <input type="text" ${d} data-f="${f('name')}" value="${obj[f('name')]||''}" placeholder="Nom">
         <div class="grid" style="grid-template-columns: 2fr 1fr;">
             <input type="text" ${d} data-f="${f('entity')}" value="${obj[f('entity')]||''}" placeholder="sensor.xxx">
-            <input type="text" ${d} data-f="${f('icon')}" value="${obj[f('icon')]||''}" placeholder="mdi:fire">
+            <input type="text" ${d} data-f="${f('icon')}" value="${obj[f('icon')]||''}" placeholder="mdi:icon">
         </div>
         <div class="grid">
             <div><label>X %</label><input type="number" ${d} data-f="${f('x')}" value="${obj[f('x')]||50}"></div>
             <div><label>Y %</label><input type="number" ${d} data-f="${f('y')}" value="${obj[f('y')]||50}"></div>
-            <div><label>Texte</label><input type="number" step="0.1" ${d} data-f="${f('ts')}" value="${obj[f('ts')]||1.6}"></div>
+            <div><label>Taille (rem)</label><input type="number" step="0.1" ${d} data-f="${f('ts')}" value="${obj[f('ts')]||1}"></div>
         </div>
         <div class="grid">
             <div><label>W / H</label><input type="number" ${d} data-f="${f('w')}" value="${obj[f('w')]||100}"><input type="number" ${d} data-f="${f('h')}" value="${obj[f('h')]||80}"></div>
             <div><label>Bord / R</label><input type="number" ${d} data-f="${f('bw')}" value="${obj[f('bw')]||1}"><input type="number" ${d} data-f="${f('r')}" value="${obj[f('r')]||8}"></div>
             <div><label>Couleur</label><input type="color" ${d} data-f="${f('bc')}" value="${obj[f('bc')]||'#ffffff'}"></div>
         </div>
-        ${isS?`<button style="width:100%;background:#ff5252;border:none;color:white;padding:5px;margin-top:5px;cursor:pointer;" class="del-s" data-idx="${idx}">SUPPRIMER</button>`:''}
+        ${isS?`<button style="width:100%;background:#ff5252;border:none;color:white;padding:5px;margin-top:5px;cursor:pointer;border-radius:4px;" class="del-s" data-idx="${idx}">SUPPRIMER</button>`:''}
     </div>`;
   }
 
   _attach() {
-    this.querySelectorAll('.tab').forEach(btn => btn.onclick = () => { if(btn.dataset.t){ this._tab = btn.dataset.t; this.render(); } });
+    this.querySelectorAll('.tab').forEach(btn => btn.onclick = () => { this._tab = btn.dataset.t; this.render(); });
     this.querySelectorAll('input, select').forEach(el => el.onchange = () => {
         const p = this._config[this._config.current_view];
-        const val = el.type === 'checkbox' ? el.checked : el.value;
-        if(el.dataset.idx !== undefined) p.sensors[el.dataset.idx][el.dataset.f] = val;
-        else if(el.id === 'ch') this._config.card_height = val;
-        else if(el.id === 'ps') this._config.current_view = val;
-        else p[el.dataset.f] = val;
+        if(el.dataset.idx !== undefined) p.sensors[el.dataset.idx][el.dataset.f] = el.value;
+        else if(el.id === 'ch') this._config.card_height = el.value;
+        else if(el.id === 'ps') this._config.current_view = el.value;
+        else p[el.dataset.f] = el.value;
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+        if(el.id === 'ps') this.render();
     });
-    const add = this.querySelector('#add-s'); if(add) add.onclick = () => { const p = this._config[this._config.current_view]; if(!p.sensors) p.sensors = []; p.sensors.push({name:'Nouveau', x:50, y:50, w:100, h:80, bc:'#ffffff', ts:1.6}); this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); this.render(); };
+    const add = this.querySelector('#add-s'); if(add) add.onclick = () => { const p = this._config[this._config.current_view]; if(!p.sensors) p.sensors = []; p.sensors.push({name:'Nouveau', x:50, y:50, w:110, h:80, bc:'#ffffff', ts:1}); this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); this.render(); };
     this.querySelectorAll('.del-s').forEach(btn => btn.onclick = () => { this._config[this._config.current_view].sensors.splice(btn.dataset.idx, 1); this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); this.render(); });
   }
 }
