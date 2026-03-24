@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.2.1
- * RESTAURATION COMPLÈTE : RÉGLAGES SENSORS, TITRES ET BORDURES
+ * HEALTH DASHBOARD CARD – V3.3.0
+ * LECTURE CONFORT : CHIFFRES GROS, ESPACEMENT UNITÉS, BARRE ÉPAISSE
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -19,6 +19,7 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._hass || !this.shadowRoot || !this._config) return;
     const p = this._config[this._config.current_view];
     
+    // Fonction améliorée : Séparation nette Chiffre/Unité
     const setV = (idV, idU, ent) => {
       const elV = this.shadowRoot.getElementById(idV);
       const elU = this.shadowRoot.getElementById(idU);
@@ -41,11 +42,13 @@ class HealthDashboardCard extends HTMLElement {
         const diff = (actuel - start).toFixed(1);
         const pct = Math.max(0, Math.min(100, ((start - actuel) / (start - ideal)) * 100));
         
-        this.shadowRoot.getElementById('ptr').style.left = pct + '%';
+        const ptr = this.shadowRoot.getElementById('ptr');
+        ptr.style.left = pct + '%';
         this.shadowRoot.getElementById('ptr-v').textContent = actuel + ' kg';
+        
         const dEl = this.shadowRoot.getElementById('diff');
         dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
-        dEl.style.color = diff < 0 ? '#4caf50' : (diff > 0 ? '#f44336' : '#fff');
+        dEl.style.color = diff < 0 ? '#4caf50' : (diff > 0 ? '#ff5252' : '#ffffff');
     }
   }
 
@@ -53,11 +56,40 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
     const p = this._config[this._config.current_view] || {};
     
-    const getStyle = (o, pr) => {
-      const isC = o[pr+'circle'];
-      const w = o[pr+'w']||100;
-      return `left:${o[pr+'x']||50}%; top:${o[pr+'y']||50}%; width:${w}px; height:${isC?w:(o[pr+'h']||80)}px; border-radius:${isC?'50%':(o[pr+'r']||8)+'px'}; border:${o[pr+'bw']||1}px solid ${o[pr+'bc']||'#fff'}; transform: translate(-50%, -50%) rotate(${o[pr+'rot']||0}deg); font-size:${o[pr+'ts']||1.6}em;`;
-    };
+    this.shadowRoot.innerHTML = `
+      <style>
+        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
+        .box { position: absolute; background: rgba(15, 23, 42, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(8px); text-align: center; border: 1px solid #fff; box-sizing: border-box; }
+        
+        /* Typographie Confort */
+        .lbl { font-size: 11px; opacity: 0.8; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+        .val-wrap { display: flex; align-items: baseline; gap: 4px; }
+        .val { font-size: 1.8em; font-weight: bold; }
+        .uni { font-size: 0.9em; opacity: 0.7; }
+
+        /* Barre de poids Améliorée */
+        .weight-track { position: absolute; left: 10%; width: 80%; height: 12px; background: #1e293b; border-radius: 6px; top: ${p.bar_y || 88}%; z-index:20; border: 1px solid #334155; }
+        .ptr { position: absolute; top: -6px; width: 16px; height: 24px; background: ${p.bar_c || '#38bdf8'}; border-radius: 4px; transition: left 1s; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .bub { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); background: white; color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .diff { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: bold; }
+        .mkr { position: absolute; top: 18px; transform: translateX(-50%); font-size: 11px; opacity: 0.8; text-align: center; font-weight: bold; }
+      </style>
+      <div class="main">
+        <div class="box" style="left:${p.imc_x||25}%; top:${p.imc_y||20}%; width:120px; height:80px; border-radius:10px;">
+            <div class="lbl">${p.imc_name||'IMC'}</div>
+            <div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div>
+        </div>
+        
+        <div class="weight-track">
+            <div class="mkr" style="left:0">DÉPART<br>${p.start||'-'}</div>
+            <div class="mkr" style="left:50%">CONFORT<br>${p.confort||'-'}</div>
+            <div class="mkr" style="left:100%">IDÉAL<br>${p.ideal||'-'}</div>
+            <div id="ptr" class="ptr"><div id="ptr-v" class="bub">--</div><div id="diff" class="diff">--</div></div>
+        </div>
+      </div>
+    `;
+  }
+}
 
     this.shadowRoot.innerHTML = `
       <style>
