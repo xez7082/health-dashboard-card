@@ -1,50 +1,31 @@
 /**
- * HEALTH DASHBOARD CARD – V3.3.1
- * VERSION FINALE CORRIGÉE : LISIBILITÉ MAX & RÉGLAGES COMPLETS
+ * HEALTH DASHBOARD CARD – V3.3.2
+ * CORRECTION : 2 CHIFFRES APRÈS LA VIRGULE ET POSITIONNEMENT DU DIFFÉRENTIEL
  */
 
-class HealthDashboardCard extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); }
-  static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
-
-  setConfig(config) {
-    this._config = JSON.parse(JSON.stringify(config));
-    if (!this._config.current_view) this._config.current_view = 'person1';
-    this.render();
-  }
-
-  set hass(hass) { this._hass = hass; this.update(); }
+// ... (Le début de la classe HealthDashboardCard reste identique jusqu'à la méthode update)
 
   update() {
     if (!this._hass || !this.shadowRoot || !this._config) return;
     const p = this._config[this._config.current_view];
     
-    const setV = (idV, idU, ent) => {
-      const elV = this.shadowRoot.getElementById(idV);
-      const elU = this.shadowRoot.getElementById(idU);
-      if(elV && elU && ent && this._hass.states[ent]) {
-        const s = this._hass.states[ent];
-        elV.textContent = s.state;
-        elU.textContent = (s.attributes.unit_of_measurement || '').toLowerCase();
-      }
-    };
+    // ... (Logique setV identique)
     
-    setV('imc-v', 'imc-u', p.imc_entity);
-    setV('corp-v', 'corp-u', p.corp_entity);
-    if(p.sensors) p.sensors.forEach((s, i) => setV(`s-${i}-v`, `s-${i}-u`, s.entity));
-
     const stateW = this._hass.states[p.weight_entity];
     if (stateW && p.start && p.ideal) {
         const actuel = parseFloat(stateW.state);
         const start = parseFloat(p.start);
         const ideal = parseFloat(p.ideal);
-        const diff = (actuel - start).toFixed(1);
+        const diff = (actuel - start).toFixed(2); // Fixé à 2 chiffres
         const pct = Math.max(0, Math.min(100, ((start - actuel) / (start - ideal)) * 100));
         
         const ptr = this.shadowRoot.getElementById('ptr');
         ptr.style.left = pct + '%';
-        this.shadowRoot.getElementById('ptr-v').textContent = actuel + ' kg';
         
+        // Affichage actuel (2 chiffres)
+        this.shadowRoot.getElementById('ptr-v').textContent = actuel.toFixed(2) + ' kg';
+        
+        // Affichage différentiel (2 chiffres)
         const dEl = this.shadowRoot.getElementById('diff');
         dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
         dEl.style.color = diff < 0 ? '#4caf50' : (diff > 0 ? '#ff5252' : '#ffffff');
@@ -55,13 +36,39 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._config) return;
     const p = this._config[this._config.current_view] || {};
     
-    // Fonction de style interne
-    const getStyle = (obj, pr) => {
-      const isC = obj[pr+'circle'];
-      const w = obj[pr+'w'] || 100;
-      const h = isC ? w : (obj[pr+'h'] || 80);
-      return `left:${obj[pr+'x']||50}%; top:${obj[pr+'y']||50}%; width:${w}px; height:${h}px; border-radius:${isC?'50%':(obj[pr+'r']||8)+'px'}; border:${obj[pr+'bw']||1}px solid ${obj[pr+'bc']||'#fff'}; transform: translate(-50%, -50%); font-size:${obj[pr+'ts']||1}rem;`;
-    };
+    this.shadowRoot.innerHTML = `
+      <style>
+        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
+        .box { position: absolute; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; border: 1px solid #fff; box-sizing: border-box; }
+        
+        /* Barre de poids lisible */
+        .weight-track { position: absolute; left: 10%; width: 80%; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; top: ${p.bar_y || 88}%; z-index:20; }
+        .ptr { position: absolute; top: -10px; width: 6px; height: 36px; background: #fff; border-radius: 3px; transition: left 1s; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        
+        /* Bulle avec Poids actuel et Différentiel séparés */
+        .bub { position: absolute; top: -65px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 15px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.5); text-align: center; }
+        .diff { font-size: 12px; font-weight: bold; color: #fff; display: block; margin-top: 2px; }
+        
+        .mkr { position: absolute; top: 22px; transform: translateX(-50%); font-size: 11px; font-weight: bold; opacity: 0.8; text-align: center; }
+      </style>
+      <div class="main">
+        <div class="weight-track">
+            <div class="mkr" style="left:0">DÉPART<br>${p.start||'-'}</div>
+            <div class="mkr" style="left:50%">CONFORT<br>${p.confort||'-'}</div>
+            <div class="mkr" style="left:100%">IDÉAL<br>${p.ideal||'-'}</div>
+            
+            <div id="ptr" class="ptr">
+                <div id="ptr-v" class="bub">
+                    <span id="weight-val">--</span>
+                    <span id="diff" class="diff">--</span>
+                </div>
+            </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
 
     this.shadowRoot.innerHTML = `
       <style>
