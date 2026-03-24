@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.3.6
- * RETOUR DES ICÔNES + PRÉCISION 2 DÉCIMALES + BULLE OPTIMISÉE
+ * HEALTH DASHBOARD CARD – V3.3.7
+ * FIX : RETOUR DES BOUTONS DE SÉLECTION DE PERSONNE + ICÔNES + PRÉCISION
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -14,6 +14,13 @@ class HealthDashboardCard extends HTMLElement {
   }
 
   set hass(hass) { this._hass = hass; this.update(); }
+
+  // Fonction pour changer de vue directement depuis la carte
+  _setView(view) {
+    this._config.current_view = view;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+    this.render();
+  }
 
   update() {
     if (!this._hass || !this.shadowRoot || !this._config) return;
@@ -59,6 +66,7 @@ class HealthDashboardCard extends HTMLElement {
   render() {
     if (!this._config) return;
     const p = this._config[this._config.current_view] || {};
+    const cv = this._config.current_view;
     
     const getStyle = (obj, pr) => {
       const w = obj[pr+'w'] || 110;
@@ -70,6 +78,12 @@ class HealthDashboardCard extends HTMLElement {
       <style>
         .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
         .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.25; z-index:1; }
+        
+        /* Boutons de sélection de personne */
+        .sw-btns { position: absolute; top: 15px; left: 15px; display: flex; gap: 8px; z-index: 100; }
+        .sw-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; backdrop-filter: blur(5px); transition: 0.3s; }
+        .sw-btn.active { background: #38bdf8; color: #000; border-color: #38bdf8; }
+
         .box { position: absolute; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; box-sizing: border-box; padding: 5px; }
         .ico { --mdc-icon-size: 24px; opacity: 0.8; margin-bottom: 4px; color: #fff; }
         .lbl { font-size: 0.65em; opacity: 0.7; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
@@ -89,6 +103,11 @@ class HealthDashboardCard extends HTMLElement {
 
       <div class="main">
         <div class="bg"></div>
+
+        <div class="sw-btns">
+            <button class="sw-btn ${cv==='person1'?'active':''}" id="btn-p1">PATRICK</button>
+            <button class="sw-btn ${cv==='person2'?'active':''}" id="btn-p2">SANDRA</button>
+        </div>
         
         <div class="box" style="${getStyle(p, 'imc_')}">
           ${p.imc_icon ? `<ha-icon icon="${p.imc_icon}" class="ico"></ha-icon>` : ''}
@@ -122,9 +141,14 @@ class HealthDashboardCard extends HTMLElement {
         </div>
       </div>
     `;
+
+    // Attacher les événements aux boutons
+    this.shadowRoot.getElementById('btn-p1').onclick = () => this._setView('person1');
+    this.shadowRoot.getElementById('btn-p2').onclick = () => this._setView('person2');
   }
 }
 
+// ... (Le code de HealthDashboardCardEditor reste exactement le même que précédemment)
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this._tab = 'poids'; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
