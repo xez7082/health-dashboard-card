@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.3.4
- * VERSION FINALE : PRÉCISION 2 DÉCIMALES, UNITÉS ESPACÉES, BULLE DYNAMIQUE
+ * HEALTH DASHBOARD CARD – V3.3.5
+ * CORRECTION BULLE : TAILLE TEXTE AJUSTÉE & CONTENANT AGRANDI
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -19,14 +19,12 @@ class HealthDashboardCard extends HTMLElement {
     if (!this._hass || !this.shadowRoot || !this._config) return;
     const p = this._config[this._config.current_view];
     
-    // Mise à jour des capteurs (IMC, Corpulence, et Sensors personnalisés)
     const setV = (idV, idU, ent) => {
       const elV = this.shadowRoot.getElementById(idV);
       const elU = this.shadowRoot.getElementById(idU);
       if(elV && elU && ent && this._hass.states[ent]) {
         const s = this._hass.states[ent];
         const val = parseFloat(s.state);
-        // Affiche 2 décimales si c'est un nombre, sinon affiche l'état brut
         elV.textContent = isNaN(val) ? s.state : val.toFixed(2);
         elU.textContent = " " + (s.attributes.unit_of_measurement || '');
       }
@@ -36,15 +34,12 @@ class HealthDashboardCard extends HTMLElement {
     setV('corp-v', 'corp-u', p.corp_entity);
     if(p.sensors) p.sensors.forEach((s, i) => setV(`s-${i}-v`, `s-${i}-u`, s.entity));
 
-    // Mise à jour de la barre de poids
     const stateW = this._hass.states[p.weight_entity];
     if (stateW && p.start && p.ideal) {
         const actuel = parseFloat(stateW.state);
         const start = parseFloat(p.start);
         const ideal = parseFloat(p.ideal);
         const diff = (actuel - start).toFixed(2);
-        
-        // Calcul du pourcentage sur la barre (0% = Idéal, 100% = Départ ou inversement)
         const pct = Math.max(0, Math.min(100, ((start - actuel) / (start - ideal)) * 100));
         
         const ptr = this.shadowRoot.getElementById('ptr');
@@ -56,8 +51,9 @@ class HealthDashboardCard extends HTMLElement {
         const dEl = this.shadowRoot.getElementById('diff-val');
         if(dEl) {
           dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
-          // Vert si perte de poids (négatif), Rouge si prise (positif)
-          dEl.style.color = diff < 0 ? '#4caf50' : (diff > 0 ? '#ff5252' : '#ffffff');
+          // Style dynamique pour la lisibilité dans la bulle
+          dEl.style.background = diff < 0 ? '#4caf50' : (diff > 0 ? '#ff5252' : 'rgba(255,255,255,0.2)');
+          dEl.style.color = '#fff';
         }
     }
   }
@@ -77,7 +73,6 @@ class HealthDashboardCard extends HTMLElement {
         .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
         .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.25; z-index:1; }
         .box { position: absolute; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; box-sizing: border-box; padding: 5px; }
-        .ico { --mdc-icon-size: 24px; opacity: 0.7; margin-bottom: 4px; }
         .lbl { font-size: 0.7em; opacity: 0.7; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; }
         .val-wrap { font-weight: 900; line-height: 1; display: flex; align-items: baseline; justify-content: center; width: 100%; }
         .val { font-size: 1.5em; }
@@ -85,43 +80,29 @@ class HealthDashboardCard extends HTMLElement {
 
         /* Barre de poids */
         .weight-track { position: absolute; left: 10%; width: 80%; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; top: ${p.bar_y || 88}%; z-index:20; border: 1px solid rgba(255,255,255,0.2); }
-        .ptr { position: absolute; top: -10px; width: 4px; height: 36px; background: #fff; border-radius: 2px; transition: left 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .ptr { position: absolute; top: -10px; width: 4px; height: 36px; background: #fff; border-radius: 2px; transition: left 1s; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         
-        /* Bulle de poids actuel et différentiel */
-        .bub { position: absolute; top: -75px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 8px 14px; border-radius: 10px; font-weight: 900; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); white-space: nowrap; min-width: 80px; }
-        #weight-val { display: block; font-size: 17px; margin-bottom: 2px; }
-        #diff-val { display: block; font-size: 12px; font-weight: bold; background: rgba(0,0,0,0.1); border-radius: 4px; padding: 1px 4px; }
+        /* Bulle optimisée */
+        .bub { position: absolute; top: -85px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 10px 14px; border-radius: 12px; font-weight: 900; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.6); white-space: nowrap; min-width: 90px; }
+        #weight-val { display: block; font-size: 14px; margin-bottom: 5px; color: #000; }
+        #diff-val { display: block; font-size: 11px; font-weight: 900; border-radius: 4px; padding: 2px 6px; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .mkr { position: absolute; top: 24px; transform: translateX(-50%); font-size: 10px; font-weight: bold; opacity: 0.7; text-align: center; line-height: 1.2; width: 60px; }
       </style>
 
       <div class="main">
         <div class="bg"></div>
-        
-        <div class="box" style="${getStyle(p, 'imc_')}">
-          ${p.imc_icon?`<ha-icon icon="${p.imc_icon}" class="ico"></ha-icon>`:''}
-          <div class="lbl">${p.imc_name||'IMC'}</div>
-          <div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div>
-        </div>
-
-        <div class="box" style="${getStyle(p, 'corp_')}">
-          ${p.corp_icon?`<ha-icon icon="${p.corp_icon}" class="ico"></ha-icon>`:''}
-          <div class="lbl">${p.corp_name||'CORP'}</div>
-          <div class="val-wrap"><span id="corp-v" class="val">--</span><span id="corp-u" class="uni"></span></div>
-        </div>
-
+        <div class="box" style="${getStyle(p, 'imc_')}"><div class="lbl">${p.imc_name||'IMC'}</div><div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div></div>
+        <div class="box" style="${getStyle(p, 'corp_')}"><div class="lbl">${p.corp_name||'CORP'}</div><div class="val-wrap"><span id="corp-v" class="val">--</span><span id="corp-u" class="uni"></span></div></div>
         ${(p.sensors || []).map((s, i) => `
           <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.h}px; border-radius:${s.r||8}px; border:${s.bw||1}px solid ${s.bc||'#fff'}; transform: translate(-50%, -50%); font-size:${s.ts||1}rem;">
-            ${s.icon?`<ha-icon icon="${s.icon}" class="ico"></ha-icon>`:''}
-            <div class="lbl">${s.name}</div>
-            <div class="val-wrap"><span id="s-${i}-v" class="val">--</span><span id="s-${i}-u" class="uni"></span></div>
+            <div class="lbl">${s.name}</div><div class="val-wrap"><span id="s-${i}-v" class="val">--</span><span id="s-${i}-u" class="uni"></span></div>
           </div>`).join('')}
 
         <div class="weight-track">
             <div class="mkr" style="left:0">DÉPART<br>${p.start||'-'}</div>
             <div class="mkr" style="left:50%">CONFORT<br>${p.confort||'-'}</div>
             <div class="mkr" style="left:100%">IDÉAL<br>${p.ideal||'-'}</div>
-            
             <div id="ptr" class="ptr">
                 <div class="bub">
                     <span id="weight-val">--</span>
@@ -156,7 +137,6 @@ class HealthDashboardCardEditor extends HTMLElement {
         <div class="tabs">
             ${['poids', 'sante', 'sensors', 'design'].map(t => `<button class="tab ${this._tab===t?'active':''}" data-t="${t}">${t.toUpperCase()}</button>`).join('')}
         </div>
-
         ${this._tab === 'poids' ? `
             <div class="sec">
                 <label>Entité Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
@@ -170,18 +150,11 @@ class HealthDashboardCardEditor extends HTMLElement {
                     <div><label>Couleur Bulle</label><input type="color" data-f="bar_c" value="${p.bar_c||'#38bdf8'}"></div>
                 </div>
             </div>` : ''}
-
         ${this._tab === 'sante' ? this._boxUI(p, 'IMC', 'imc_') + this._boxUI(p, 'CORPULENCE', 'corp_') : ''}
-        
         ${this._tab === 'sensors' ? (p.sensors || []).map((s, i) => this._boxUI(s, `Sensor ${i+1}`, '', true, i)).join('') + '<button class="tab active" style="width:100%" id="add-s">+ AJOUTER SENSOR</button>' : ''}
-        
-        ${this._tab === 'design' ? `
-            <div class="sec">
-                <label>Fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
-                <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height||600}">
-                <label>Vue Active</label>
-                <select id="ps"><option value="person1" ${v==='person1'?'selected':''}>Patrick</option><option value="person2" ${v==='person2'?'selected':''}>Sandra</option></select>
-            </div>` : ''}
+        ${this._tab === 'design' ? `<div class="sec"><label>Fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
+            <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height||600}">
+            <label>Vue Active</label><select id="ps"><option value="person1" ${v==='person1'?'selected':''}>Patrick</option><option value="person2" ${v==='person2'?'selected':''}>Sandra</option></select></div>` : ''}
       </div>
     `;
     this._attach();
@@ -222,19 +195,8 @@ class HealthDashboardCardEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
         if(el.id === 'ps') this.render();
     });
-    const add = this.querySelector('#add-s'); 
-    if(add) add.onclick = () => { 
-      const p = this._config[this._config.current_view]; 
-      if(!p.sensors) p.sensors = []; 
-      p.sensors.push({name:'Nouveau', x:50, y:50, w:110, h:80, bc:'#ffffff', ts:1}); 
-      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); 
-      this.render(); 
-    };
-    this.querySelectorAll('.del-s').forEach(btn => btn.onclick = () => { 
-      this._config[this._config.current_view].sensors.splice(btn.dataset.idx, 1); 
-      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); 
-      this.render(); 
-    });
+    const add = this.querySelector('#add-s'); if(add) add.onclick = () => { const p = this._config[this._config.current_view]; if(!p.sensors) p.sensors = []; p.sensors.push({name:'Nouveau', x:50, y:50, w:110, h:80, bc:'#ffffff', ts:1}); this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); this.render(); };
+    this.querySelectorAll('.del-s').forEach(btn => btn.onclick = () => { this._config[this._config.current_view].sensors.splice(btn.dataset.idx, 1); this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); this.render(); });
   }
 }
 
