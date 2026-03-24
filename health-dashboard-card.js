@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V2.5.0
- * RÉINTÉGRATION TOTALE : SENSORS, COULEURS, CERCLES, BACKGROUND, TAILLE
+ * HEALTH DASHBOARD CARD – V2.6.0
+ * RETOUR DES ONGLES, SÉLECTEURS D'ENTITÉS ET PERSONNALISATION TOTALE
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -15,52 +15,98 @@ class HealthDashboardCard extends HTMLElement {
 
   set hass(hass) { this._hass = hass; this.update(); }
 
+  _num(v, d=0) { const n = parseFloat(v); return isNaN(n)?d:n; }
+
   update() {
     if (!this._hass || !this.shadowRoot || !this._config) return;
-    const view = this._config.current_view;
-    const p = this._config[view];
-    
-    // Mise à jour valeurs texte
-    const updateVal = (id, ent) => {
+    const p = this._config[this._config.current_view];
+    const suffix = this._config.current_view === 'person2' ? '_sandra' : '_patrick';
+
+    const setV = (id, ent) => {
       const el = this.shadowRoot.getElementById(id);
-      if(el && ent && this._hass.states[ent]) el.textContent = this._hass.states[ent].state;
+      if(el && ent && this._hass.states[ent]) {
+        const s = this._hass.states[ent];
+        el.textContent = `${s.state}${s.attributes.unit_of_measurement || ''}`;
+      }
     };
-    updateVal('imc-v', p.imc_entity);
-    updateVal('corp-v', p.corp_entity);
-    (p.sensors || []).forEach((s, i) => updateVal(`s-${i}`, s.entity));
+    
+    setV('imc-v', p.imc_entity);
+    setV('corp-v', p.corp_entity);
+    (p.sensors || []).forEach((s, i) => setV(`s-${i}`, s.entity));
+
+    // Barre de progression
+    const stPoids = this._hass.states['sensor.withings_poids' + suffix];
+    if (stPoids) {
+        const actuel = this._num(stPoids.state);
+        const range = this._num(p.start) - this._num(p.ideal);
+        if(range !== 0) {
+            this.shadowRoot.getElementById('ptr').style.left = `${Math.max(0, Math.min(100, ((this._num(p.start) - actuel) / range) * 100))}%`;
+            this.shadowRoot.getElementById('m-c').style.left = `${((this._num(p.start) - this._num(p.comfort)) / range) * 100}%`;
+            this.shadowRoot.getElementById('ptr-l').textContent = actuel + 'kg';
+        }
+    }
   }
 
   render() {
     const v = this._config.current_view;
     const p = this._config[v];
     const r = this._config.card_round || 12;
+    const accent = v === 'person1' ? '#38bdf8' : '#f43f5e';
     
     this.shadowRoot.innerHTML = `
       <style>
-        .main { position: relative; width: 100%; height: ${this._config.card_height || 500}px; background: #0f172a; border-radius: ${r}px; overflow: hidden; }
-        .bg { position: absolute; inset:0; background: url('${p.image || ''}') center/cover; opacity: 0.4; }
-        .box { position: absolute; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); padding: 10px; text-align:center; color: white; border-width: 2px; border-style: solid; box-sizing: border-box; }
+        .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: ${r}px; overflow: hidden; font-family: sans-serif; color: white; }
+        .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.4; z-index:1; }
+        .nav { position: absolute; left: 20px; top: 20px; display: flex; gap: 10px; z-index: 100; }
+        .btn { border: 1px solid rgba(255,255,255,0.2); padding: 8px 18px; border-radius: 20px; background: rgba(0,0,0,0.6); color: white; cursor: pointer; font-size: 12px; }
+        .btn.active { background: ${accent} !important; color: black; font-weight: bold; }
+        .box { position: absolute; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(8px); text-align: center; border-style: solid; }
+        .rule-wrap { position: absolute; bottom: 55px; left: 5%; width: 90%; z-index: 30; }
+        .rule-track { position: relative; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .rule-fill { position: absolute; inset: 0; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); border-radius: 4px; opacity: 0.7; }
+        .ptr { position: absolute; top: -14px; width: 3px; height: 36px; background: white; transition: left 1s; z-index: 50; }
+        .bub { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 5px 10px; border-radius: 8px; font-weight: bold; border: 2px solid ${accent}; }
+        .mark { position: absolute; top: 12px; transform: translateX(-50%); font-size: 10px; color: rgba(255,255,255,0.6); text-align: center; }
+        .mark-c { width: 12px; height: 12px; background: #fbbf24; border-radius: 50%; margin: -18px auto 5px auto; border: 2px solid #0f172a; }
       </style>
       <div class="main">
         <div class="bg"></div>
-        <div class="box" style="left:${p.imc_x}%; top:${p.imc_y}%; width:${p.imc_w}px; height:${p.imc_h}px; border-radius:${p.imc_circle?'50%':r+'px'}; border-color:${p.imc_bc};">
-           <div style="font-size:10px">${p.imc_name}</div><div id="imc-v">--</div>
+        <div class="nav">
+            <button class="btn ${v==='person1'?'active':''}" onclick="this.getRootNode().host.switch('person1')">${this._config.person1.name}</button>
+            <button class="btn ${v==='person2'?'active':''}" onclick="this.getRootNode().host.switch('person2')">${this._config.person2.name}</button>
         </div>
-        <div class="box" style="left:${p.corp_x}%; top:${p.corp_y}%; width:${p.corp_w}px; height:${p.corp_h}px; border-radius:${p.corp_circle?'50%':r+'px'}; border-color:${p.corp_bc};">
-           <div style="font-size:10px">${p.corp_name}</div><div id="corp-v">--</div>
+        
+        <div class="box" style="left:${p.imc_x}%; top:${p.imc_y}%; width:${p.imc_w}px; height:${p.imc_h}px; border-radius:${p.imc_circle?'50%':r+'px'}; border-width:${p.imc_bw}px; border-color:${p.imc_bc};">
+            <div style="font-size:10px; opacity:0.8;">${p.imc_name}</div><div id="imc-v" style="font-weight:bold;">--</div>
         </div>
+
+        <div class="box" style="left:${p.corp_x}%; top:${p.corp_y}%; width:${p.corp_w}px; height:${p.corp_h}px; border-radius:${p.corp_circle?'50%':r+'px'}; border-width:${p.corp_bw}px; border-color:${p.corp_bc};">
+            <div style="font-size:10px; opacity:0.8;">${p.corp_name}</div><div id="corp-v" style="font-weight:bold;">--</div>
+        </div>
+
         ${(p.sensors || []).map((s, i) => `
-           <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.h}px; border-radius:${s.circle?'50%':r+'px'}; border-color:${s.bc};">
-             <div style="font-size:10px">${s.name}</div><div id="s-${i}">--</div>
-           </div>
+          <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.h}px; border-radius:${s.circle?'50%':r+'px'}; border-width:${s.bw}px; border-color:${s.bc};">
+            <div style="font-size:10px; opacity:0.8;">${s.name}</div><div id="s-${i}" style="font-weight:bold;">--</div>
+          </div>
         `).join('')}
+
+        <div class="rule-wrap">
+            <div class="rule-track"><div class="rule-fill"></div>
+                <div id="ptr" class="ptr"><div id="ptr-l" class="bub">--</div></div>
+                <div id="m-c" class="mark" style="color:#fbbf24;"><div class="mark-c"></div>CONFORT<br>${p.comfort}kg</div>
+                <div class="mark" style="left: 0%;">DÉPART<br>${p.start}kg</div>
+                <div class="mark" style="left: 100%;">IDÉAL<br>${p.ideal}kg</div>
+            </div>
+        </div>
       </div>
     `;
   }
+  switch(v) { this._config.current_view = v; this._fire(); this.render(); }
+  _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._tab = 'sensors'; }
+  constructor() { super(); this._tab = 'poids'; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
 
   render() {
@@ -68,36 +114,111 @@ class HealthDashboardCardEditor extends HTMLElement {
     const p = this._config[v];
     this.innerHTML = `
       <style>
-        .pnl { padding:10px; color:white; font-family:sans-serif; }
-        .sec { background:#222; padding:10px; margin-bottom:10px; border-radius:6px; }
-        input { width: 100%; margin-bottom: 5px; }
-        .grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+        .ed { padding: 12px; background: #1a1a1a; color: white; font-family: sans-serif; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tab { flex: 1; padding: 10px; border: none; border-radius: 4px; background: #333; color: #ccc; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .active { background: #38bdf8 !important; color: black !important; }
+        .sec { background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #38bdf8; }
+        label { color: #38bdf8; font-size: 10px; font-weight: bold; display: block; margin-top: 8px; text-transform: uppercase; }
+        input, ha-entity-picker { width: 100%; margin-bottom: 5px; --paper-input-container-input-color: white; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
       </style>
-      <div class="pnl">
-        <select id="person-sel"><option value="person1">${this._config.person1.name}</option><option value="person2">${this._config.person2.name}</option></select>
-        <div class="sec">
-          <label>URL Image</label><input type="text" data-f="image" value="${p.image}">
-          <label>Hauteur Totale</label><input type="number" id="ch" value="${this._config.card_height}">
-        </div>
-        
-        <div class="sec">
-          <label>IMC (Entité, Nom, Couleur Bord, Rond?)</label>
-          <ha-entity-picker .hass="${this._hass}" .value="${p.imc_entity}" data-f="imc_entity"></ha-entity-picker>
-          <input type="text" data-f="imc_name" value="${p.imc_name}">
-          <input type="text" data-f="imc_bc" value="${p.imc_bc}">
-          <input type="checkbox" data-f="imc_circle" ${p.imc_circle?'checked':''}> Rond
+      <div class="ed">
+        <div class="tabs">
+            <button class="tab ${this._tab==='poids'?'active':''}" id="t-poids">POIDS</button>
+            <button class="tab ${this._tab==='sante'?'active':''}" id="t-sante">SANTÉ</button>
+            <button class="tab ${this._tab==='sensors'?'active':''}" id="t-sensors">SENSORS</button>
+            <button class="tab ${this._tab==='design'?'active':''}" id="t-design">DESIGN</button>
         </div>
 
-        <div class="sec">
-          <label>Capteurs</label>
-          ${(p.sensors || []).map((s, i) => `
-            <div style="border-bottom:1px solid #444; margin-bottom:5px;">
-              <ha-entity-picker .hass="${this._hass}" .value="${s.entity}" data-idx="${i}" data-f="entity"></ha-entity-picker>
-              <div class="grid"><input type="number" data-idx="${i}" data-f="x" value="${s.x}"><input type="number" data-idx="${i}" data-f="y" value="${s.y}"></div>
-              <input type="checkbox" data-idx="${i}" data-f="circle" ${s.circle?'checked':''}> Rond
-            </div>
-          `).join('')}
-          <button id="add">Ajouter Capteur</button>
+        <div id="form">
+            ${this._tab === 'poids' ? `
+                <div class="sec">
+                    <label>Nom Affiché</label><input type="text" data-f="name" value="${p.name}">
+                    <div class="grid">
+                        <div><label>Départ</label><input type="number" data-f="start" value="${p.start}"></div>
+                        <div><label>Idéal</label><input type="number" data-f="ideal" value="${p.ideal}"></div>
+                    </div>
+                    <label>Seuil de Confort (kg)</label><input type="number" data-f="comfort" value="${p.comfort}">
+                </div>
+            ` : ''}
+
+            ${this._tab === 'sante' ? `
+                <div class="sec">
+                    <label>IMC - Entité & Nom</label>
+                    <ha-entity-picker .hass="${this._hass}" .value="${p.imc_entity}" data-f="imc_entity"></ha-entity-picker>
+                    <input type="text" data-f="imc_name" value="${p.imc_name}">
+                    <div class="grid">
+                        <input type="number" data-f="imc_x" value="${p.imc_x}">
+                        <input type="number" data-f="imc_y" value="${p.imc_y}">
+                    </div>
+                    <div class="grid">
+                        <input type="number" data-f="imc_w" value="${p.imc_w}">
+                        <input type="number" data-f="imc_h" value="${p.imc_h}">
+                    </div>
+                    <div class="grid">
+                        <input type="number" data-f="imc_bw" value="${p.imc_bw}">
+                        <input type="text" data-f="imc_bc" value="${p.imc_bc}">
+                    </div>
+                    <label><input type="checkbox" data-f="imc_circle" ${p.imc_circle?'checked':''}> Cadre Rond</label>
+                </div>
+                <div class="sec">
+                    <label>CORPULENCE - Entité & Nom</label>
+                    <ha-entity-picker .hass="${this._hass}" .value="${p.corp_entity}" data-f="corp_entity"></ha-entity-picker>
+                    <input type="text" data-f="corp_name" value="${p.corp_name}">
+                    <div class="grid">
+                        <input type="number" data-f="corp_x" value="${p.corp_x}">
+                        <input type="number" data-f="corp_y" value="${p.corp_y}">
+                    </div>
+                    <div class="grid">
+                        <input type="number" data-f="corp_w" value="${p.corp_w}">
+                        <input type="number" data-f="corp_h" value="${p.corp_h}">
+                    </div>
+                    <div class="grid">
+                        <input type="number" data-f="corp_bw" value="${p.corp_bw}">
+                        <input type="text" data-f="corp_bc" value="${p.corp_bc}">
+                    </div>
+                    <label><input type="checkbox" data-f="corp_circle" ${p.corp_circle?'checked':''}> Cadre Rond</label>
+                </div>
+            ` : ''}
+
+            ${this._tab === 'sensors' ? `
+                ${(p.sensors || []).map((s, i) => `
+                    <div class="sec">
+                        <label>Sensor ${i+1}</label>
+                        <ha-entity-picker .hass="${this._hass}" .value="${s.entity}" data-idx="${i}" data-f="entity"></ha-entity-picker>
+                        <input type="text" data-idx="${i}" data-f="name" value="${s.name}">
+                        <div class="grid">
+                            <input type="number" data-idx="${i}" data-f="x" value="${s.x}">
+                            <input type="number" data-idx="${i}" data-f="y" value="${s.y}">
+                        </div>
+                        <div class="grid">
+                            <input type="number" data-idx="${i}" data-f="w" value="${s.w}">
+                            <input type="number" data-idx="${i}" data-f="h" value="${s.h}">
+                        </div>
+                        <div class="grid">
+                            <input type="number" data-idx="${i}" data-f="bw" value="${s.bw}">
+                            <input type="text" data-idx="${i}" data-f="bc" value="${s.bc}">
+                        </div>
+                        <label><input type="checkbox" data-idx="${i}" data-f="circle" ${s.circle?'checked':''}> Rond</label>
+                        <button style="color:red; background:none; border:none; cursor:pointer;" onclick="this.getRootNode().host.delS(${i})">Supprimer ❌</button>
+                    </div>
+                `).join('')}
+                <button id="add-s" style="width:100%; padding:10px; background:#444; color:white; border:none; cursor:pointer;">+ Ajouter Sensor</button>
+            ` : ''}
+
+            ${this._tab === 'design' ? `
+                <div class="sec">
+                    <label>URL Image de fond</label><input type="text" data-f="image" value="${p.image}">
+                    <label>Hauteur Carte (px)</label><input type="number" id="ch" value="${this._config.card_height}">
+                    <label>Coins Arrondis (px)</label><input type="number" id="cr" value="${this._config.card_round}">
+                    <label>Choisir Personne</label>
+                    <select id="ps" style="width:100%; padding:8px; background:#111; color:white;">
+                        <option value="person1" ${v==='person1'?'selected':''}>${this._config.person1.name}</option>
+                        <option value="person2" ${v==='person2'?'selected':''}>${this._config.person2.name}</option>
+                    </select>
+                </div>
+            ` : ''}
         </div>
       </div>
     `;
@@ -105,17 +226,36 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   _attach() {
-    this.querySelectorAll('input').forEach(el => el.onchange = (e) => {
-       const p = this._config[this._config.current_view];
-       if(el.dataset.idx !== undefined) p.sensors[el.dataset.idx][el.dataset.f] = el.type==='checkbox'?el.checked:el.value;
-       else this._config[el.dataset.f] ? (this._config[el.dataset.f] = el.value) : (p[el.dataset.f] = el.value);
-       this._fire();
+    const p = this._config[this._config.current_view];
+    this.querySelectorAll('.tab').forEach(t => t.onclick = () => { this._tab = t.id.replace('t-',''); this.render(); });
+    
+    this.querySelectorAll('input').forEach(el => {
+        el.onchange = () => {
+            let val = el.type === 'checkbox' ? el.checked : el.value;
+            if(el.dataset.idx !== undefined) p.sensors[el.dataset.idx][el.dataset.f] = val;
+            else if(el.id === 'ch') this._config.card_height = val;
+            else if(el.id === 'cr') this._config.card_round = val;
+            else p[el.dataset.f] = val;
+            this._fire();
+        };
     });
-    this.querySelector('#person-sel').onchange = (e) => { this._config.current_view = e.target.value; this._fire(); this.render(); };
-    this.querySelector('#add').onclick = () => { this._config[this._config.current_view].sensors.push({name:'New', entity:'', x:50, y:50, w:80, h:80, bc:'white', circle:false}); this._fire(); this.render(); };
+
+    this.querySelectorAll('ha-entity-picker').forEach(pk => {
+        pk.addEventListener('value-changed', (e) => {
+            if(pk.dataset.idx !== undefined) p.sensors[pk.dataset.idx].entity = e.detail.value;
+            else p[pk.dataset.f] = e.detail.value;
+            this._fire();
+        });
+    });
+
+    const sel = this.querySelector('#ps'); if(sel) sel.onchange = (e) => { this._config.current_view = e.target.value; this._fire(); this.render(); };
+    const add = this.querySelector('#add-s'); if(add) add.onclick = () => { p.sensors.push({name:'Nouveau', entity:'', x:50, y:50, w:100, h:70, bw:1, bc:'white', circle:false}); this._fire(); this.render(); };
   }
+  delS(i) { this._config[this._config.current_view].sensors.splice(i,1); this._fire(); this.render(); }
   _fire() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
 }
 
 customElements.define('health-dashboard-card', HealthDashboardCard);
 customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
+window.customCards = window.customCards || [];
+window.customCards.push({ type: "health-dashboard-card", name: "Health Dashboard V2.6.0" });
