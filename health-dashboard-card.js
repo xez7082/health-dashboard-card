@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.3.5
- * CORRECTION BULLE : TAILLE TEXTE AJUSTÉE & CONTENANT AGRANDI
+ * HEALTH DASHBOARD CARD – V3.3.6
+ * RETOUR DES ICÔNES + PRÉCISION 2 DÉCIMALES + BULLE OPTIMISÉE
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -51,9 +51,7 @@ class HealthDashboardCard extends HTMLElement {
         const dEl = this.shadowRoot.getElementById('diff-val');
         if(dEl) {
           dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
-          // Style dynamique pour la lisibilité dans la bulle
           dEl.style.background = diff < 0 ? '#4caf50' : (diff > 0 ? '#ff5252' : 'rgba(255,255,255,0.2)');
-          dEl.style.color = '#fff';
         }
     }
   }
@@ -73,30 +71,42 @@ class HealthDashboardCard extends HTMLElement {
         .main { position: relative; width: 100%; height: ${this._config.card_height || 600}px; background: #0f172a; border-radius: 12px; overflow: hidden; font-family: sans-serif; color: white; }
         .bg { position: absolute; inset:0; background: url('${p.image}') center/cover; opacity: 0.25; z-index:1; }
         .box { position: absolute; background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; box-sizing: border-box; padding: 5px; }
-        .lbl { font-size: 0.7em; opacity: 0.7; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; }
+        .ico { --mdc-icon-size: 24px; opacity: 0.8; margin-bottom: 4px; color: #fff; }
+        .lbl { font-size: 0.65em; opacity: 0.7; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
         .val-wrap { font-weight: 900; line-height: 1; display: flex; align-items: baseline; justify-content: center; width: 100%; }
-        .val { font-size: 1.5em; }
+        .val { font-size: 1.4em; }
         .uni { font-size: 0.8em; opacity: 0.8; }
 
-        /* Barre de poids */
         .weight-track { position: absolute; left: 10%; width: 80%; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; top: ${p.bar_y || 88}%; z-index:20; border: 1px solid rgba(255,255,255,0.2); }
         .ptr { position: absolute; top: -10px; width: 4px; height: 36px; background: #fff; border-radius: 2px; transition: left 1s; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         
-        /* Bulle optimisée */
-        .bub { position: absolute; top: -85px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 10px 14px; border-radius: 12px; font-weight: 900; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.6); white-space: nowrap; min-width: 90px; }
-        #weight-val { display: block; font-size: 14px; margin-bottom: 5px; color: #000; }
-        #diff-val { display: block; font-size: 11px; font-weight: 900; border-radius: 4px; padding: 2px 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .bub { position: absolute; top: -85px; left: 50%; transform: translateX(-50%); background: ${p.bar_c || '#38bdf8'}; color: #000; padding: 8px 12px; border-radius: 10px; font-weight: 900; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.6); white-space: nowrap; min-width: 90px; }
+        #weight-val { display: block; font-size: 14px; margin-bottom: 4px; }
+        #diff-val { display: block; font-size: 11px; font-weight: 900; border-radius: 4px; padding: 2px 6px; color: #fff; }
         
         .mkr { position: absolute; top: 24px; transform: translateX(-50%); font-size: 10px; font-weight: bold; opacity: 0.7; text-align: center; line-height: 1.2; width: 60px; }
       </style>
 
       <div class="main">
         <div class="bg"></div>
-        <div class="box" style="${getStyle(p, 'imc_')}"><div class="lbl">${p.imc_name||'IMC'}</div><div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div></div>
-        <div class="box" style="${getStyle(p, 'corp_')}"><div class="lbl">${p.corp_name||'CORP'}</div><div class="val-wrap"><span id="corp-v" class="val">--</span><span id="corp-u" class="uni"></span></div></div>
+        
+        <div class="box" style="${getStyle(p, 'imc_')}">
+          ${p.imc_icon ? `<ha-icon icon="${p.imc_icon}" class="ico"></ha-icon>` : ''}
+          <div class="lbl">${p.imc_name||'IMC'}</div>
+          <div class="val-wrap"><span id="imc-v" class="val">--</span><span id="imc-u" class="uni"></span></div>
+        </div>
+
+        <div class="box" style="${getStyle(p, 'corp_')}">
+          ${p.corp_icon ? `<ha-icon icon="${p.corp_icon}" class="ico"></ha-icon>` : ''}
+          <div class="lbl">${p.corp_name||'CORP'}</div>
+          <div class="val-wrap"><span id="corp-v" class="val">--</span><span id="corp-u" class="uni"></span></div>
+        </div>
+
         ${(p.sensors || []).map((s, i) => `
           <div class="box" style="left:${s.x}%; top:${s.y}%; width:${s.w}px; height:${s.h}px; border-radius:${s.r||8}px; border:${s.bw||1}px solid ${s.bc||'#fff'}; transform: translate(-50%, -50%); font-size:${s.ts||1}rem;">
-            <div class="lbl">${s.name}</div><div class="val-wrap"><span id="s-${i}-v" class="val">--</span><span id="s-${i}-u" class="uni"></span></div>
+            ${s.icon ? `<ha-icon icon="${s.icon}" class="ico"></ha-icon>` : ''}
+            <div class="lbl">${s.name}</div>
+            <div class="val-wrap"><span id="s-${i}-v" class="val">--</span><span id="s-${i}-u" class="uni"></span></div>
           </div>`).join('')}
 
         <div class="weight-track">
