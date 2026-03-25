@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V3.4.4
- * CODE COMPLET - AVEC DÉCLARATION POUR LA LISTE DES CARTES
+ * HEALTH DASHBOARD CARD – V3.4.5
+ * INTEGRATION DIRECTE WITHINGS & STRUCTURE THEMATIQUE
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -10,6 +10,28 @@ class HealthDashboardCard extends HTMLElement {
   setConfig(config) {
     this._config = JSON.parse(JSON.stringify(config));
     if (!this._config.current_view) this._config.current_view = 'person1';
+    
+    // Initialisation automatique avec tes capteurs Withings si vide
+    if (!this._config.person1) {
+      this._config.person1 = {
+        name: "PATRICK",
+        weight_entity: "sensor.withings_poids_patrick",
+        imc_entity: "sensor.withings_poids_patrick", // A remplacer par ton sensor IMC si existant
+        corp_entity: "sensor.withings_fat_mass",
+        start: 95, confort: 85, ideal: 78,
+        image: "/local/patrick.jpg",
+        sensors: [
+          { name: "Pas", entity: "sensor.withings_steps_today", icon: "mdi:walk", x: 25, y: 160, w: 110, h: 80 },
+          { name: "Distance", entity: "sensor.withings_distance_travelled_today", icon: "mdi:map-marker-distance", x: 50, y: 160, w: 110, h: 80 },
+          { name: "Objectif", entity: "sensor.withings_weight_goal", icon: "mdi:bullseye-arrow", x: 75, y: 160, w: 110, h: 80 },
+          { name: "Score Sommeil", entity: "sensor.withings_sleep_score", icon: "mdi:sleep", x: 25, y: 350, w: 110, h: 80 },
+          { name: "S. Profond", entity: "sensor.withings_rem_sleep", icon: "mdi:bed-clock", x: 50, y: 350, w: 110, h: 80 },
+          { name: "S. Léger", entity: "sensor.withings_sleep_score", icon: "mdi:power-sleep", x: 75, y: 350, w: 110, h: 80 },
+          { name: "Graisse Mass", entity: "sensor.withings_fat_mass", icon: "mdi:tape-measure", x: 25, y: 540, w: 110, h: 80 },
+          { name: "Viscérale", entity: "sensor.withings_visceral_fat_index", icon: "mdi:human-fat", x: 75, y: 540, w: 110, h: 80 }
+        ]
+      };
+    }
     this.render();
   }
 
@@ -78,16 +100,17 @@ class HealthDashboardCard extends HTMLElement {
         .section-header span { font-size: 11px; font-weight: 900; letter-spacing: 2px; color: #38bdf8; text-transform: uppercase; white-space: nowrap; }
         .section-line { height: 1px; flex-grow: 1; background: linear-gradient(90deg, #38bdf8, transparent); }
         .box { position: absolute; background: rgba(30, 41, 59, 0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(10px); text-align: center; box-sizing: border-box; padding: 10px; transition: 0.3s; }
+        .box:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
         .ico { --mdc-icon-size: 28px; color: #38bdf8; margin-bottom: 5px; }
         .lbl { font-size: 0.7em; opacity: 0.5; font-weight: bold; margin-bottom: 4px; }
-        .val { font-size: 1.5em; font-weight: 800; }
-        .uni { font-size: 0.8em; opacity: 0.4; margin-left: 3px; }
+        .val { font-size: 1.4em; font-weight: 800; }
+        .uni { font-size: 0.8em; opacity: 0.4; margin-left: 2px; }
         .weight-area { position: absolute; bottom: 30px; left: 5%; width: 90%; z-index: 20; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 20px; box-sizing: border-box; }
         .weight-track { position: relative; width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 50px; }
-        .ptr { position: absolute; top: -10px; width: 6px; height: 32px; background: #fff; border-radius: 3px; transition: left 1s; }
+        .ptr { position: absolute; top: -10px; width: 6px; height: 32px; background: #fff; border-radius: 3px; transition: left 1s; box-shadow: 0 0 10px #fff; }
         .bub { position: absolute; top: -85px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #000; padding: 10px 18px; border-radius: 15px; font-weight: 900; text-align: center; min-width: 100px; }
         #diff-val { display: block; font-size: 11px; border-radius: 5px; padding: 2px 8px; color: #fff; margin-top: 4px; }
-        .mkr { position: absolute; top: 20px; transform: translateX(-50%); font-size: 9px; opacity: 0.4; font-weight: bold; }
+        .mkr { position: absolute; top: 20px; transform: translateX(-50%); font-size: 9px; opacity: 0.4; font-weight: bold; text-align: center; }
       </style>
 
       <div class="main">
@@ -160,26 +183,26 @@ class HealthDashboardCardEditor extends HTMLElement {
         </div>
         ${this._tab === 'poids' ? `
             <div class="sec">
-                <label>Capteur Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
-                <label>Valeurs (Départ / Confort / Idéal)</label>
+                <label>Capteur Poids Principal</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
+                <label>Poids (Départ / Confort / Idéal)</label>
                 <div style="display:flex; gap:5px;"><input type="number" step="0.1" data-f="start" value="${p.start}"><input type="number" step="0.1" data-f="confort" value="${p.confort}"><input type="number" step="0.1" data-f="ideal" value="${p.ideal}"></div>
             </div>` : ''}
         ${this._tab === 'sante' ? `
             <div class="sec">
-                <label>Entité IMC</label><input type="text" data-f="imc_entity" value="${p.imc_entity||''}">
-                <label>Entité Corpulence</label><input type="text" data-f="corp_entity" value="${p.corp_entity||''}">
+                <label>Capteur IMC</label><input type="text" data-f="imc_entity" value="${p.imc_entity||''}">
+                <label>Capteur Corpulence (Graisse)</label><input type="text" data-f="corp_entity" value="${p.corp_entity||''}">
             </div>` : ''}
         ${this._tab === 'sensors' ? (p.sensors || []).map((s, i) => `
             <div class="sec">
-                <label>Sensor ${i+1}</label>
+                <label>Capteur ${i+1} : ${s.name}</label>
                 <input type="text" data-idx="${i}" data-f="name" value="${s.name}" placeholder="Nom">
                 <input type="text" data-idx="${i}" data-f="entity" value="${s.entity}" placeholder="sensor.xxx">
                 <input type="text" data-idx="${i}" data-f="icon" value="${s.icon||''}" placeholder="mdi:icon">
-                <div style="display:flex; gap:5px;"><label>X</label><input type="number" data-idx="${i}" data-f="x" value="${s.x}"><label>Y</label><input type="number" data-idx="${i}" data-f="y" value="${s.y}"></div>
+                <div style="display:flex; gap:5px;"><label>X %</label><input type="number" data-idx="${i}" data-f="x" value="${s.x}"><label>Y %</label><input type="number" data-idx="${i}" data-f="y" value="${s.y}"></div>
                 <button class="del-s" data-idx="${i}" style="width:100%; background:#ff5252; color:white; border:none; padding:5px; margin-top:10px; border-radius:4px;">Supprimer</button>
-            </div>`).join('') + '<button class="tab active" style="width:100%" id="add-s">+ AJOUTER SENSOR</button>' : ''}
+            </div>`).join('') + '<button class="tab active" style="width:100%" id="add-s">+ AJOUTER CAPTEUR</button>' : ''}
         ${this._tab === 'design' ? `<div class="sec"><label>Image Fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
-            <label>Hauteur Carte</label><input type="number" id="ch" value="${this._config.card_height||750}"></div>` : ''}
+            <label>Hauteur Totale</label><input type="number" id="ch" value="${this._config.card_height||750}"></div>` : ''}
       </div>
     `;
     this._attach();
@@ -205,7 +228,7 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 }
 
-// Enregistrement officiel des éléments
+// Enregistrement
 if (!customElements.get('health-dashboard-card')) {
     customElements.define('health-dashboard-card', HealthDashboardCard);
 }
@@ -213,11 +236,11 @@ if (!customElements.get('health-dashboard-card-editor')) {
     customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor);
 }
 
-// AJOUT : Déclaration pour la recherche dans l'interface Home Assistant
+// Déclaration pour le menu
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "health-dashboard-card",
   name: "Health Dashboard Pro",
-  description: "Carte santé avec sections Forme, Sommeil et Poids.",
+  description: "Carte Withings complète avec sections Forme, Sommeil et Poids.",
   preview: true
 });
