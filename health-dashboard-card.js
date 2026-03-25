@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V4.9.0
- * IMAGE FOND | SECTIONS CADRÉES | UNITÉS | TAILLES W-H | PROGRESSION %
+ * HEALTH DASHBOARD CARD – V4.9.1
+ * FIX : 2 DÉCIMALES MAXIMUM | IMAGE FOND | SECTIONS CADRÉES | UNITÉS | TAILLES W-H
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -17,17 +17,23 @@ class HealthDashboardCard extends HTMLElement {
   
   set hass(hass) { this._hass = hass; this.update(); }
 
+  // Fonction utilitaire pour formater les nombres à 2 décimales
+  _formatVal(v) {
+    const n = parseFloat(v);
+    return isNaN(n) ? v : n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
   update() {
     if(!this._hass || !this.shadowRoot || !this._config) return;
     const p = this._config[this._config.current_view];
     
-    // MAJ des capteurs individuels
+    // MAJ des capteurs individuels (avec fix 2 décimales)
     if(p.sensors) {
       p.sensors.forEach((s, i) => {
         const elV = this.shadowRoot.getElementById(`s-${i}-v`);
         if(elV && s.entity && this._hass.states[s.entity]) {
-          const val = this._hass.states[s.entity].state;
-          elV.textContent = val + (s.unit || '');
+          const valRaw = this._hass.states[s.entity].state;
+          elV.textContent = this._formatVal(valRaw) + (s.unit || '');
         }
       });
     }
@@ -39,9 +45,9 @@ class HealthDashboardCard extends HTMLElement {
       const start = parseFloat(p.start) || actuel;
       const ideal = parseFloat(p.ideal) || actuel;
       
-      this.shadowRoot.getElementById('weight-val').textContent = actuel.toFixed(1) + ' kg';
+      this.shadowRoot.getElementById('weight-val').textContent = actuel.toFixed(2) + ' kg';
       
-      const diff = (actuel - start).toFixed(1);
+      const diff = (actuel - start).toFixed(2);
       const dEl = this.shadowRoot.getElementById('diff-val');
       dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
       dEl.style.color = actuel <= start ? '#4caf50' : '#ff5252';
@@ -52,8 +58,8 @@ class HealthDashboardCard extends HTMLElement {
       pct = Math.max(0, Math.min(100, pct));
       
       this.shadowRoot.getElementById('prog-bar').style.width = pct + '%';
-      this.shadowRoot.getElementById('prog-pct').textContent = Math.round(pct) + '% de l\'objectif';
-      this.shadowRoot.getElementById('reste-val').textContent = Math.abs(actuel - ideal).toFixed(1) + ' kg restants';
+      this.shadowRoot.getElementById('prog-pct').textContent = Math.round(pct) + '% atteint';
+      this.shadowRoot.getElementById('reste-val').textContent = Math.abs(actuel - ideal).toFixed(2) + ' kg restants';
     }
   }
 
@@ -130,7 +136,7 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-/** ÉDITEUR MAÎTRE V4.9.0 **/
+/** ÉDITEUR V4.9.1 **/
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this._tab = 'config'; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
@@ -160,7 +166,7 @@ class HealthDashboardCardEditor extends HTMLElement {
 
         ${this._tab === 'config' ? `
           <label>Nom Profil</label><input type="text" data-f="name" value="${p.name}">
-          <label>URL Image de fond</label><input type="text" data-f="image" value="${p.image||''}" placeholder="https://image.jpg">
+          <label>URL Image de fond</label><input type="text" data-f="image" value="${p.image||''}">
           <label>Entité Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity}">
           <div class="row">
             <div><label>Poids Départ</label><input type="number" data-f="start" value="${p.start}"></div>
@@ -172,7 +178,7 @@ class HealthDashboardCardEditor extends HTMLElement {
               <button class="del" data-idx="${i}">X</button>
               <div class="row">
                 <div style="flex:2"><label>Nom</label><input type="text" data-idx="${i}" data-f="name" value="${s.name}"></div>
-                <div style="flex:1"><label>Unité</label><input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}" placeholder="%, bpm"></div>
+                <div style="flex:1"><label>Unité</label><input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}"></div>
               </div>
               <label>Entité (sensor...)</label><input type="text" data-idx="${i}" data-f="entity" value="${s.entity}">
               <div class="row">
@@ -214,7 +220,7 @@ class HealthDashboardCardEditor extends HTMLElement {
     });
     const addBtn = this.querySelector('#add-s');
     if(addBtn) addBtn.onclick = () => {
-      this._config[this._config.current_view].sensors.push({name:'IMC', entity:'', cat:'forme', x:50, w:85, h:55, col:'#38bdf8', icon:'mdi:scale-bathroom'});
+      this._config[this._config.current_view].sensors.push({name:'Nouveau', entity:'', cat:'forme', x:50, w:85, h:55, col:'#38bdf8', unit:''});
       this._fire();
     };
     this.querySelectorAll('.del').forEach(b => b.onclick = () => {
@@ -234,6 +240,6 @@ customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor)
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "health-dashboard-card",
-  name: "Health Dashboard Smart V4.9.0",
-  description: "Version Ultime avec tout inclus"
+  name: "Health Dashboard Smart V4.9.1",
+  description: "Fix : 2 décimales + tout inclus"
 });
