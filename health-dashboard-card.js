@@ -1,6 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V5.0.1
- * FIX : ÉDITEUR VISUEL ET AFFICHAGE DES CAPTEURS
+ * HEALTH DASHBOARD CARD – V5.1.0
+ * FULL DYNAMIQUE | ÉDITEUR COMPLET (W, H, FONT-SIZE) | FIX MIGRATION
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -23,31 +23,27 @@ class HealthDashboardCard extends HTMLElement {
           start: 80,
           ideal: 75,
           image: '',
-          sensors: [
-            { name: 'Exemple', entity: '', cat: 'forme', x: 50, y_off: 0, w: 85, h: 55, icon: 'mdi:heart', col: '#38bdf8' }
-          ]
+          sensors: []
         }
       ]
     };
   }
   
   setConfig(config) { 
-    // Copie profonde pour éviter les erreurs de référence
     this._config = JSON.parse(JSON.stringify(config)); 
     
-    // Migration automatique si l'ancienne structure est détectée
-    if (!this._config.people) {
+    // Sécurité Migration : Si people n'est pas une liste, on le répare
+    if (!Array.isArray(this._config.people)) {
+      const oldPeople = this._config.people;
       this._config.people = [];
-      if (config.person1) this._config.people.push(config.person1);
-      if (config.person2) this._config.people.push(config.person2);
+      if (oldPeople && oldPeople.name) this._config.people.push(oldPeople);
     }
-    
+
     if (this._config.people.length === 0) {
       this._config.people = [ { name: 'Nouveau', sensors: [], start: 80, ideal: 75 } ];
     }
     
     if (this._config.current_person_idx === undefined) this._config.current_person_idx = 0;
-    
     this.render(); 
   }
   
@@ -67,18 +63,18 @@ class HealthDashboardCard extends HTMLElement {
     const p = this._config.people[this._config.current_person_idx];
     if(!p) return;
     
-    // Mise à jour des capteurs
+    // MAJ Capteurs
     if(p.sensors) {
       p.sensors.forEach((s, i) => {
         const elV = this.shadowRoot.getElementById(`s-${i}-v`);
         if(elV && s.entity && this._hass.states[s.entity]) {
-          const valRaw = this._hass.states[s.entity].state;
-          elV.textContent = this._formatVal(valRaw) + (s.unit || '');
+          const state = this._hass.states[s.entity].state;
+          elV.textContent = this._formatVal(state) + (s.unit || '');
         }
       });
     }
 
-    // Mise à jour Poids
+    // MAJ Poids
     const stateW = this._hass.states[p.weight_entity];
     if(stateW) {
       const actuel = parseFloat(stateW.state);
@@ -100,14 +96,9 @@ class HealthDashboardCard extends HTMLElement {
       let pct = total !== 0 ? (fait / total) * 100 : 0;
       pct = Math.max(0, Math.min(100, pct));
       
-      const elBar = this.shadowRoot.getElementById('prog-bar');
-      if(elBar) elBar.style.width = pct + '%';
-      
-      const elPct = this.shadowRoot.getElementById('prog-pct');
-      if(elPct) elPct.textContent = Math.round(pct) + '% atteint';
-      
-      const elReste = this.shadowRoot.getElementById('reste-val');
-      if(elReste) elReste.textContent = Math.abs(actuel - ideal).toFixed(2) + ' kg restants';
+      if(this.shadowRoot.getElementById('prog-bar')) this.shadowRoot.getElementById('prog-bar').style.width = pct + '%';
+      if(this.shadowRoot.getElementById('prog-pct')) this.shadowRoot.getElementById('prog-pct').textContent = Math.round(pct) + '% atteint';
+      if(this.shadowRoot.getElementById('reste-val')) this.shadowRoot.getElementById('reste-val').textContent = Math.abs(actuel - ideal).toFixed(2) + ' kg restants';
     }
   }
 
@@ -129,10 +120,10 @@ class HealthDashboardCard extends HTMLElement {
         .sw-btns { position: absolute; top: 12px; left: 12px; z-index: 100; display: flex; gap: 8px; }
         .sw-btn { background: #1e293b; border: 1px solid #334155; color: white; padding: 7px 14px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
         .sw-btn.active { background: #38bdf8; color: #000; border-color: #38bdf8; }
-        .sec-frame { position: absolute; left: 12px; right: 12px; border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 15px; z-index: 1; background: rgba(255,255,255,0.03); }
+        .sec-frame { position: absolute; left: 12px; right: 12px; border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 15px; z-index: 1; background: rgba(255,255,255,0.03); pointer-events:none; }
         .sec-label { position: absolute; top: -9px; left: 15px; background: #0f172a; padding: 0 8px; font-size: 10px; color: #38bdf8; font-weight: 900; }
         .box { position: absolute; background: rgba(30, 41, 59, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; border: 2px solid; backdrop-filter: blur(5px); z-index: 10; transform: translate(-50%, -50%); overflow: hidden; box-sizing: border-box; }
-        .lbl { text-transform: uppercase; text-align: center; opacity: 0.8; font-weight: 600; line-height: 1; }
+        .lbl { text-transform: uppercase; text-align: center; opacity: 0.8; font-weight: 600; line-height: 1.1; }
         .val { font-weight: 800; margin-top: 2px; }
         .weight-card { position: absolute; bottom: 12px; left: 12px; right: 12px; height: 125px; background: rgba(15, 23, 42, 0.95); border-radius: 18px; padding: 15px; border: 2px solid #38bdf8; z-index: 20; box-sizing: border-box; }
         .prog-container { height: 8px; background: #334155; border-radius: 4px; margin: 10px 0; overflow: hidden; }
@@ -151,7 +142,6 @@ class HealthDashboardCard extends HTMLElement {
 
         ${sections.map(s => `<div class="sec-frame" style="top:${s.top}px; height:${s.h}px;"><div class="sec-label">${s.label}</div></div>`).join('')}
 
-        <div id="sensors-container">
         ${(p.sensors || []).map((s, i) => {
           const sec = sections.find(sec => sec.id === s.cat) || sections[0];
           const yPos = sec.top + (sec.h / 2) + (parseInt(s.y_off) || 0);
@@ -162,7 +152,6 @@ class HealthDashboardCard extends HTMLElement {
             <div class="val" id="s-${i}-v" style="font-size:${s.fs_v || 12}px;">--</div>
           </div>`;
         }).join('')}
-        </div>
 
         <div class="weight-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -177,13 +166,9 @@ class HealthDashboardCard extends HTMLElement {
       </div>
     `;
 
-    // Listeners pour switch personnes
     this._config.people.forEach((_, i) => {
       const btn = this.shadowRoot.getElementById(`btn-p-${i}`);
-      if(btn) btn.onclick = () => {
-        this._config.current_person_idx = i;
-        this._fire();
-      };
+      if(btn) btn.onclick = () => { this._config.current_person_idx = i; this._fire(); };
     });
   }
 
@@ -193,7 +178,7 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-/** ÉDITEUR V5.0.1 **/
+/** ÉDITEUR V5.1.0 **/
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { 
     super(); 
@@ -219,7 +204,7 @@ class HealthDashboardCardEditor extends HTMLElement {
         label { font-size: 10px; opacity: 0.6; display: block; margin-bottom: 3px; }
         .btn { padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; text-align:center; background: #444; color: white; flex:1; }
         .btn-active { background: #38bdf8; color: #000; }
-        .del { background: #ff5252; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; border:none; }
+        .del { background: #ff5252; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; border:none; float:right; }
       </style>
       <div class="ed">
         <div class="row" style="flex-wrap:wrap;">
@@ -236,7 +221,7 @@ class HealthDashboardCardEditor extends HTMLElement {
 
         ${this._tab === 'people' ? `
           <div class="s-card" style="margin-top:15px;">
-            <button class="del" id="del-p" style="float:right;">SUPPRIMER</button>
+            <button class="del" id="del-p">SUPPRIMER</button>
             <label>Nom</label><input type="text" data-f="name" value="${p.name}">
             <label>Image (URL)</label><input type="text" data-f="image" value="${p.image||''}">
             <label>Entité Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
@@ -249,16 +234,17 @@ class HealthDashboardCardEditor extends HTMLElement {
           <div style="margin-top:15px;">
             ${(p.sensors || []).map((s, i) => `
               <div class="s-card">
-                <button class="del del-s" data-idx="${i}" style="float:right;">X</button>
+                <button class="del del-s" data-idx="${i}">X</button>
                 <div class="row">
                   <div style="flex:2"><label>Nom</label><input type="text" data-idx="${i}" data-f="name" value="${s.name}"></div>
                   <div style="flex:1"><label>Unité</label><input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}"></div>
                 </div>
-                <label>Entité</label><input type="text" data-idx="${i}" data-f="entity" value="${s.entity}">
+                <label>Entité sensor</label><input type="text" data-idx="${i}" data-f="entity" value="${s.entity}">
+                
                 <div class="row">
                   <div><label>Icône</label><input type="text" data-idx="${i}" data-f="icon" value="${s.icon||'mdi:heart'}"></div>
                   <div><label>Couleur</label><input type="color" data-idx="${i}" data-f="col" value="${s.col||'#38bdf8'}"></div>
-                  <div><label>Cat.</label>
+                  <div><label>Catégorie</label>
                     <select data-idx="${i}" data-f="cat">
                       <option value="forme" ${s.cat==='forme'?'selected':''}>FORME</option>
                       <option value="sommeil" ${s.cat==='sommeil'?'selected':''}>SOMMEIL</option>
@@ -266,13 +252,22 @@ class HealthDashboardCardEditor extends HTMLElement {
                     </select>
                   </div>
                 </div>
+
                 <div class="row">
                   <div><label>X %</label><input type="number" data-idx="${i}" data-f="x" value="${s.x}"></div>
                   <div><label>Y off</label><input type="number" data-idx="${i}" data-f="y_off" value="${s.y_off||0}"></div>
+                  <div><label>Largeur W</label><input type="number" data-idx="${i}" data-f="w" value="${s.w||85}"></div>
+                  <div><label>Hauteur H</label><input type="number" data-idx="${i}" data-f="h" value="${s.h||55}"></div>
+                </div>
+
+                <div class="row">
+                  <div><label>F-S Icône</label><input type="number" data-idx="${i}" data-f="fs_i" value="${s.fs_i||18}"></div>
+                  <div><label>F-S Label</label><input type="number" data-idx="${i}" data-f="fs_l" value="${s.fs_l||7}"></div>
+                  <div><label>F-S Valeur</label><input type="number" data-idx="${i}" data-f="fs_v" value="${s.fs_v||12}"></div>
                 </div>
               </div>
             `).join('')}
-            <button class="btn" id="add-s" style="background:#38bdf8; width:100%;">+ CAPTEUR</button>
+            <button class="btn" id="add-s" style="background:#38bdf8; width:100%;">+ AJOUTER UN CAPTEUR</button>
           </div>
         `}
       </div>
@@ -317,7 +312,7 @@ class HealthDashboardCardEditor extends HTMLElement {
     if(addS) addS.onclick = () => {
       const p = this._config.people[this._config.current_person_idx];
       if(!p.sensors) p.sensors = [];
-      p.sensors.push({name:'Nouveau', entity:'', cat:'forme', x:50, y_off:0, w:85, h:55, col:'#38bdf8', unit:''});
+      p.sensors.push({name:'Nouveau', entity:'', cat:'forme', x:50, y_off:0, w:85, h:55, col:'#38bdf8', unit:'', fs_i:18, fs_l:7, fs_v:12});
       this._fire();
     };
 
@@ -341,6 +336,6 @@ customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor)
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "health-dashboard-card",
-  name: "Health Card V5.0.1",
-  description: "Fix : Éditeur + Capteurs"
+  name: "Health Card V5.1.0",
+  description: "Réglages complets Personnes & Capteurs"
 });
