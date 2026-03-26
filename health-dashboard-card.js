@@ -1,7 +1,6 @@
 /**
- * HEALTH DASHBOARD CARD – V5.0.0
- * DYNAMISME COMPLET : AJOUT/SUPPRESSION DE PERSONNES & CAPTEURS
- * PRÉCISION 2 DÉCIMALES | ÉDITEUR VISUEL FULL SUPPORT
+ * HEALTH DASHBOARD CARD – V5.0.1
+ * FIX : ÉDITEUR VISUEL ET AFFICHAGE DES CAPTEURS
  */
 
 class HealthDashboardCard extends HTMLElement {
@@ -19,23 +18,36 @@ class HealthDashboardCard extends HTMLElement {
       current_person_idx: 0,
       people: [
         {
-          name: 'Patrick',
+          name: 'Utilisateur',
           weight_entity: '',
           start: 80,
           ideal: 75,
           image: '',
-          sensors: []
+          sensors: [
+            { name: 'Exemple', entity: '', cat: 'forme', x: 50, y_off: 0, w: 85, h: 55, icon: 'mdi:heart', col: '#38bdf8' }
+          ]
         }
       ]
     };
   }
   
   setConfig(config) { 
+    // Copie profonde pour éviter les erreurs de référence
     this._config = JSON.parse(JSON.stringify(config)); 
-    if (!this._config.people || this._config.people.length === 0) {
-      this._config.people = [ { name: 'Utilisateur 1', sensors: [], start: 80, ideal: 70 } ];
+    
+    // Migration automatique si l'ancienne structure est détectée
+    if (!this._config.people) {
+      this._config.people = [];
+      if (config.person1) this._config.people.push(config.person1);
+      if (config.person2) this._config.people.push(config.person2);
     }
+    
+    if (this._config.people.length === 0) {
+      this._config.people = [ { name: 'Nouveau', sensors: [], start: 80, ideal: 75 } ];
+    }
+    
     if (this._config.current_person_idx === undefined) this._config.current_person_idx = 0;
+    
     this.render(); 
   }
   
@@ -55,7 +67,7 @@ class HealthDashboardCard extends HTMLElement {
     const p = this._config.people[this._config.current_person_idx];
     if(!p) return;
     
-    // MAJ des capteurs
+    // Mise à jour des capteurs
     if(p.sensors) {
       p.sensors.forEach((s, i) => {
         const elV = this.shadowRoot.getElementById(`s-${i}-v`);
@@ -66,28 +78,36 @@ class HealthDashboardCard extends HTMLElement {
       });
     }
 
-    // MAJ Poids et Barre
+    // Mise à jour Poids
     const stateW = this._hass.states[p.weight_entity];
     if(stateW) {
       const actuel = parseFloat(stateW.state);
       const start = parseFloat(p.start) || actuel;
       const ideal = parseFloat(p.ideal) || actuel;
       
-      this.shadowRoot.getElementById('weight-val').textContent = actuel.toFixed(2) + ' kg';
+      const elW = this.shadowRoot.getElementById('weight-val');
+      if(elW) elW.textContent = actuel.toFixed(2) + ' kg';
       
       const diff = (actuel - start).toFixed(2);
       const dEl = this.shadowRoot.getElementById('diff-val');
-      dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
-      dEl.style.color = actuel <= start ? '#4caf50' : '#ff5252';
+      if(dEl) {
+        dEl.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
+        dEl.style.color = actuel <= start ? '#4caf50' : '#ff5252';
+      }
 
       const total = Math.abs(start - ideal);
       const fait = Math.abs(start - actuel);
       let pct = total !== 0 ? (fait / total) * 100 : 0;
       pct = Math.max(0, Math.min(100, pct));
       
-      this.shadowRoot.getElementById('prog-bar').style.width = pct + '%';
-      this.shadowRoot.getElementById('prog-pct').textContent = Math.round(pct) + '% atteint';
-      this.shadowRoot.getElementById('reste-val').textContent = Math.abs(actuel - ideal).toFixed(2) + ' kg restants';
+      const elBar = this.shadowRoot.getElementById('prog-bar');
+      if(elBar) elBar.style.width = pct + '%';
+      
+      const elPct = this.shadowRoot.getElementById('prog-pct');
+      if(elPct) elPct.textContent = Math.round(pct) + '% atteint';
+      
+      const elReste = this.shadowRoot.getElementById('reste-val');
+      if(elReste) elReste.textContent = Math.abs(actuel - ideal).toFixed(2) + ' kg restants';
     }
   }
 
@@ -106,8 +126,8 @@ class HealthDashboardCard extends HTMLElement {
       <style>
         .main { position: relative; width: 100%; height: 600px; background: #0f172a; border-radius: 20px; overflow: hidden; font-family: sans-serif; color: white; border: 1px solid #334155; }
         .bg-img { position: absolute; inset:0; background: url('${p.image || ''}') center/cover; opacity: 0.18; z-index:0; pointer-events: none; }
-        .sw-btns { position: absolute; top: 12px; left: 12px; z-index: 100; display: flex; gap: 8px; max-width: 90%; overflow-x: auto; padding-bottom: 5px; }
-        .sw-btn { background: #1e293b; border: 1px solid #334155; color: white; padding: 7px 14px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .sw-btns { position: absolute; top: 12px; left: 12px; z-index: 100; display: flex; gap: 8px; }
+        .sw-btn { background: #1e293b; border: 1px solid #334155; color: white; padding: 7px 14px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
         .sw-btn.active { background: #38bdf8; color: #000; border-color: #38bdf8; }
         .sec-frame { position: absolute; left: 12px; right: 12px; border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 15px; z-index: 1; background: rgba(255,255,255,0.03); }
         .sec-label { position: absolute; top: -9px; left: 15px; background: #0f172a; padding: 0 8px; font-size: 10px; color: #38bdf8; font-weight: 900; }
@@ -123,7 +143,7 @@ class HealthDashboardCard extends HTMLElement {
         <div class="bg-img"></div>
         <div class="sw-btns">
             ${this._config.people.map((person, i) => `
-              <button class="sw-btn ${idx === i ? 'active' : ''}" data-idx="${i}">
+              <button class="sw-btn ${idx === i ? 'active' : ''}" id="btn-p-${i}">
                 ${(person.name || 'P'+(i+1)).toUpperCase()}
               </button>
             `).join('')}
@@ -131,6 +151,7 @@ class HealthDashboardCard extends HTMLElement {
 
         ${sections.map(s => `<div class="sec-frame" style="top:${s.top}px; height:${s.h}px;"><div class="sec-label">${s.label}</div></div>`).join('')}
 
+        <div id="sensors-container">
         ${(p.sensors || []).map((s, i) => {
           const sec = sections.find(sec => sec.id === s.cat) || sections[0];
           const yPos = sec.top + (sec.h / 2) + (parseInt(s.y_off) || 0);
@@ -141,6 +162,7 @@ class HealthDashboardCard extends HTMLElement {
             <div class="val" id="s-${i}-v" style="font-size:${s.fs_v || 12}px;">--</div>
           </div>`;
         }).join('')}
+        </div>
 
         <div class="weight-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -155,9 +177,11 @@ class HealthDashboardCard extends HTMLElement {
       </div>
     `;
 
-    this.shadowRoot.querySelectorAll('.sw-btn').forEach(btn => {
-      btn.onclick = () => {
-        this._config.current_person_idx = parseInt(btn.dataset.idx);
+    // Listeners pour switch personnes
+    this._config.people.forEach((_, i) => {
+      const btn = this.shadowRoot.getElementById(`btn-p-${i}`);
+      if(btn) btn.onclick = () => {
+        this._config.current_person_idx = i;
         this._fire();
       };
     });
@@ -169,14 +193,21 @@ class HealthDashboardCard extends HTMLElement {
   }
 }
 
-/** ÉDITEUR V5.0.0 **/
+/** ÉDITEUR V5.0.1 **/
 class HealthDashboardCardEditor extends HTMLElement {
-  constructor() { super(); this._tab = 'people'; }
-  setConfig(config) { this._config = JSON.parse(JSON.stringify(config)); this.render(); }
+  constructor() { 
+    super(); 
+    this._tab = 'people'; 
+  }
+  
+  setConfig(config) { 
+    this._config = JSON.parse(JSON.stringify(config)); 
+    this.render(); 
+  }
   
   render() {
     if(!this._config) return;
-    const idx = this._config.current_person_idx;
+    const idx = this._config.current_person_idx || 0;
     const p = this._config.people[idx];
 
     this.innerHTML = `
@@ -186,52 +217,48 @@ class HealthDashboardCardEditor extends HTMLElement {
         .s-card { background: #2c2c2e; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #38bdf8; position: relative; }
         input, select { width: 100%; padding: 8px; background: #000; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
         label { font-size: 10px; opacity: 0.6; display: block; margin-bottom: 3px; }
-        .btn { padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; text-align:center; background: #444; color: white; }
+        .btn { padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; text-align:center; background: #444; color: white; flex:1; }
         .btn-active { background: #38bdf8; color: #000; }
-        .del { background: #ff5252; color: white; padding: 4px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; border:none; }
-        .add-btn { background: #4caf50; width:100%; margin-top:10px; }
+        .del { background: #ff5252; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; border:none; }
       </style>
       <div class="ed">
-        <label>CHOISIR LE PROFIL À MODIFIER</label>
-        <div class="row" style="flex-wrap: wrap;">
+        <div class="row" style="flex-wrap:wrap;">
           ${this._config.people.map((person, i) => `
-            <div class="btn ${idx === i ? 'btn-active' : ''}" id="sel-${i}" style="min-width:60px;">${person.name || 'P'+(i+1)}</div>
+            <div class="btn ${idx === i ? 'btn-active' : ''}" id="sel-${i}">${person.name || 'P'+(i+1)}</div>
           `).join('')}
-          <button class="btn add-btn" id="add-p" style="width:40px; height:35px; margin:0;">+</button>
+          <button class="btn" id="add-p" style="background:#4caf50; flex:0; min-width:40px;">+</button>
         </div>
 
-        <hr style="opacity:0.1; margin:15px 0;">
-
-        <div class="row">
-          <div id="t-pep" class="btn" style="flex:1; ${this._tab==='people'?'background:#38bdf8; color:#000;':''}">👤 PROFIL</div>
-          <div id="t-sns" class="btn" style="flex:1; ${this._tab==='sensors'?'background:#38bdf8; color:#000;':''}">📊 CAPTEURS</div>
+        <div class="row" style="margin-top:15px;">
+          <div id="t-pep" class="btn ${this._tab==='people'?'btn-active':''}">👤 PROFIL</div>
+          <div id="t-sns" class="btn ${this._tab==='sensors'?'btn-active':''}">📊 CAPTEURS</div>
         </div>
 
         ${this._tab === 'people' ? `
           <div class="s-card" style="margin-top:15px;">
-            <button class="del" id="del-p" style="position:absolute; top:10px; right:10px;">SUPPRIMER CE PROFIL</button>
-            <label>Nom de la personne</label><input type="text" data-f="name" value="${p.name}">
-            <label>Image de fond (URL)</label><input type="text" data-f="image" value="${p.image||''}">
+            <button class="del" id="del-p" style="float:right;">SUPPRIMER</button>
+            <label>Nom</label><input type="text" data-f="name" value="${p.name}">
+            <label>Image (URL)</label><input type="text" data-f="image" value="${p.image||''}">
             <label>Entité Poids</label><input type="text" data-f="weight_entity" value="${p.weight_entity||''}">
             <div class="row">
-              <div><label>Départ (kg)</label><input type="number" data-f="start" value="${p.start}"></div>
-              <div><label>Objectif (kg)</label><input type="number" data-f="ideal" value="${p.ideal}"></div>
+              <div><label>Départ</label><input type="number" data-f="start" value="${p.start}"></div>
+              <div><label>Objectif</label><input type="number" data-f="ideal" value="${p.ideal}"></div>
             </div>
           </div>
         ` : `
           <div style="margin-top:15px;">
             ${(p.sensors || []).map((s, i) => `
               <div class="s-card">
-                <button class="del del-s" data-idx="${i}" style="position:absolute; top:10px; right:10px;">X</button>
+                <button class="del del-s" data-idx="${i}" style="float:right;">X</button>
                 <div class="row">
                   <div style="flex:2"><label>Nom</label><input type="text" data-idx="${i}" data-f="name" value="${s.name}"></div>
                   <div style="flex:1"><label>Unité</label><input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}"></div>
                 </div>
-                <label>Entité sensor</label><input type="text" data-idx="${i}" data-f="entity" value="${s.entity}">
+                <label>Entité</label><input type="text" data-idx="${i}" data-f="entity" value="${s.entity}">
                 <div class="row">
                   <div><label>Icône</label><input type="text" data-idx="${i}" data-f="icon" value="${s.icon||'mdi:heart'}"></div>
                   <div><label>Couleur</label><input type="color" data-idx="${i}" data-f="col" value="${s.col||'#38bdf8'}"></div>
-                  <div><label>Catégorie</label>
+                  <div><label>Cat.</label>
                     <select data-idx="${i}" data-f="cat">
                       <option value="forme" ${s.cat==='forme'?'selected':''}>FORME</option>
                       <option value="sommeil" ${s.cat==='sommeil'?'selected':''}>SOMMEIL</option>
@@ -242,12 +269,10 @@ class HealthDashboardCardEditor extends HTMLElement {
                 <div class="row">
                   <div><label>X %</label><input type="number" data-idx="${i}" data-f="x" value="${s.x}"></div>
                   <div><label>Y off</label><input type="number" data-idx="${i}" data-f="y_off" value="${s.y_off||0}"></div>
-                  <div><label>W</label><input type="number" data-idx="${i}" data-f="w" value="${s.w||85}"></div>
-                  <div><label>H</label><input type="number" data-idx="${i}" data-f="h" value="${s.h||55}"></div>
                 </div>
               </div>
             `).join('')}
-            <button class="btn add-btn" id="add-s">+ AJOUTER UN CAPTEUR</button>
+            <button class="btn" id="add-s" style="background:#38bdf8; width:100%;">+ CAPTEUR</button>
           </div>
         `}
       </div>
@@ -256,17 +281,14 @@ class HealthDashboardCardEditor extends HTMLElement {
   }
 
   _attach() {
-    // Switch de personne
     this._config.people.forEach((_, i) => {
       const el = this.querySelector(`#sel-${i}`);
-      if(el) el.onclick = () => { this._config.current_person_idx = i; this.render(); };
+      if(el) el.onclick = () => { this._config.current_person_idx = i; this._fire(); };
     });
 
-    // Onglets
     this.querySelector('#t-pep').onclick = () => { this._tab = 'people'; this.render(); };
     this.querySelector('#t-sns').onclick = () => { this._tab = 'sensors'; this.render(); };
 
-    // Inputs
     this.querySelectorAll('input, select').forEach(el => {
       el.onchange = (e) => {
         const p = this._config.people[this._config.current_person_idx];
@@ -276,24 +298,21 @@ class HealthDashboardCardEditor extends HTMLElement {
       };
     });
 
-    // Ajouter Personne
     this.querySelector('#add-p').onclick = () => {
       this._config.people.push({ name: 'Nouveau', sensors: [], start: 80, ideal: 75 });
       this._config.current_person_idx = this._config.people.length - 1;
       this._fire();
     };
 
-    // Supprimer Personne
     const delP = this.querySelector('#del-p');
     if(delP) delP.onclick = () => {
       if(this._config.people.length > 1) {
         this._config.people.splice(this._config.current_person_idx, 1);
         this._config.current_person_idx = 0;
         this._fire();
-      } else { alert("Vous devez garder au moins un profil."); }
+      }
     };
 
-    // Ajouter Capteur
     const addS = this.querySelector('#add-s');
     if(addS) addS.onclick = () => {
       const p = this._config.people[this._config.current_person_idx];
@@ -302,7 +321,6 @@ class HealthDashboardCardEditor extends HTMLElement {
       this._fire();
     };
 
-    // Supprimer Capteur
     this.querySelectorAll('.del-s').forEach(b => {
       b.onclick = () => {
         this._config.people[this._config.current_person_idx].sensors.splice(b.dataset.idx, 1);
@@ -323,6 +341,6 @@ customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor)
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "health-dashboard-card",
-  name: "Health Dashboard Dynamic V5.0.0",
-  description: "Ajout dynamique de personnes et de capteurs illimités."
+  name: "Health Card V5.0.1",
+  description: "Fix : Éditeur + Capteurs"
 });
