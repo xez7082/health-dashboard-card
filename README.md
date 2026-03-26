@@ -1,5 +1,11 @@
 # 📊 Health Dashboard Card (V4.9.1)
 
+[![HACS](https://img.shields.io/badge/HACS-Default-blue.svg)](https://github.com/hacs/integration)
+![Version](https://img.shields.io/github/v/release/xez7082/spa-card?include_prereleases)
+[![License](https://img.shields.io/github/license/xez7082/spa-card)](LICENSE)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/xez7082/spa-card/graphs/commit-activity)
+
+
 Une carte personnalisée et optimisée pour **Home Assistant** dédiée au suivi complet de la santé, de la composition corporelle et du sommeil. Cette version V4.9.1 apporte une précision accrue (2 décimales) et une gestion fluide des catégories.
 
 ---
