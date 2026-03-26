@@ -1,12 +1,11 @@
 # 📊 Health Dashboard Card (V4.9.1)
 
 [![HACS](https://img.shields.io/badge/HACS-Default-blue.svg)](https://github.com/hacs/integration)
-![Version](https://img.shields.io/github/v/release/xez7082/spa-card?include_prereleases)
-[![License](https://img.shields.io/github/license/xez7082/spa-card)](LICENSE)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/xez7082/spa-card/graphs/commit-activity)
+![Version](https://img.shields.io/github/v/release/xez7082/health-dashboard-card?include_prereleases)
+[![License](https://img.shields.io/github/license/xez7082/health-dashboard-card)](LICENSE)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/xez7082/health-dashboard-card/graphs/commit-activity)
 
-
-Une carte personnalisée et optimisée pour **Home Assistant** dédiée au suivi complet de la santé, de la composition corporelle et du sommeil. Cette version V4.9.1 apporte une précision accrue (2 décimales) et une gestion fluide des catégories.
+Une carte personnalisée et optimisée pour **Home Assistant** dédiée au suivi complet de la santé, de la composition corporelle et du sommeil. Cette version **V4.9.1** apporte une précision accrue (2 décimales) et une gestion fluide des catégories.
 
 ---
 
@@ -22,9 +21,9 @@ Visualisez vos données avec un design moderne et épuré.
 
 ## 🛠️ Configuration des Indicateurs
 
-Voici le guide des icônes **MDI** et des couleurs recommandées pour chaque catégorie.
+Guide des icônes **MDI** et des couleurs recommandées par catégorie.
 
-### 🏃 Catégorie : FORME
+### 🏃 Catégorie : `forme`
 | Indicateur | Icône MDI | Unité | Couleur |
 | :--- | :--- | :--- | :--- |
 | **Poids** | `mdi:scale-bathroom` | `kg` | `#f1f5f9` |
@@ -36,14 +35,14 @@ Voici le guide des icônes **MDI** et des couleurs recommandées pour chaque cat
 | **Perte de Poids** | `mdi:trending-down` | `kg` | `#22c55e` |
 | **Corpulence** | `mdi:human-male-height` | `-` | `#f1f5f9` |
 
-### 🩺 Catégorie : SANTÉ
+### 🩺 Catégorie : `sante`
 | Indicateur | Icône MDI | Unité | Couleur |
 | :--- | :--- | :--- | :--- |
 | **Masse Osseuse** | `mdi:bone` | `kg` | `#e2e8f0` |
 | **Hydratation** | `mdi:water` | `%` | `#06b6d4` |
 | **Graisse Viscérale** | `mdi:target` | `idx` | `#be123c` |
 
-### 😴 Catégorie : SOMMEIL
+### 😴 Catégorie : `sommeil`
 | Indicateur | Icône MDI | Unité | Couleur |
 | :--- | :--- | :--- | :--- |
 | **Score Sommeil** | `mdi:star-face` | `/100` | `#818cf8` |
@@ -52,20 +51,34 @@ Voici le guide des icônes **MDI** et des couleurs recommandées pour chaque cat
 
 ---
 
-## 🚀 Caractéristiques de la V4.9.1
+## 🚀 Caractéristiques Techniques
 
-* **Précision Chirurgicale** : Affichage forcé à **2 chiffres après la virgule** (ex: `22,45`) pour un suivi médical précis.
-* **Design Adaptatif** : Utilisation des paramètres `X`, `W` (Largeur) et `H` (Hauteur) pour créer une grille personnalisée.
-* **Gestion des Catégories** : Tri automatique des capteurs dans les sections `forme`, `sante` et `sommeil`.
-* **Support Chaîne de Caractères** : Affiche aussi bien des chiffres que du texte (ex: Corpulence "Normale").
-
-## 📦 Installation
-
-1.  Ajoutez le fichier `health-dashboard-card.js` à votre dossier `www/community/`.
-2.  Ajoutez la ressource dans votre configuration Home Assistant.
-3.  Utilisez l'éditeur visuel pour ajouter vos entités et définir leurs catégories respectives.
+* **Précision Chirurgicale** : Utilise la fonction locale `toLocaleString` pour forcer l'affichage à **2 décimales** (ex: `22,45`), idéal pour le suivi médical.
+* **Design Dynamique** : Paramétrage précis via `x`, `y` (position) et `w`, `h` (taille) pour chaque bloc d'entité.
+* **Intelligence des Données** : Supporte nativement les capteurs numériques et les capteurs de texte (ex: "Normal", "Athlétique").
+* **Groupement Automatique** : Les entités sont injectées dans les conteneurs HTML correspondants à leur `category`.
 
 ---
 
-## 📜 Licence
-Ce projet est sous licence **MIT**. Toute contribution est la bienvenue !
+## 🎨 Personnalisation du Style (CSS)
+
+La carte utilise des variables CSS standard de Home Assistant. Vous pouvez surcharger le style via `card_mod`.
+
+| Variable | Description | Valeur par défaut |
+| :--- | :--- | :--- |
+| `--card-background-color` | Fond de la carte | `var(--ha-card-background)` |
+| `--primary-text-color` | Couleur des titres | `var(--primary-text-color)` |
+| `--accent-color` | Bordures et accents | `#38bdf8` |
+
+**Exemple card_mod :**
+```yaml
+card_mod:
+  style: |
+    ha-card {
+      border-radius: 20px;
+      box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+    }
+    .entity-box:hover {
+      transform: scale(1.05);
+      transition: 0.2s;
+    }
