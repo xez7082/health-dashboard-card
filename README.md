@@ -1,93 +1,65 @@
-# Health Dashboard Card 📊
+# 📊 Health Dashboard Card (V4.9.1)
+
+Une carte personnalisée et optimisée pour **Home Assistant** dédiée au suivi complet de la santé, de la composition corporelle et du sommeil. Cette version V4.9.1 apporte une précision accrue (2 décimales) et une gestion fluide des catégories.
 
 ---
 
-## ℹ️ Informations techniques
+## 📸 Aperçu du Dashboard
 
-<p align="left">
-  <img src="https://img.shields.io/badge/Version-2.1.4-blue?style=for-the-badge" alt="Version">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="Licence">
-  <img src="https://img.shields.io/badge/Home--Assistant-Ready-orange?style=for-the-badge" alt="Home Assistant">
-</p>
+Visualisez vos données avec un design moderne et épuré.
 
-### ⚖️ Licence
-Ce projet est sous licence **MIT**. Vous êtes libre de l'utiliser, de le modifier et de le distribuer, tant que vous conservez la mention des auteurs originaux.
-
-### 👤 Auteurs & Support
-- **Développeur** : [Ton Nom/Pseudo]
-- **Communauté** : N'hésitez pas à partager vos configurations sur le forum Home Assistant.
+| Vue Globale | Composition Corporelle | Analyse Santé |
+| :---: | :---: | :---: |
+| ![Vue Globale](https://github.com/xez7082/health-dashboard-card/blob/main/health.png?raw=true) | ![Détails Forme](https://github.com/xez7082/health-dashboard-card/blob/main/health1.png?raw=true) | ![Analyse Santé](https://github.com/xez7082/health-dashboard-card/blob/main/health2.png?raw=true) |
 
 ---
 
-*Dernière mise à jour : Février 2026*
+## 🛠️ Configuration des Indicateurs
 
-Une carte Home Assistant (Lovelace) hautement personnalisable pour le suivi de la santé de deux personnes. Conçue pour offrir une visualisation moderne et intuitive de vos données biométriques (poids, pas, IMC, etc.).
+Voici le guide des icônes **MDI** et des couleurs recommandées pour chaque catégorie.
 
+### 🏃 Catégorie : FORME
+| Indicateur | Icône MDI | Unité | Couleur |
+| :--- | :--- | :--- | :--- |
+| **Poids** | `mdi:scale-bathroom` | `kg` | `#f1f5f9` |
+| **IMC** | `mdi:human-male-height-variant` | `idx` | `#38bdf8` |
+| **Calories Actives** | `mdi:fire` | `kcal` | `#f59e0b` |
+| **Masse Musculaire** | `mdi:arm-flex` | `kg` | `#22c55e` |
+| **Masse Maigre** | `mdi:dumbbell` | `kg` | `#10b981` |
+| **Taux de Graisse** | `mdi:chart-pie` | `%` | `#fbbf24` |
+| **Perte de Poids** | `mdi:trending-down` | `kg` | `#22c55e` |
+| **Corpulence** | `mdi:human-male-height` | `-` | `#f1f5f9` |
 
+### 🩺 Catégorie : SANTÉ
+| Indicateur | Icône MDI | Unité | Couleur |
+| :--- | :--- | :--- | :--- |
+| **Masse Osseuse** | `mdi:bone` | `kg` | `#e2e8f0` |
+| **Hydratation** | `mdi:water` | `%` | `#06b6d4` |
+| **Graisse Viscérale** | `mdi:target` | `idx` | `#be123c` |
 
-## ✨ Caractéristiques
-
-- **Double Profil** : Basculez entre deux profils (ex: Patrick & Sandra) via des boutons dédiés.
-- **Suivi de Poids Interactif** : Une barre de progression visuelle entre le poids de départ et le poids idéal, incluant le calcul automatique du delta.
-- **Jauge de Pas** : Un anneau de progression circulaire basé sur votre objectif quotidien.
-- **Blocs Santé Flexibles** : Affichage de l'IMC et de la Corpulence avec personnalisation complète des icônes et du texte.
-- **Capteurs Additionnels** : Ajoutez autant de capteurs que vous le souhaitez (Sommeil, Tension, Température, etc.).
-- **Éditeur Visuel (GUI)** : Plus besoin de coder en YAML. Configurez positions, tailles et entités directement dans l'interface.
-
----
-
-## 🚀 Installation
-
-1. **Fichier** : Téléchargez `health-dashboard-card.js` et placez-le dans votre dossier `/config/www/`.
-2. **Ressource** : Dans Home Assistant, allez dans *Paramètres* > *Tableaux de bord* > *Ressources* et ajoutez :
-   - **URL** : `/local/health-dashboard-card.js`
-   - **Type** : `Module JavaScript`
-3. **Carte** : Ajoutez une nouvelle carte `Custom: Health Dashboard Card` à votre tableau de bord.
-
----
-
-## ⚙️ Configuration de l'Éditeur
-
-L'éditeur est divisé en quatre sections pour une gestion simplifiée :
-
-### 1. Profil 👤
-- **Nom** : Identité affichée sur le bouton.
-- **Image** : URL de l'image de fond pour le profil.
-- **Objectifs** : Réglage du poids de départ, de l'objectif et du poids idéal.
-- **Pas** : Définition de l'objectif quotidien de pas.
-
-### 2. Santé 🏥
-- **IMC & Corpulence** : Choix des entités, personnalisation des noms, des icônes, des tailles de police et positionnement précis sur la carte (X/Y).
-
-### 3. Capteurs ➕
-- **Gestion libre** : Ajoutez des capteurs supplémentaires.
-- **Icônes** : Chaque capteur peut avoir sa propre icône MDI.
-- **Positionnement** : Déplacement libre de chaque bloc via les coordonnées en pourcentage (%).
-- **Suppression** : Bouton direct pour retirer les capteurs inutiles.
-
-### 4. Design 🎨
-- **Dimensions globales** : Hauteur de la carte et taille par défaut des blocs.
-- **Positions** : Ajustement de l'emplacement des boutons de profil et de l'offset de l'image de fond.
+### 😴 Catégorie : SOMMEIL
+| Indicateur | Icône MDI | Unité | Couleur |
+| :--- | :--- | :--- | :--- |
+| **Score Sommeil** | `mdi:star-face` | `/100` | `#818cf8` |
+| **Sommeil Profond** | `mdi:weather-night` | `h` | `#6366f1` |
+| **Sommeil Léger** | `mdi:weather-partly-cloudy` | `h` | `#a5b4fc` |
 
 ---
 
-## 🛠️ Entités Requises
+## 🚀 Caractéristiques de la V4.9.1
 
-Pour une intégration automatique (ex: Withings), la carte utilise les suffixes de profil :
+* **Précision Chirurgicale** : Affichage forcé à **2 chiffres après la virgule** (ex: `22,45`) pour un suivi médical précis.
+* **Design Adaptatif** : Utilisation des paramètres `X`, `W` (Largeur) et `H` (Hauteur) pour créer une grille personnalisée.
+* **Gestion des Catégories** : Tri automatique des capteurs dans les sections `forme`, `sante` et `sommeil`.
+* **Support Chaîne de Caractères** : Affiche aussi bien des chiffres que du texte (ex: Corpulence "Normale").
 
-- **Poids** : `sensor.withings_poids_patrick` / `_sandra`
-- **Différence** : `sensor.difference_poids_patrick` / `_sandra`
-- **Pas** : `sensor.withings_pas_patrick` / `_sandra`
+## 📦 Installation
 
----
-
-## 🔄 Historique des Versions
-
-- **v2.1.4** : Gestion des icônes pour les capteurs additionnels.
-- **v2.1.3** : Personnalisation des textes et icônes IMC/Corpulence.
-- **v2.1.2** : Intégration des réglages de design globaux (X/Y boutons, polices).
-- **v2.1.1** : Correction du bug de suppression des capteurs dans l'éditeur.
+1.  Ajoutez le fichier `health-dashboard-card.js` à votre dossier `www/community/`.
+2.  Ajoutez la ressource dans votre configuration Home Assistant.
+3.  Utilisez l'éditeur visuel pour ajouter vos entités et définir leurs catégories respectives.
 
 ---
 
-*Développé pour Home Assistant - 2026*
+## 📜 Licence
+Ce projet est sous licence **MIT**. Toute contribution est la bienvenue !
