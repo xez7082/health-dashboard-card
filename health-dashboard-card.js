@@ -1,32 +1,28 @@
 /**
- * HEALTH DASHBOARD CARD — V6.0
- * Design médical clinique | Auto-placement capteurs | Éditeur visuel clair
+ * HEALTH DASHBOARD CARD — V6.1
+ * 500px strict sans scroll | Avatar cliquable | Auto-grid capteurs
  */
 
-const CATEGORY_CONFIG = {
-  forme:    { label: '⚡ Forme & Activité',  color: '#06b6d4', bg: 'rgba(6,182,212,0.08)',   icon: 'mdi:lightning-bolt' },
-  sommeil:  { label: '🌙 Sommeil',           color: '#818cf8', bg: 'rgba(129,140,248,0.08)', icon: 'mdi:moon-waning-crescent' },
-  sante:    { label: '🩺 Santé',             color: '#10b981', bg: 'rgba(16,185,129,0.08)',  icon: 'mdi:heart-pulse' },
-  nutrition:{ label: '🥗 Nutrition',         color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  icon: 'mdi:food-apple' },
+const CAT = {
+  forme:     { label: '⚡ Forme',    color: '#06b6d4', bg: 'rgba(6,182,212,0.07)'   },
+  sommeil:   { label: '🌙 Sommeil',  color: '#818cf8', bg: 'rgba(129,140,248,0.07)' },
+  sante:     { label: '🩺 Santé',    color: '#10b981', bg: 'rgba(16,185,129,0.07)'  },
+  nutrition: { label: '🥗 Nutrition',color: '#f59e0b', bg: 'rgba(245,158,11,0.07)'  },
 };
 
-const ECG_PATH = "M0,30 L30,30 L38,10 L46,50 L54,5 L62,55 L70,30 L100,30";
-
 class HealthDashboardCard extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); }
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this._editingImage = false;
+  }
 
   static getConfigElement() { return document.createElement('health-dashboard-card-editor'); }
 
   static getStubConfig() {
     return {
       current_person_idx: 0,
-      people: [{
-        name: 'Moi',
-        weight_entity: '',
-        start: 80, ideal: 75,
-        image: '',
-        sensors: []
-      }]
+      people: [{ name: 'Moi', weight_entity: '', start: 80, ideal: 75, image: '', sensors: [] }]
     };
   }
 
@@ -68,8 +64,7 @@ class HealthDashboardCard extends HTMLElement {
       const diff = (cur - start).toFixed(2);
       const total = Math.abs(start - ideal);
       const done = Math.abs(start - cur);
-      let pct = total ? Math.min(100, Math.max(0, (done / total) * 100)) : 0;
-      if (cur > start && ideal < start) pct = 0;
+      const pct = total ? Math.min(100, Math.max(0, (done / total) * 100)) : 0;
 
       const set = (id, txt) => { const e = this.shadowRoot.getElementById(id); if (e) e.textContent = txt; };
       set('weight-val', cur.toFixed(2) + ' kg');
@@ -86,245 +81,317 @@ class HealthDashboardCard extends HTMLElement {
     }
   }
 
-  _groupSensorsByCategory(sensors) {
-    const groups = {};
+  _groups(sensors) {
+    const g = {};
     (sensors || []).forEach((s, i) => {
-      const cat = s.cat || 'forme';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push({ ...s, _idx: i });
+      const c = s.cat || 'forme';
+      if (!g[c]) g[c] = [];
+      g[c].push({ ...s, _idx: i });
     });
-    return groups;
+    return g;
   }
 
   render() {
     if (!this._config) return;
     const idx = this._config.current_person_idx;
     const p = this._config.people[idx] || this._config.people[0];
-    const groups = this._groupSensorsByCategory(p.sensors);
-    const cats = Object.keys(CATEGORY_CONFIG).filter(k => groups[k] && groups[k].length > 0);
+    const groups = this._groups(p.sensors);
+    const cats = Object.keys(CAT).filter(k => groups[k]?.length > 0);
+    const initials = (p.name || '?')[0].toUpperCase();
 
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         .card {
           font-family: 'Roboto', 'Segoe UI', sans-serif;
           background: #0d1321;
           border-radius: 20px;
-          overflow: hidden;
           color: #e2e8f0;
           border: 1px solid #1e2d3d;
+          height: 500px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
           position: relative;
         }
         .card::before {
           content: '';
           position: absolute;
-          top: 0; left: 0; right: 0;
-          height: 3px;
+          top: 0; left: 0; right: 0; height: 3px;
           background: linear-gradient(90deg, #06b6d4, #818cf8, #10b981);
-          z-index: 10;
+          z-index: 5;
         }
+
         .hero {
-          position: relative;
-          padding: 18px 18px 14px;
+          flex-shrink: 0;
+          padding: 14px 14px 10px;
           background: #111827;
           border-bottom: 1px solid #1e2d3d;
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 12px;
+          gap: 10px;
+          position: relative;
         }
-        .hero-left { display: flex; align-items: center; gap: 12px; }
+
+        .av-wrap {
+          position: relative;
+          width: 44px; height: 44px;
+          flex-shrink: 0;
+          cursor: pointer;
+        }
+        .av-wrap:hover .av-overlay { opacity: 1; }
         .avatar {
-          width: 48px; height: 48px;
+          width: 44px; height: 44px;
           border-radius: 50%;
-          overflow: hidden;
           background: #1e2d3d;
           border: 2px solid #06b6d4;
-          flex-shrink: 0;
+          overflow: hidden;
           display: flex; align-items: center; justify-content: center;
         }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .avatar-initials { font-size: 18px; font-weight: 700; color: #06b6d4; }
-        .name { font-size: 15px; font-weight: 700; color: #f1f5f9; letter-spacing: 0.5px; }
-        .subtitle { font-size: 11px; color: #64748b; margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
-        .ecg-container {
-          flex: 1;
-          height: 36px;
-          position: relative;
-          overflow: hidden;
-          opacity: 0.5;
-          min-width: 80px;
+        .av-initials { font-size: 17px; font-weight: 800; color: #06b6d4; }
+        .av-overlay {
+          position: absolute; inset: 0;
+          border-radius: 50%;
+          background: rgba(6,182,212,0.8);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 15px;
+          opacity: 0;
+          transition: opacity 0.2s;
         }
-        .ecg-svg { position: absolute; left: 0; top: 0; width: 200%; height: 100%; animation: ecg-scroll 2s linear infinite; }
-        @keyframes ecg-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .switchers { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .img-popup {
+          position: absolute;
+          top: 58px; left: 10px;
+          width: 260px;
+          background: #1e293b;
+          border: 1px solid #334155;
+          border-radius: 10px;
+          padding: 10px;
+          z-index: 50;
+          display: flex; gap: 6px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        .img-popup input {
+          flex: 1; padding: 6px 8px;
+          background: #0f172a; color: #e2e8f0;
+          border: 1px solid #334155; border-radius: 6px;
+          font-size: 11px; outline: none;
+        }
+        .img-popup button {
+          padding: 6px 10px; border-radius: 6px; border: none;
+          background: #06b6d4; color: #000; font-weight: 700; cursor: pointer; font-size: 11px;
+        }
+
+        .name { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+        .subtitle { font-size: 10px; color: #64748b; margin-top: 1px; letter-spacing: 0.8px; text-transform: uppercase; }
+
+        .ecg { flex: 1; height: 30px; overflow: hidden; opacity: 0.5; min-width: 60px; position: relative; }
+        .ecg svg { position: absolute; left: 0; top: 0; width: 200%; height: 100%; animation: ecg 2s linear infinite; }
+        @keyframes ecg { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+        .sw-btns { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
         .sw-btn {
           background: #1e2d3d; border: 1px solid #2d4057;
-          color: #94a3b8; padding: 6px 12px;
-          border-radius: 20px; cursor: pointer;
-          font-size: 11px; font-weight: 700;
+          color: #94a3b8; padding: 5px 10px; border-radius: 20px;
+          cursor: pointer; font-size: 10px; font-weight: 700;
           text-transform: uppercase; letter-spacing: 0.5px;
-          transition: all 0.2s;
         }
-        .sw-btn.active { background: #06b6d4; border-color: #06b6d4; color: #0d1321; }
-        .body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .section {
-          border-radius: 14px;
+        .sw-btn.on { background: #06b6d4; border-color: #06b6d4; color: #0d1321; }
+
+        .body {
+          flex: 1;
+          min-height: 0;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
           overflow: hidden;
+        }
+
+        .section {
+          flex: 1;
+          min-height: 0;
+          border-radius: 12px;
           border: 1px solid;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
-        .section-header {
-          display: flex; align-items: center; gap: 8px;
-          padding: 8px 14px;
-          font-size: 11px; font-weight: 800;
-          letter-spacing: 1px; text-transform: uppercase;
+        .sec-hdr {
+          flex-shrink: 0;
+          display: flex; align-items: center; gap: 7px;
+          padding: 5px 11px;
+          font-size: 10px; font-weight: 800;
+          letter-spacing: 0.8px; text-transform: uppercase;
         }
-        .section-header .dot {
-          width: 7px; height: 7px;
-          border-radius: 50%;
-          animation: pulse-dot 2s ease-in-out infinite;
-        }
-        @keyframes pulse-dot {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.4); opacity: 0.7; }
-        }
+        .dot { width: 6px; height: 6px; border-radius: 50%; animation: pdot 2s infinite; flex-shrink: 0; }
+        @keyframes pdot { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:0.6} }
         .sensor-grid {
+          flex: 1;
+          min-height: 0;
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 8px;
-          padding: 10px 12px 12px;
+          grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+          gap: 5px;
+          padding: 5px 8px 8px;
+          align-content: stretch;
         }
         .sensor-box {
-          border-radius: 10px;
-          padding: 10px 8px;
+          border-radius: 9px;
+          padding: 5px 4px;
           display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          gap: 3px;
+          align-items: center; justify-content: center; gap: 2px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.07);
           text-align: center;
-          min-height: 72px;
+          min-height: 0;
+          overflow: hidden;
         }
-        .s-icon { --mdc-icon-size: 20px; }
         .s-name {
-          font-size: 9px;
-          color: #94a3b8;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          font-weight: 600;
-          line-height: 1.2;
+          font-size: 8px; color: #94a3b8;
+          text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;
+          line-height: 1.2; font-family: sans-serif;
         }
         .s-val {
-          font-size: 14px;
-          font-weight: 800;
-          font-family: 'Courier New', monospace;
-          letter-spacing: -0.5px;
+          font-size: 12px; font-weight: 800;
+          font-family: 'Courier New', monospace; letter-spacing: -0.5px; line-height: 1;
         }
-        .weight-card {
+
+        .wcard {
+          flex-shrink: 0;
           background: #111827;
-          border-radius: 14px;
-          padding: 14px 16px;
+          border-radius: 12px;
+          padding: 10px 13px;
           border: 1px solid #1e3a5f;
         }
-        .weight-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .weight-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-        .weight-val { font-size: 28px; font-weight: 900; color: #06b6d4; font-family: 'Courier New', monospace; line-height: 1; margin-top: 2px; }
-        .weight-diff { text-align: right; }
-        .diff-val { font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; }
-        .prog-pct { font-size: 10px; color: #06b6d4; font-weight: 700; margin-top: 2px; }
-        .prog-track { height: 6px; background: #1e2d3d; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
-        .prog-bar {
-          height: 100%;
-          background: linear-gradient(90deg, #06b6d4, #10b981);
-          width: 0%;
-          border-radius: 3px;
-          transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .weight-footer { display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 600; }
-        .cross-icon { font-size: 16px; line-height: 1; }
-        .empty-state { text-align: center; padding: 20px; color: #475569; font-size: 12px; }
-        .bg-image { position: absolute; inset: 0; z-index: 0; opacity: 0.06; background-size: cover; background-position: center; pointer-events: none; }
+        .wrow { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; }
+        .wlbl { font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; font-family: sans-serif; }
+        .wval { font-size: 22px; font-weight: 900; color: #06b6d4; line-height: 1; margin-top: 1px; font-family: 'Courier New', monospace; }
+        .diff-val { font-size: 14px; font-weight: 700; font-family: 'Courier New', monospace; }
+        .prog-pct { font-size: 9px; color: #06b6d4; font-weight: 700; margin-top: 1px; font-family: sans-serif; }
+        .track { height: 5px; background: #1e2d3d; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+        .bar { height: 100%; background: linear-gradient(90deg, #06b6d4, #10b981); width: 0%; border-radius: 3px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+        .wfooter { display: flex; justify-content: space-between; font-size: 8px; color: #64748b; font-weight: 700; font-family: sans-serif; }
+
+        .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #334155; font-size: 12px; text-align: center; font-family: sans-serif; line-height: 1.6; }
       </style>
 
       <div class="card">
-        ${p.image ? `<div class="bg-image" style="background-image: url('${p.image}')"></div>` : ''}
         <div class="hero">
-          <div class="hero-left">
+          <div class="av-wrap" id="av-btn">
             <div class="avatar">
               ${p.image
                 ? `<img src="${p.image}" alt="${p.name}">`
-                : `<span class="avatar-initials">${(p.name||'?')[0].toUpperCase()}</span>`
-              }
+                : `<span class="av-initials">${initials}</span>`}
             </div>
-            <div>
-              <div class="name">${p.name || 'Utilisateur'}</div>
-              <div class="subtitle">Tableau de bord santé</div>
-            </div>
+            <div class="av-overlay">📷</div>
           </div>
-          <div class="ecg-container">
-            <svg class="ecg-svg" viewBox="0 0 200 36" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="${ECG_PATH} L130,30 L138,10 L146,50 L154,5 L162,55 L170,30 L200,30" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+          ${this._editingImage ? `
+            <div class="img-popup" id="img-popup">
+              <input type="text" id="img-input" placeholder="URL de la photo (https://…)" value="${p.image || ''}">
+              <button id="img-ok">OK</button>
+            </div>
+          ` : ''}
+
+          <div>
+            <div class="name">${p.name || 'Utilisateur'}</div>
+            <div class="subtitle">Tableau de bord santé</div>
+          </div>
+          <div class="ecg">
+            <svg viewBox="0 0 200 30" fill="none" preserveAspectRatio="none">
+              <path d="M0,15 L25,15 L32,4 L39,26 L46,2 L53,28 L60,15 L100,15 L107,4 L114,26 L121,2 L128,28 L135,15 L200,15" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           ${this._config.people.length > 1 ? `
-            <div class="switchers">
+            <div class="sw-btns">
               ${this._config.people.map((person, i) => `
-                <button class="sw-btn ${idx === i ? 'active' : ''}" id="btn-p-${i}">${(person.name||'P'+(i+1)).substring(0,8).toUpperCase()}</button>
+                <button class="sw-btn ${idx === i ? 'on' : ''}" id="btn-p-${i}">${(person.name || 'P'+(i+1)).substring(0,7).toUpperCase()}</button>
               `).join('')}
             </div>
           ` : ''}
         </div>
 
-        <div class="body" style="position:relative; z-index:1;">
-          ${cats.length === 0 ? `<div class="empty-state">Aucun capteur configuré.<br>Ajoutez des capteurs dans l'éditeur.</div>` : ''}
-
-          ${cats.map(cat => {
-            const cfg = CATEGORY_CONFIG[cat];
-            return `
-              <div class="section" style="border-color: ${cfg.color}33; background: ${cfg.bg};">
-                <div class="section-header" style="background: ${cfg.color}15; color: ${cfg.color};">
-                  <span class="dot" style="background: ${cfg.color};"></span>
-                  ${cfg.label}
-                </div>
-                <div class="sensor-grid">
-                  ${groups[cat].map(s => `
-                    <div class="sensor-box" style="border-color: ${s.col || cfg.color}33;">
-                      <ha-icon class="s-icon" icon="${s.icon || 'mdi:heart'}" style="--mdc-icon-size:20px; color:${s.col || cfg.color};"></ha-icon>
-                      <div class="s-name">${s.name || '—'}</div>
-                      <div class="s-val" id="s-${s._idx}-v" style="color:${s.col || cfg.color};">--</div>
+        <div class="body">
+          ${cats.length === 0
+            ? `<div class="empty">Aucun capteur configuré.<br>Ajoutez des capteurs dans l'éditeur ✏️</div>`
+            : cats.map(cat => {
+                const cfg = CAT[cat];
+                return `
+                  <div class="section" style="border-color:${cfg.color}2e; background:${cfg.bg};">
+                    <div class="sec-hdr" style="background:${cfg.color}12; color:${cfg.color};">
+                      <span class="dot" style="background:${cfg.color};"></span>
+                      ${cfg.label}
                     </div>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          }).join('')}
+                    <div class="sensor-grid">
+                      ${groups[cat].map(s => `
+                        <div class="sensor-box" style="border-color:${s.col || cfg.color}2e;">
+                          <ha-icon icon="${s.icon || 'mdi:heart'}" style="--mdc-icon-size:16px; color:${s.col || cfg.color};"></ha-icon>
+                          <div class="s-name">${s.name || '—'}</div>
+                          <div class="s-val" id="s-${s._idx}-v" style="color:${s.col || cfg.color};">--</div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                `;
+              }).join('')
+          }
 
-          <div class="weight-card">
-            <div class="weight-header">
+          <div class="wcard">
+            <div class="wrow">
               <div>
-                <div class="weight-label">⚖ Poids actuel</div>
-                <div class="weight-val" id="weight-val">--</div>
+                <div class="wlbl">⚖ Poids actuel</div>
+                <div class="wval" id="weight-val">--</div>
               </div>
-              <div class="weight-diff">
+              <div style="text-align:right;">
                 <div class="diff-val" id="diff-val">--</div>
                 <div class="prog-pct" id="prog-pct">0% atteint</div>
               </div>
             </div>
-            <div class="prog-track"><div class="prog-bar" id="prog-bar"></div></div>
-            <div class="weight-footer">
+            <div class="track"><div class="bar" id="prog-bar"></div></div>
+            <div class="wfooter">
               <span>🏁 Départ : ${p.start} kg</span>
               <span id="reste-val">-- restants</span>
-              <span>🎯 Objectif : ${p.ideal} kg</span>
+              <span>🎯 But : ${p.ideal} kg</span>
             </div>
           </div>
         </div>
       </div>
     `;
 
+    // Avatar → toggle popup
+    this.shadowRoot.getElementById('av-btn').onclick = (e) => {
+      e.stopPropagation();
+      this._editingImage = !this._editingImage;
+      this.render();
+    };
+
+    // Valider URL
+    const imgOk = this.shadowRoot.getElementById('img-ok');
+    if (imgOk) {
+      imgOk.onclick = (e) => {
+        e.stopPropagation();
+        const val = this.shadowRoot.getElementById('img-input').value.trim();
+        this._config.people[idx].image = val;
+        this._editingImage = false;
+        this._fire();
+      };
+    }
+
+    // Fermer popup si clic ailleurs sur la carte
+    this.shadowRoot.querySelector('.card').addEventListener('click', (e) => {
+      if (this._editingImage && !e.target.closest('#av-btn') && !e.target.closest('#img-popup')) {
+        this._editingImage = false;
+        this.render();
+      }
+    });
+
+    // Switchers personnes
     this._config.people.forEach((_, i) => {
       const btn = this.shadowRoot.getElementById(`btn-p-${i}`);
-      if (btn) btn.onclick = () => { this._config.current_person_idx = i; this._fire(); };
+      if (btn) btn.onclick = (e) => { e.stopPropagation(); this._config.current_person_idx = i; this._fire(); };
     });
 
     if (this._hass) this.update();
@@ -338,8 +405,7 @@ class HealthDashboardCard extends HTMLElement {
 
 
 /** ================================================================
- *  ÉDITEUR — V6.0
- *  Interface claire, sections logiques, labels en français
+ *  ÉDITEUR — V6.1
  * ================================================================ */
 class HealthDashboardCardEditor extends HTMLElement {
   constructor() { super(); this._tab = 'profil'; this._expandedSensor = null; }
@@ -356,171 +422,156 @@ class HealthDashboardCardEditor extends HTMLElement {
     const idx = this._config.current_person_idx || 0;
     const p = this._p;
 
-    const tabStyle = (t) => `
-      padding: 8px 14px; border-radius: 8px; cursor: pointer; border: none;
-      font-size: 12px; font-weight: 700;
-      background: ${this._tab === t ? '#06b6d4' : '#2a2a3e'};
-      color: ${this._tab === t ? '#000' : '#94a3b8'};
-    `;
-
-    const inputStyle = `
-      width: 100%; padding: 8px 10px;
-      background: #1a1a2e; color: #e2e8f0;
-      border: 1px solid #2d2d44; border-radius: 8px;
-      font-size: 12px; outline: none;
-    `;
-
-    const labelStyle = `font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;`;
-    const rowStyle = `display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;`;
-    const groupStyle = `background: #12121f; border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid #1e1e32;`;
-
     this.innerHTML = `
       <style>
         .ed { padding: 14px; background: #0d0d1a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; font-size: 13px; border-radius: 12px; }
-        input, select { width: 100%; padding: 8px 10px; background: #1a1a2e; color: #e2e8f0; border: 1px solid #2d2d44; border-radius: 8px; font-size: 12px; outline: none; box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; }
+        input, select { width: 100%; padding: 8px 10px; background: #1a1a2e; color: #e2e8f0; border: 1px solid #2d2d44; border-radius: 8px; font-size: 12px; outline: none; }
         input:focus, select:focus { border-color: #06b6d4; }
         input[type="color"] { height: 36px; padding: 2px 4px; cursor: pointer; }
-        label { font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        .section-title { font-size: 12px; font-weight: 800; color: #06b6d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-        .divider { height: 1px; background: #1e1e32; margin: 14px 0; }
-        .group { background: #12121f; border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid #1e1e32; }
-        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; }
-        .person-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-        .p-tab { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid #2d2d44; }
-        .s-card { background: #12121f; border-radius: 10px; border-left: 3px solid; margin-bottom: 8px; overflow: hidden; }
-        .s-header { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-        .s-header-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
-        .s-body { padding: 12px; border-top: 1px solid #1e1e32; }
-        .del-btn { background: #7f1d1d; color: #fca5a5; padding: 5px 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; }
-        .add-btn { width: 100%; padding: 10px; background: #0c4a6e; color: #38bdf8; border: 1px dashed #0369a1; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; }
-        .cat-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+        label { font-size: 10px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block; }
         .hint { font-size: 10px; color: #475569; margin-top: 4px; font-style: italic; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; margin-right: 4px; }
+        .stitle { font-size: 11px; font-weight: 800; color: #06b6d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .group { background: #12121f; border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid #1e1e32; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+        .tab-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+        .tab { padding: 8px 14px; border-radius: 8px; cursor: pointer; border: none; font-size: 12px; font-weight: 700; }
+        .p-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+        .p-tab { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid; }
+        .s-card { background: #12121f; border-radius: 10px; border-left: 3px solid; margin-bottom: 8px; overflow: hidden; }
+        .s-hdr { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .s-hdr-l { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+        .s-body { padding: 12px; border-top: 1px solid #1e1e32; }
+        .del-btn { background: #7f1d1d; color: #fca5a5; padding: 4px 9px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; }
+        .add-btn { width: 100%; padding: 10px; background: #0c4a6e; color: #38bdf8; border: 1px dashed #0369a1; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; }
+        .badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+        .av-preview {
+          width: 52px; height: 52px; border-radius: 50%; overflow: hidden;
+          background: #1e2d3d; border: 2px solid #06b6d4;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 20px; font-weight: 800; color: #06b6d4; flex-shrink: 0;
+        }
+        .av-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .av-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .av-info { flex: 1; }
       </style>
 
       <div class="ed">
 
-        <!-- Sélecteur de personne -->
-        <div class="section-title">👤 Personnes</div>
-        <div class="person-tabs">
+        <div class="stitle">👥 Profils</div>
+        <div class="p-tabs">
           ${this._config.people.map((person, i) => `
             <div class="p-tab" id="sel-${i}"
               style="background:${idx===i?'#06b6d4':'#1a1a2e'}; color:${idx===i?'#000':'#94a3b8'}; border-color:${idx===i?'#06b6d4':'#2d2d44'};">
-              ${idx===i?'✓ ':''}${person.name || 'Personne '+(i+1)}
+              ${idx===i?'✓ ':''}${(person.name||'Personne '+(i+1)).substring(0,12)}
             </div>
           `).join('')}
-          <div class="p-tab" id="add-p" style="background:#0a2a1a; color:#10b981; border-color:#10b981;">+ Ajouter</div>
+          <div class="p-tab" id="add-p" style="background:#0a2a1a; color:#10b981; border-color:#10b981;">+ Nouveau</div>
         </div>
 
-        <!-- Onglets -->
-        <div style="display:flex; gap:8px; margin-bottom:14px;">
-          <button style="${tabStyle('profil')}" id="t-profil">👤 Profil & Poids</button>
-          <button style="${tabStyle('capteurs')}" id="t-capteurs">📊 Capteurs (${(p.sensors||[]).length})</button>
+        <div class="tab-bar">
+          <button class="tab" id="t-profil"
+            style="background:${this._tab==='profil'?'#06b6d4':'#2a2a3e'}; color:${this._tab==='profil'?'#000':'#94a3b8'};">
+            👤 Profil & Poids
+          </button>
+          <button class="tab" id="t-capteurs"
+            style="background:${this._tab==='capteurs'?'#06b6d4':'#2a2a3e'}; color:${this._tab==='capteurs'?'#000':'#94a3b8'};">
+            📊 Capteurs (${(p.sensors||[]).length})
+          </button>
         </div>
 
         ${this._tab === 'profil' ? `
-          <!-- ONGLET PROFIL -->
+
           <div class="group">
-            <div class="section-title">🪪 Identité</div>
-            <label>Prénom / Nom affiché</label>
-            <input type="text" data-f="name" value="${p.name||''}">
-            <div style="margin-top:10px;">
-              <label>Photo (URL d'image)</label>
-              <input type="text" data-f="image" value="${p.image||''}" placeholder="https://...">
-              <div class="hint">Apparaît en avatar et en fond de carte</div>
+            <div class="stitle">🖼 Photo de profil</div>
+            <div class="av-row">
+              <div class="av-preview" id="av-prev">
+                ${p.image ? `<img src="${p.image}" alt="">` : (p.name||'?')[0].toUpperCase()}
+              </div>
+              <div class="av-info">
+                <label>URL de la photo</label>
+                <input type="text" data-f="image" id="img-url-input" value="${p.image||''}" placeholder="https://exemple.com/photo.jpg">
+                <div class="hint">Coller l'adresse web d'une image • L'avatar se met à jour en direct</div>
+              </div>
             </div>
+            <label>Nom affiché sur la carte</label>
+            <input type="text" data-f="name" value="${p.name||''}">
           </div>
 
           <div class="group">
-            <div class="section-title">⚖ Suivi du poids</div>
-            <label>Entité Home Assistant (poids)</label>
-            <input type="text" data-f="weight_entity" value="${p.weight_entity||''}" placeholder="sensor.mon_poids">
-            <div class="hint">Ex: sensor.withings_weight, sensor.fitbit_weight</div>
-            <div class="row2" style="margin-top:10px;">
+            <div class="stitle">⚖ Suivi du poids</div>
+            <label>Entité Home Assistant (capteur de poids)</label>
+            <input type="text" data-f="weight_entity" value="${p.weight_entity||''}" placeholder="sensor.withings_weight">
+            <div class="hint">L'état de cette entité doit contenir la valeur en kg</div>
+            <div class="row2">
               <div>
                 <label>Poids de départ (kg)</label>
                 <input type="number" data-f="start" value="${p.start||80}" step="0.1">
               </div>
               <div>
-                <label>Objectif à atteindre (kg)</label>
+                <label>Objectif (kg)</label>
                 <input type="number" data-f="ideal" value="${p.ideal||75}" step="0.1">
               </div>
             </div>
-            <div class="hint" style="margin-top:6px;">La barre de progression se calcule automatiquement</div>
+            <div class="hint" style="margin-top:6px;">La barre de progression se calcule automatiquement entre ces deux valeurs</div>
           </div>
 
-          <div style="margin-top: 6px;">
-            ${this._config.people.length > 1 ? `<button class="btn" id="del-p" style="background:#7f1d1d; color:#fca5a5; width:100%;">🗑 Supprimer ce profil</button>` : ''}
-          </div>
+          ${this._config.people.length > 1
+            ? `<button style="width:100%; padding:9px; background:#7f1d1d; color:#fca5a5; border:none; border-radius:8px; cursor:pointer; font-weight:700;" id="del-p">🗑 Supprimer ce profil</button>`
+            : ''}
 
         ` : `
-          <!-- ONGLET CAPTEURS -->
-          <div class="group" style="margin-bottom:10px; padding:10px 12px;">
-            <div style="font-size:11px; color:#94a3b8; line-height:1.5;">
-              Les capteurs s'organisent <strong style="color:#06b6d4;">automatiquement</strong> par catégorie.
-              Choisissez une catégorie et ils se placent seuls dans la bonne section.
+
+          <div class="group" style="padding:9px 12px;">
+            <div style="font-size:11px; color:#94a3b8; line-height:1.6;">
+              Les capteurs se placent <strong style="color:#06b6d4;">automatiquement</strong> dans la bonne section selon la catégorie choisie. Pas de position manuelle !
             </div>
           </div>
 
-          ${(p.sensors || []).length === 0 ? `
-            <div style="text-align:center; padding:20px; color:#475569;">
-              <div style="font-size:28px; margin-bottom:8px;">📭</div>
-              <div>Aucun capteur. Cliquez sur + pour en ajouter un.</div>
+          ${(p.sensors||[]).length === 0 ? `
+            <div style="text-align:center; padding:24px; color:#475569;">
+              <div style="font-size:32px; margin-bottom:8px;">📭</div>
+              <div style="font-size:12px;">Aucun capteur configuré.<br>Cliquez sur + pour en ajouter.</div>
             </div>
           ` : ''}
 
-          ${(p.sensors || []).map((s, i) => {
-            const cat = CATEGORY_CONFIG[s.cat || 'forme'];
+          ${(p.sensors||[]).map((s, i) => {
+            const cat = CAT[s.cat||'forme'];
             const isOpen = this._expandedSensor === i;
             return `
               <div class="s-card" style="border-color:${s.col||cat.color};">
-                <div class="s-header" id="s-toggle-${i}">
-                  <div class="s-header-left">
-                    <span style="color:${s.col||cat.color}; font-size:16px;">●</span>
+                <div class="s-hdr" id="s-tgl-${i}">
+                  <div class="s-hdr-l">
+                    <span style="color:${s.col||cat.color}; font-size:14px;">●</span>
                     <span>${s.name || 'Capteur '+(i+1)}</span>
-                    <span class="cat-badge" style="background:${cat.color}22; color:${cat.color};">${cat.label.replace(/^.\s/,'')}</span>
+                    <span class="badge" style="background:${cat.color}22; color:${cat.color};">${cat.label.replace(/^.\s/,'')}</span>
                   </div>
                   <div style="display:flex; gap:6px; align-items:center;">
-                    <button class="del-btn del-s" data-idx="${i}">Supprimer</button>
-                    <span style="color:#64748b; font-size:14px;">${isOpen ? '▲' : '▼'}</span>
+                    <button class="del-btn del-s" data-idx="${i}">✕ Supprimer</button>
+                    <span style="color:#64748b; font-size:12px;">${isOpen?'▲':'▼'}</span>
                   </div>
                 </div>
                 ${isOpen ? `
                   <div class="s-body">
                     <div class="row2">
-                      <div>
-                        <label>Nom affiché</label>
-                        <input type="text" data-idx="${i}" data-f="name" value="${s.name||''}">
-                      </div>
-                      <div>
-                        <label>Unité (ex: bpm, %)</label>
-                        <input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}">
-                      </div>
+                      <div><label>Nom affiché</label><input type="text" data-idx="${i}" data-f="name" value="${s.name||''}"></div>
+                      <div><label>Unité (bpm, %, kg…)</label><input type="text" data-idx="${i}" data-f="unit" value="${s.unit||''}"></div>
                     </div>
-                    <div style="margin-top:10px;">
+                    <div style="margin-top:8px;">
                       <label>Entité Home Assistant</label>
                       <input type="text" data-idx="${i}" data-f="entity" value="${s.entity||''}" placeholder="sensor.mon_capteur">
                     </div>
-                    <div class="row2" style="margin-top:10px;">
-                      <div>
-                        <label>Icône MDI</label>
-                        <input type="text" data-idx="${i}" data-f="icon" value="${s.icon||'mdi:heart'}" placeholder="mdi:heart">
-                      </div>
-                      <div>
-                        <label>Couleur</label>
-                        <input type="color" data-idx="${i}" data-f="col" value="${s.col||cat.color}">
-                      </div>
+                    <div class="row2">
+                      <div><label>Icône (mdi:…)</label><input type="text" data-idx="${i}" data-f="icon" value="${s.icon||'mdi:heart'}"></div>
+                      <div><label>Couleur</label><input type="color" data-idx="${i}" data-f="col" value="${s.col||cat.color}"></div>
                     </div>
-                    <div style="margin-top:10px;">
-                      <label>Section / Catégorie</label>
+                    <div style="margin-top:8px;">
+                      <label>Section où apparaît ce capteur</label>
                       <select data-idx="${i}" data-f="cat">
-                        ${Object.entries(CATEGORY_CONFIG).map(([k,v]) => `
+                        ${Object.entries(CAT).map(([k,v]) => `
                           <option value="${k}" ${(s.cat||'forme')===k?'selected':''}>${v.label}</option>
                         `).join('')}
                       </select>
-                      <div class="hint">Détermine dans quelle section le capteur apparaît</div>
                     </div>
                   </div>
                 ` : ''}
@@ -528,7 +579,7 @@ class HealthDashboardCardEditor extends HTMLElement {
             `;
           }).join('')}
 
-          <button class="add-btn" id="add-s">+ Ajouter un nouveau capteur</button>
+          <button class="add-btn" id="add-s">+ Ajouter un capteur</button>
         `}
       </div>
     `;
@@ -546,7 +597,7 @@ class HealthDashboardCardEditor extends HTMLElement {
 
     const addP = this.querySelector('#add-p');
     if (addP) addP.onclick = () => {
-      this._config.people.push({ name: 'Nouveau', sensors: [], start: 80, ideal: 75 });
+      this._config.people.push({ name: 'Nouveau', sensors: [], start: 80, ideal: 75, image: '' });
       this._config.current_person_idx = this._config.people.length - 1;
       this._fire();
     };
@@ -564,13 +615,18 @@ class HealthDashboardCardEditor extends HTMLElement {
     this.querySelector('#t-capteurs').onclick = () => { this._tab = 'capteurs'; this.render(); };
 
     this.querySelectorAll('input, select').forEach(el => {
-      el.onchange = (e) => {
+      el.oninput = el.onchange = (e) => {
         const p = this._p;
         const v = e.target.value;
         if (el.dataset.idx !== undefined) {
           p.sensors[parseInt(el.dataset.idx)][el.dataset.f] = v;
         } else {
           p[el.dataset.f] = v;
+        }
+        // Aperçu avatar en direct lors de la saisie de l'URL
+        if (el.dataset.f === 'image') {
+          const av = this.querySelector('#av-prev');
+          if (av) av.innerHTML = v ? `<img src="${v}" alt="" style="width:100%;height:100%;object-fit:cover;">` : (p.name||'?')[0].toUpperCase();
         }
         this._fire();
       };
@@ -595,8 +651,8 @@ class HealthDashboardCardEditor extends HTMLElement {
     });
 
     (this._p.sensors || []).forEach((_, i) => {
-      const toggle = this.querySelector(`#s-toggle-${i}`);
-      if (toggle) toggle.onclick = (e) => {
+      const tgl = this.querySelector(`#s-tgl-${i}`);
+      if (tgl) tgl.onclick = (e) => {
         if (e.target.classList.contains('del-s') || e.target.classList.contains('del-btn')) return;
         this._expandedSensor = this._expandedSensor === i ? null : i;
         this.render();
@@ -616,6 +672,6 @@ customElements.define('health-dashboard-card-editor', HealthDashboardCardEditor)
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'health-dashboard-card',
-  name: 'Health Dashboard V6.0',
-  description: 'Design médical | Capteurs auto-positionnés | Éditeur visuel'
+  name: 'Health Dashboard V6.1',
+  description: '500px fixe | Avatar photo cliquable | Capteurs auto-positionnés'
 });
